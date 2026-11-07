@@ -1,12 +1,14 @@
 name: Release
 
-# Se lanza al publicar una release (desde GitHub o con la API) o al subir un tag vX.Y.Z.
+# Automático: al fusionar en main un cambio de VERSION se publica esa versión (si aún no existe).
+# También a mano: publicando una release en GitHub o con «Run workflow».
 # Construye el zip, lo adjunta a la release con SHA256SUMS y publica en npm con Trusted Publishing.
 on:
+  push:
+    branches: [main]
+    paths: [VERSION, .github/workflows/release.yml]
   release:
     types: [published]
-  push:
-    tags: ["v*.*.*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -25,35 +27,49 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Tag
-        run: |
-          T="${{ github.event.release.tag_name || inputs.tag || github.ref_name }}"
-          echo "TAG=$T" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
-          # lanzado a mano: se publica desde la rama elegida y la release crea el tag
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || env.TAG }}
+          # release publicada: su tag · a mano: la rama elegida · fusión en main: ese commit
+          ref: ${{ github.event.release.tag_name || (github.event_name == 'workflow_dispatch' && github.ref) || github.sha }}
+
+      - name: Tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          T="${{ github.event.release.tag_name || inputs.tag }}"
+          [ -n "$T" ] || T="v$(tr -d '[:space:]' < VERSION)"
+          echo "TAG=$T" >> "$GITHUB_ENV"
+          # en una fusión, si esa versión ya está publicada no hay nada que hacer
+          if [ "${{ github.event_name }}" = "push" ] && gh release view "$T" >/dev/null 2>&1; then
+            echo "La release $T ya existe: nada que publicar."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
       - name: El tag coincide con VERSION y package.json
+        if: env.SKIP != '1'
         run: |
           V="$(tr -d '[:space:]' < VERSION)"
           [ "v$V" = "$TAG" ] || { echo "::error::El tag $TAG no coincide con VERSION ($V)"; exit 1; }
           echo "VERSION=$V" >> "$GITHUB_ENV"
 
       - name: Comprobaciones y pruebas
+        if: env.SKIP != '1'
         run: |
           bash scripts/check.sh
           bash tests/test_install.sh
           bash tests/test_cli.sh
 
       - name: Empaquetar
+        if: env.SKIP != '1'
         run: bash scripts/build-release.sh
 
       - name: Notas desde CHANGELOG.md
+        if: env.SKIP != '1'
         run: |
           awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} f && /^## \[/ {exit} f' CHANGELOG.md | sed '/^\[.*\]: http/d' > notes.md
           cat >> notes.md <<NOTES
@@ -66,6 +82,7 @@ jobs:
           NOTES
 
       - name: Crear o actualizar la release y adjuntar el zip
+        if: env.SKIP != '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -77,6 +94,7 @@ jobs:
           gh release upload "$TAG" --clobber dist/orca-multiagent-kit-v$VERSION.zip dist/orca-multiagent-kit.zip dist/SHA256SUMS
 
       - name: Publicar en npm (Trusted Publishing, sin tokens)
+        if: env.SKIP != '1'
         # npm reconoce este workflow por OIDC (configurado en npmjs.com → Settings → Trusted Publisher).
         # La procedencia (provenance) se adjunta automáticamente.
         run: |
