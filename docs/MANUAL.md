@@ -69,7 +69,7 @@ orca-multiagent-kit/
 
 ## 4. Instalación (y migración desde CSR / MAW sueltos)
 
-Con Node ≥ 18 lo más cómodo es el CLI: `npx github:FernandoBaqueroo/orca-multiagent-kit install`, o `npm install -g github:FernandoBaqueroo/orca-multiagent-kit` para tener `omk` siempre (`omk install`, `omk init`, `omk verify`, `omk adopt`, `omk restore`, `omk update`). Sin Node, con el zip o un clon:
+Con Node ≥ 18 lo más cómodo es el CLI: `npx orca-multiagent-kit install`, o `npm install -g orca-multiagent-kit` para tener `omk` siempre (`omk install`, `omk init`, `omk verify`, `omk adopt`, `omk restore`, `omk update`). Sin Node, con el zip o un clon:
 
 ```bash
 cd ~/Documents/orca-multiagent-kit

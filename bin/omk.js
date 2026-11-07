@@ -9,7 +9,7 @@ const path = require('node:path');
 
 const KIT = path.resolve(__dirname, '..');
 const VERSION = fs.readFileSync(path.join(KIT, 'VERSION'), 'utf8').trim();
-const REPO = 'github:FernandoBaqueroo/orca-multiagent-kit';
+const REPO = 'orca-multiagent-kit';
 const AGENTS_HOME = process.env.AGENT_KIT_HOME || path.join(os.homedir(), '.agents');
 
 const color = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -38,7 +38,7 @@ ${bold('Comandos')}
 ${bold('Agentes')}  claude · antigravity · codex · copilot · cursor · devin (opcional)
 
 ${bold('Ejemplos')}
-  npx ${REPO} install --dry-run
+  npx orca-multiagent-kit install --dry-run
   omk install
   omk init ~/Dev/mi-app
   omk adopt ~/.gemini/config/plugins/user-workflows/skills/impeccable

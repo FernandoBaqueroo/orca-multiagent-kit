@@ -1,7 +1,7 @@
 name: Release
 
 # Se lanza al publicar una release (desde GitHub o con la API) o al subir un tag vX.Y.Z.
-# Construye el zip, lo adjunta a la release con SHA256SUMS y, si existe el secreto NPM_TOKEN, publica en npm.
+# Construye el zip, lo adjunta a la release con SHA256SUMS y publica en npm con Trusted Publishing.
 on:
   release:
     types: [published]
@@ -35,7 +35,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || env.TAG }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org
 
       - name: El tag coincide con VERSION y package.json
@@ -60,7 +60,7 @@ jobs:
 
           ### Instalar
           \`\`\`bash
-          npx github:FernandoBaqueroo/orca-multiagent-kit#$TAG install
+          npx orca-multiagent-kit@$VERSION install
           \`\`\`
           O descarga \`orca-multiagent-kit-v$VERSION.zip\`, descomprime y ejecuta \`./install.sh\`. Integridad: \`SHA256SUMS\`.
           NOTES
@@ -76,8 +76,13 @@ jobs:
           fi
           gh release upload "$TAG" --clobber dist/orca-multiagent-kit-v$VERSION.zip dist/orca-multiagent-kit.zip dist/SHA256SUMS
 
-      - name: Publicar en npm (solo si existe NPM_TOKEN)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: env.NODE_AUTH_TOKEN != ''
-        run: npm view "orca-multiagent-kit@$VERSION" version >/dev/null 2>&1 && echo "Ya publicado en npm" || npm publish --provenance --access public
+      - name: Publicar en npm (Trusted Publishing, sin tokens)
+        # npm reconoce este workflow por OIDC (configurado en npmjs.com → Settings → Trusted Publisher).
+        # La procedencia (provenance) se adjunta automáticamente.
+        run: |
+          npm install -g npm@latest
+          if npm view "orca-multiagent-kit@$VERSION" version >/dev/null 2>&1; then
+            echo "orca-multiagent-kit@$VERSION ya está en npm"
+          else
+            npm publish --access public
+          fi

@@ -21,12 +21,14 @@
 ![Node](https://img.shields.io/badge/node-%E2%89%A518-050605?style=flat-square&logo=nodedotjs&logoColor=c6ff3d)
 ![Bash](https://img.shields.io/badge/bash-%E2%89%A53.2-050605?style=flat-square&logo=gnubash&logoColor=c6ff3d)
 
+[![npm](https://img.shields.io/npm/v/orca-multiagent-kit?style=for-the-badge&labelColor=050605&color=c6ff3d&logo=npm&logoColor=c6ff3d&label=npm)](https://www.npmjs.com/package/orca-multiagent-kit)
+
 [**Descargar ZIP**](https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest/download/orca-multiagent-kit.zip) · [Web interactiva](https://fernandobaqueroo.github.io/orca-multiagent-kit/) · [Guía visual](https://fernandobaqueroo.github.io/orca-multiagent-kit/guia.html) · [Manual](docs/MANUAL.md) · [Changelog](CHANGELOG.md)
 
 </div>
 
 ```bash
-npx github:FernandoBaqueroo/orca-multiagent-kit install
+npx orca-multiagent-kit install
 ```
 
 ---
@@ -68,13 +70,13 @@ Cuatro formas. Todas instalan lo mismo, hacen backup de lo que tocan y se deshac
 
 **1. npx** (Node ≥ 18, sin instalar nada global)
 ```bash
-npx github:FernandoBaqueroo/orca-multiagent-kit install --dry-run   # qué haría
-npx github:FernandoBaqueroo/orca-multiagent-kit install
+npx orca-multiagent-kit install --dry-run   # qué haría
+npx orca-multiagent-kit install
 ```
 
 **2. npm global**: deja el comando `omk` disponible siempre
 ```bash
-npm install -g github:FernandoBaqueroo/orca-multiagent-kit
+npm install -g orca-multiagent-kit
 omk install
 ```
 
