@@ -54,9 +54,9 @@ Un fichero nuevo en `rules/`, una fila en `rules/00-router.md` (disparador y cos
 
 1. Actualiza `VERSION`, `package.json`, la cabecera de `core/AGENTS.md` y mueve `[Unreleased]` a `[X.Y.Z] - AAAA-MM-DD` en `CHANGELOG.md`.
 2. `python3 scripts/banner.py assets && bash scripts/check.sh`.
-3. Commit `chore(release): vX.Y.Z`.
-4. Publica la release: en GitHub, *Releases → Draft a new release* con el tag `vX.Y.Z` (o sube el tag).
-5. El workflow **Release** comprueba que el tag coincide con `VERSION` y `package.json`, ejecuta las pruebas, adjunta el zip y `SHA256SUMS` y publica en npm con Trusted Publishing (sin tokens).
+3. Commit `chore(release): vX.Y.Z` en una rama y abre un PR.
+4. Al fusionarlo, el workflow **Release** se lanza solo (detecta el cambio de `VERSION`): comprueba que coincide con `package.json`, ejecuta las pruebas, crea la release `vX.Y.Z` con el zip y `SHA256SUMS` y publica en npm con Trusted Publishing (sin tokens).
+5. Si una versión ya publicada necesita repetirse, lánzalo a mano: *Actions → Release → Run workflow* con el tag.
 
 ## Conducta
 

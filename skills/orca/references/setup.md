@@ -17,8 +17,9 @@ Genera o actualiza `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude` y `.work/
    - `orca.yaml` con `worktree.sharedDirectories` — solo directorios que **existen y están en `.gitignore`** (Orca ignora los demás).
    - `.worktreeinclude` — solo ficheros gitignorados, rutas literales (sin globs).
    - `.gitignore`: añade `.work/` si falta.
-4. **Pregunta** como máximo 3 cosas, en una tanda: reparto de agentes por capa, nivel de autonomía (`manual` / `semi` / `auto`; propón `semi`) y si los workers pueden hacer commits locales. Límite de workers: 3 salvo que el usuario diga otra cosa.
-5. **Reporta** en 2 líneas: qué se creó y qué quedó `TODO:`.
+4. **Orca** (si está instalado): `orca status --json` debe dar `runtime.reachable: true`. Si `orca orchestration run-list --json` falla, la orquestación está desactivada: dilo en una línea (Settings → Experimental → Orchestration) y deja `Motor preferido: subagents`. Si faltan las skills `orca-cli`/`orchestration` en `~/.agents/skills`, propón `orca skills install --skill orca-cli --skill orchestration` (no lo ejecutes sin permiso: escribe en la configuración global).
+5. **Pregunta** como máximo 3 cosas, en una tanda: reparto de agentes por capa, nivel de autonomía (`manual` / `semi` / `auto`; propón `semi`) y si los workers pueden hacer commits locales. Límite de workers: 3 salvo que el usuario diga otra cosa.
+6. **Reporta** en 2 líneas: qué se creó y qué quedó `TODO:`.
 
 ## Reglas
 - Nunca pongas en `.worktreeinclude` ficheros con credenciales de producción. Si el único `.env` tiene secretos reales: `RISK:` y propón `.env.development.local` sin secretos de producción.

@@ -12,6 +12,7 @@ Con el adaptador que toque (`adapters/chat.md` normalmente) genera **una** unida
 
 ## 2. Participantes
 2–3 agentes de **proveedores distintos** (Claude, Antigravity/Gemini, Codex…) o el mismo con modelos distintos. Mismo despacho, palabra por palabra. Motor: `orca` (ideal) o `manual`.
+Con Orca: una tarea por participante (`task-create --task-title "U1 carrera A" --spec-file <brief>`), cada una con su `worker-start --worktree new-child --base-branch <base>`; así cada intento tiene su worktree y su informe. En `run.md`, una fila por participante (`U1-A`, `U1-B`…).
 Variante "enfoques dirigidos": en vez de enfoque libre, asigna un enfoque por participante en `notes` (por ejemplo A: arreglar en el servicio; B: arreglar en la consulta).
 
 ## 3. Comparación (tabla fija)
