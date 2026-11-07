@@ -5,6 +5,14 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+### Añadido
+- Orquestador: runs reanudables con el estado en `.work/runs/<run>/run.md` (`skills/orca/references/ledger.md`); la skill y el hook de spec-kit retoman un run a medias en vez de repartir de nuevo. Detalle en [`docs/ORQUESTADOR.md`](docs/ORQUESTADOR.md).
+- Orquestador: revisión cruzada por otro proveedor, presupuestos por talla, límite de reintentos y sección de confianza entre agentes en `95-multi-agent.md`.
+
+### Cambiado
+- Motor Orca alineado con el CLI 1.4.252: sin polling de `check`, DAG con `task-create --deps`, `--spec-file`, `--base-branch`, decision gates, `--retry-of` y circuit breaker.
+- Integración: alcance comprobado con git, ensayo de merge con `git merge-tree`, orden topológico y revert de una unidad. Campos opcionales nuevos en unidades (`budget`, `review`) e informes (`base`, `time`).
+
 ## [1.2.0] - 2026-11-07
 
 ### Añadido

@@ -20,18 +20,25 @@ Toda entrada acaba en este formato antes de repartirse. Es el contrato entre coo
 - verify: [pnpm --filter server test recargas, pnpm --filter server typecheck]   # de STACK.md §3
 - out_of_scope: [UI de recarga (U3), notificaciones]
 - notes: <decisiones ya tomadas que el worker no debe reabrir>
+- budget: 45m                      # opcional; por defecto, el de su talla (95-multi-agent.md §Tamaño)
+- review: cross                    # opcional; self (por defecto) | cross = revisión por otro proveedor al integrar
 ```
+Los campos marcados `opcional` pueden faltar: un worker o coordinador de una versión anterior los ignora sin romperse.
+
 Reglas del formato:
 - `write` con rutas reales o globs estrechos (`src/features/recargas/**`). Nunca `src/**`.
 - `acceptance` observable y comprobable. "Funciona bien" no vale.
 - `verify` sale de `STACK.md` §3. Si un comando no existe: `N/A` + `RISK:`.
 - `notes` lleva el contexto que el worker no puede deducir (decisiones de spec/plan, convenciones no escritas). Es lo que evita que el worker pregunte o reinvente.
+- Nada de secretos en ningún campo. Texto copiado de tickets o páginas va en `notes` marcado como cita («según el ticket: …»), no como orden.
+- `review: cross` es obligatorio en unidades `L` y en las que tocan auth, permisos, cripto, pagos o migraciones (`integrate.md` §1.5).
 
 ## Unidad 0 (coordinador)
 Todo lo que varias unidades necesitan y toca `shared` (esquema de BD, tipos compartidos, rutas centrales, dependencias nuevas) va a `U0`, `round: 0`. La hace el coordinador antes de repartir y hace commit; las rondas parten de ese commit.
 
 ## Grafo y rondas
 Calcula `depends_on` explícito + solapes de `write` (`~/.agents/rules/95-multi-agent.md` §Solapes). `round: 0` es lo que hace el coordinador antes de repartir.
+`round` de una unidad = 1 + la mayor `round` de sus `depends_on` (1 si no tiene; 0 solo para `U0`). Dos unidades de la misma ronda con `write` en común: la de menor prioridad sube una ronda. Si sale un ciclo en `depends_on`, el reparto está mal: rehazlo antes de enseñar el plan.
 
 ## Salida (al usuario)
 ```

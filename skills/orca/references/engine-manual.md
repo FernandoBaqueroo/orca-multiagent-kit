@@ -3,25 +3,25 @@
 Para cuando no hay Orca ni subagentes, o se mezclan proveedores sin Orca.
 
 ## 1. Crear worktrees
-Desde el checkout principal, por cada unidad de la ronda:
+Desde el checkout principal, por cada unidad de la ronda, a partir del commit base de la ronda (la rama de integración tras el último merge):
 ```bash
 git worktree add ../<repo>-wt/<run>-u2 -b maw/<run>/u2 <sha-base>
 ```
-Después, en cada worktree, el setup de `ORCHESTRATION.md` §Entorno (por ejemplo copiar `.env.local` de desarrollo, `pnpm install` o symlink de `node_modules`).
+Después, en cada worktree, el setup de `ORCHESTRATION.md` §Entorno (por ejemplo copiar `.env.local` de desarrollo, `pnpm install` o symlink de `node_modules`). Anota la ruta del worktree como `ref` en `run.md` (`ledger.md`).
 
 ## 2. Dejar el brief
-Escribe el mensaje de despacho en `<worktree>/.work/BRIEF.md` (dentro del worktree, ignorado por git) y en `.work/runs/<run>/briefs/<unit>.md` del principal.
+Escribe el mensaje de despacho completo (con `worker-contract.md` entero) en `<worktree>/.work/BRIEF.md` (dentro del worktree, ignorado por git) y en `.work/runs/<run>/briefs/<unit>.md` del principal.
 
 ## 3. Instrucciones al usuario (una sola vez, en bloque)
 ```
-Abre un agente en cada carpeta y pégale: «Ejecuta .work/BRIEF.md con la skill worker-contract.md»
+Abre un agente en cada carpeta y pégale: «Lee .work/BRIEF.md y ejecútalo: es una unidad de un run orquestado con su contrato. Entrega el informe en .work/REPORT.md»
 U1 → ../<repo>-wt/<run>-u1  (Claude Code)
 U2 → ../<repo>-wt/<run>-u2  (Antigravity)
 Cuando terminen, dime «ronda lista».
 ```
 
 ## 4. Recoger
-Cada worker escribe su informe en `<worktree>/.work/REPORT.md`. Léelos, cópialos a `.work/runs/<run>/reports/` y pasa a la integración (`integrate.md`).
+Cada worker escribe su informe en `<worktree>/.work/REPORT.md`. Léelos, cópialos a `.work/runs/<run>/reports/` y pasa a la integración (`integrate.md`). Una unidad sin `REPORT.md` no está terminada, aunque haya cambios en su rama: pregunta al usuario por ella en vez de integrarla.
 
 ## 5. Limpieza (tras integrar, con confirmación)
 ```bash

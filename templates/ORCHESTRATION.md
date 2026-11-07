@@ -20,6 +20,9 @@
 - Máximo de workers simultáneos: 3
 - Motor preferido: orca | subagents | manual
 - Commits locales de workers: sí | no
+- Revisión cruzada (otro proveedor revisa el diff): unidades L y sensibles (auth, permisos, cripto, pagos, migraciones) | todas | nunca
+- Reintentos automáticos por unidad: 1
+- Presupuesto por unidad: por talla (S 15 min · M 60 min · L dividir) | <minutos fijos>
 
 ## 2. Shared — ficheros que solo toca una unidad por ronda o el coordinador
 ```
@@ -42,6 +45,7 @@ TODO:
 - Entrada habitual: spec-kit | plan por sprints | chat
 - Rama de integración: `feat/<feature>` (nunca directo a la rama por defecto)
 - Quién mergea: coordinador tras "sí" del usuario
+- Estado del run: `.work/runs/<run>/run.md` (lo escribe solo el coordinador; permite reanudar)
 
 ## 5. No delegar nunca
 - Migraciones destructivas, cambios de auth/permisos, despliegues, rotación de secretos.

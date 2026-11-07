@@ -15,4 +15,4 @@ Antigravity genera `implementation_plan.md` y `task.md` como artefactos de la co
 
 ## Común
 - Un plan nativo suele estar escrito para ejecución secuencial por un solo agente: revisa con especial cuidado los solapes de `write` antes de declarar paralelismo.
-- Si el plan es corto (≤3 pasos, una capa) ⇒ `ENGINE: inline`, no repartas.
+- Si el plan es corto (≤3 pasos, una capa) ⇒ secuencial (`ORCA: secuencial — <motivo>`), no repartas.
