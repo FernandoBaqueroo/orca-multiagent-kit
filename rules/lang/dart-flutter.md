@@ -23,4 +23,4 @@
 - Ofusca y desactiva logs en release (`kReleaseMode`).
 
 ## Tests
-Unitarios de dominio sin Flutter · widget tests con `pumpWidget` y `find.byRole`/semántica · golden tests con tolerancia · `integration_test` para recorridos críticos · `mocktail` para dependencias externas.
+Unitarios de dominio sin Flutter · widget tests con `pumpWidget` y búsquedas por semántica (`find.bySemanticsLabel`) o texto visible · golden tests con tolerancia · `integration_test` para recorridos críticos · `mocktail` para dependencias externas.

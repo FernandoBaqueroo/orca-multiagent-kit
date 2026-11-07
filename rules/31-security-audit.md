@@ -11,6 +11,7 @@ Cuándo: antes de cerrar cualquier cambio que toque entrada de usuario, autentic
 6. **Peor caso**: si esta función se ejecuta con entrada del atacante, ¿qué consigue?
 
 ## Fase B — Revisión manual guiada por OWASP Top 10:2025
+Si el cambio llama a un LLM o define agentes, herramientas o MCP, añade la tabla de `32-ai-security.md` §Auditoría.
 | # | Categoría | Comprobaciones mínimas |
 |---|---|---|
 | A01 | Broken Access Control | Autorización en servidor por petición; propiedad del objeto (IDOR/BOLA); segregación por tenant; rutas admin protegidas; SSRF (destinos, IP resuelta, redirects, metadata endpoint); CORS; path traversal; force browsing |
@@ -25,7 +26,8 @@ Cuándo: antes de cerrar cualquier cambio que toque entrada de usuario, autentic
 | A10 | Mishandling of Exceptional Conditions | Errores ignorados; `catch` vacío; fallback inseguro (fail-open); recursos no liberados; estado inconsistente tras fallo parcial; pánico/crash por entrada; errores que filtran detalles internos |
 
 ## Fase C — CWE Top 25 (2025): patrones a buscar en el diff
-XSS (79) · SQLi (89) · CSRF (352) · Missing authorization (862) · Out-of-bounds write (787) · Path traversal (22) · Use-after-free (416) · OOB read (125) · OS command injection (78) · Code injection (94) · Improper input validation (20) · Improper authentication (287) · Deserialization (502) · SSRF (918) · Integer overflow (190) · Buffer overflow clásico/stack/heap (120/121/122) · Improper access control (284) · Authorization bypass through user-controlled key (639) · Sensitive info exposure (200) · Hardcoded credentials (798) · Unrestricted upload (434) · Race condition (362) · NULL deref (476) · Resource allocation without limits (770).
+En el orden de la lista oficial de MITRE: XSS (79) · SQLi (89) · CSRF (352) · Missing authorization (862) · Out-of-bounds write (787) · Path traversal (22) · Use-after-free (416) · OOB read (125) · OS command injection (78) · Code injection (94) · Buffer overflow clásico (120) · Unrestricted upload (434) · NULL deref (476) · Stack overflow (121) · Deserialization (502) · Heap overflow (122) · Incorrect authorization (863) · Improper input validation (20) · Improper access control (284) · Sensitive info exposure (200) · Missing authentication for critical function (306) · SSRF (918) · Command injection (77) · Authorization bypass through user-controlled key (639) · Resource allocation without limits (770).
+Fuera del Top 25 de 2025, pero frecuentes en código de aplicación: hardcoded credentials (798), integer overflow (190), race condition (362), improper authentication (287).
 
 ## Fase D — Cobertura ASVS 5.0 (17 capítulos) por nivel
 Nivel objetivo por defecto: **L1** para apps internas/personales sin datos de terceros; **L2** para cualquier app con datos personales, dinero o autenticación; **L3** para sistemas críticos.
@@ -39,7 +41,9 @@ Marca cada capítulo `APLICA / NO APLICA (motivo) / PENDIENTE`.
 | SAST multi-lenguaje | `semgrep --config=auto`, `semgrep --config=p/owasp-top-ten` |
 | Vulnerabilidades en deps | `osv-scanner -r .` · `npm audit --omit=dev` · `pnpm audit` · `pip-audit` · `cargo audit` + `cargo deny check` · `govulncheck ./...` · `mvn dependency-check:check` · `dotnet list package --vulnerable` · `composer audit` · `bundler-audit` |
 | SAST por lenguaje | `bandit -r .` (py) · `gosec ./...` (go) · `cargo clippy -- -D warnings` (rust) · `eslint-plugin-security` (js/ts) · `spotbugs`+`find-sec-bugs` (java) · `security-code-scan` (.NET) · `psalm --taint-analysis` (php) · `brakeman` (rails) |
-| Contenedores e IaC | `trivy fs .` · `trivy image <img>` · `hadolint Dockerfile` · `checkov -d .` · `tfsec .` · `kube-score` |
+| Contenedores e IaC | `trivy fs .` · `trivy image <img>` · `trivy config .` (sustituye a `tfsec`) · `hadolint Dockerfile` · `checkov -d .` · `kube-score` |
+| CI/CD | `zizmor .` (GitHub Actions) · `actionlint` |
+| Integridad de paquetes npm | `npm audit signatures` (firmas y procedencia del registro) |
 | Web dinámico | ZAP baseline · `nikto` · cabeceras con `curl -I` · CSP evaluator |
 | Fuzzing | `cargo fuzz` · `go test -fuzz` · `atheris`/`hypothesis` (py) · `jazzer` (jvm) · AFL++/libFuzzer (C/C++) |
 | Memoria (C/C++/unsafe) | ASan, UBSan, TSan, Valgrind, `-Wall -Wextra -Werror` |

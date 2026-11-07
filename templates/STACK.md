@@ -1,7 +1,7 @@
 # STACK.md — Ficha técnica del proyecto
 > Fuente de verdad del stack. El agente la lee ANTES de tocar nada.
 > Rellena lo que aplique, borra lo que no. Mantenla corta: si crece de ~120 líneas, mueve detalle a `docs/`.
-> Regenerar o actualizar: `/csr-stack`.
+> Regenerar o actualizar: skill `csr-stack` («actualiza el STACK»).
 
 ## 1. Identidad
 - **Proyecto**:
@@ -81,7 +81,7 @@ tests/
 ## 9. Módulos CSR activos
 Siempre: `20-clean-code`, `30-security`, `50-done-gate`.
 Lenguaje: `lang/…`
-Extra: `40-testing`, `70-performance`, `75-reliability`, `80-supply-chain`, `31-security-audit`
+Extra: `40-testing`, `70-performance`, `75-reliability`, `80-supply-chain`, `31-security-audit`, `32-ai-security` (si usa LLM, agentes o MCP)
 Desactivados para este proyecto (con motivo):
 
 ## 10. Estado actual

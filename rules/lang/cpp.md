@@ -20,7 +20,7 @@
 `std::jthread` con `stop_token`, `std::mutex` con `scoped_lock`, orden fijo de bloqueos para evitar deadlock, atómicos solo con modelo de memoria entendido, nada de `volatile` como sincronización. TSan en CI.
 
 ## Build y dependencias
-CMake moderno (targets, no variables globales), dependencias con vcpkg/Conan y versiones fijadas, `-D_FORTIFY_SOURCE=2`, `-fstack-protector-strong`, PIE y RELRO en binarios distribuidos.
+CMake moderno (targets, no variables globales), dependencias con vcpkg/Conan y versiones fijadas, endurecimiento según la OpenSSF Compiler Options Hardening Guide: `-D_FORTIFY_SOURCE=3` (con optimización), `-D_GLIBCXX_ASSERTIONS`, `-fstack-protector-strong`, `-fstack-clash-protection`, PIE y `-Wl,-z,relro,-z,now` en binarios distribuidos.
 
 ## Tests
 GoogleTest o Catch2 · sanitizers activos en la suite · `libFuzzer`/AFL++ en todo parser de entrada externa · Valgrind en CI nocturno · benchmarks con Google Benchmark.

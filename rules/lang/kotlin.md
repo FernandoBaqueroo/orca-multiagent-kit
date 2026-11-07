@@ -17,7 +17,7 @@
 ## Android
 - Estado de UI inmutable expuesto desde el ViewModel; eventos de una sola vez por canal, no por estado.
 - Sin lógica ni claves en `Activity`/`Composable`. Nada de secretos en el APK ni en `strings.xml`.
-- Permisos mínimos y justificados; `EncryptedSharedPreferences`/Keystore para datos sensibles; `usesCleartextTraffic=false`; certificate pinning si aplica.
+- Permisos mínimos y justificados; Android Keystore para claves y datos sensibles cifrados con ellas (Tink o `Cipher`; `EncryptedSharedPreferences` de `security-crypto` está obsoleto); `usesCleartextTraffic=false`; certificate pinning si aplica.
 - Compose: estado elevado, `remember` con claves correctas, `key` estable en listas, evita recomposición por lambdas nuevas, `derivedStateOf` cuando toca.
 - Exporta componentes solo si es necesario; valida los `Intent` recibidos; `PendingIntent` inmutable.
 

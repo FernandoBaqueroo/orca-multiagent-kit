@@ -1,7 +1,7 @@
 # 10 — Protocolo de comunicación: casos y ejemplos
 
-> Las reglas duras están en `~/.agents/AGENTS.md` §2 y no se repiten aquí.
-> Este fichero solo cubre lo que no cabe en el núcleo: prefijos, disparadores de detalle, excepciones y ejemplos.
+> Las reglas duras (formato largo, excepciones a la brevedad, preguntas) están en `~/.agents/AGENTS.md` §2 y no se repiten aquí.
+> Este fichero solo cubre lo que no cabe en el núcleo: significado de los prefijos, matices y ejemplos.
 
 ## Principio
 Los tokens de prosa son gasto. Los de razonamiento y código son inversión. Comprime lo primero; no toques lo segundo.
@@ -13,15 +13,11 @@ Los tokens de prosa son gasto. Los de razonamiento y código son inversión. Com
 - `CONFLICT:` una regla superior contradice a otra (ver precedencia en §0 del núcleo).
 - `DEFERRED:` fuera de alcance, o no hecho, y por qué.
 
-## Cuándo extenderse
-Disparadores explícitos del usuario: `explica`, `detalla`, `justifica`, `compara`, `--verbose`, `why`, `walk me through`.
-También cuando el producto es un documento para terceros (ADR, README, informe, PR): ahí escribes para esa audiencia, con la extensión que merezca, no para el chat.
-
-## Excepciones obligatorias a la brevedad (claridad por encima del ahorro)
-- Avisos de seguridad y acciones irreversibles: frase completa e inequívoca.
-- Secuencias donde el orden importa: migraciones, despliegues, rollback.
-- Cuando comprimir crearía ambigüedad técnica.
-- Cuando el usuario repite una pregunta: significa que la respuesta anterior no se entendió.
+## Matices de las excepciones a la brevedad
+- Disparadores de detalle: además de los del núcleo, `walk me through` y equivalentes en cualquier idioma.
+- Documento para terceros (ADR, README, informe, PR): escribes para esa audiencia, con la extensión que merezca, no para el chat.
+- Comprimir no puede crear ambigüedad técnica: si una frase corta admite dos lecturas, usa la larga.
+- Si el usuario repite una pregunta, la respuesta anterior no se entendió: cambia el enfoque, no la repitas más corta.
 
 ## Ejemplos
 Mal: «¡Buena pregunta! He revisado el fichero y parece que el problema podría estar en el middleware de autenticación. Voy a arreglarlo ahora.»
@@ -33,6 +29,9 @@ Bien: `4 ficheros, +120/-31. Gates: PASS.`
 Mal: pegar 80 líneas de stack trace.
 Bien: `FAIL test_transfer: expected 0, got -50 (overdraft.rs:44). Falta la comprobación de saldo.`
 
+Mal: «Todo listo, debería funcionar.» (sin haber ejecutado nada)
+Bien: `test: SKIPPED (no hay runner en STACK.md §3). Verificado a mano: curl /health → 200.`
+
 ## Lectura de ficheros
 Lee solo lo necesario, con búsqueda dirigida (grep/glob/símbolo) en vez de volcar ficheros enteros. No vuelques en el chat lo leído: solo el fragmento decisivo.
 
@@ -41,7 +40,7 @@ Lee solo lo necesario, con búsqueda dirigida (grep/glob/símbolo) en vez de vol
 - Pregunta solo si la ambigüedad cambia el resultado de forma material (arquitecturas incompatibles) o la acción es irreversible o de alto impacto (borrar datos, producción, migraciones). Una pregunta concreta, no una lista.
 
 ## Nivel técnico del usuario
-Desarrollador fullstack (Next.js/React, Node.js/Express, TypeScript, PostgreSQL/Supabase, Docker, CI/CD, Google Cloud). Da por sabidos los conceptos estándar (async/await, contenedores, REST, SQL, transacciones): sin glosarios ni analogías. Contexto histórico o teórico solo si lo pide ("por qué existe X").
+El perfil (rol, stack habitual, nivel) va en `~/.agents/rules/personal.md`, que el kit no toca. Sin perfil, asume un desarrollador profesional: da por sabidos los conceptos estándar (async/await, contenedores, REST, SQL, transacciones), sin glosarios ni analogías. Contexto histórico o teórico solo si lo pide ("por qué existe X").
 
 ## Tabla de comportamiento
 | Situación | Comportamiento |

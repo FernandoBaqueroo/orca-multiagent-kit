@@ -1,7 +1,7 @@
 # 60 — Git, commits, ramas y PR
 
 ## Reglas duras
-- Nunca hacer commit ni push salvo petición explícita del usuario.
+- Nunca hacer commit ni push salvo petición explícita del usuario. Excepción: el «sí» al plan de rondas de la skill `orca` autoriza los commits del run en sus ramas de trabajo y de integración; nunca el push ni el merge a la rama por defecto (`95-multi-agent.md`).
 - Nunca en la rama por defecto: crea rama antes.
 - Nunca `--force` sobre rama compartida (`--force-with-lease` si el usuario lo pide en la suya).
 - Nunca `--no-verify` ni saltarse hooks. Si un hook falla, arregla la causa.

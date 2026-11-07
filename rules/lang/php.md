@@ -1,5 +1,5 @@
 # PHP (y Laravel / Symfony)
-**Gates**: `php-cs-fixer fix --dry-run` (PSR-12) · `phpstan analyse --level=max` o Psalm · `phpunit --coverage-text` · `composer audit` · `psalm --taint-analysis`
+**Gates**: `php-cs-fixer fix --dry-run --diff` (`@PER-CS`, sucesor de PSR-12) · `phpstan analyse --level=max` o Psalm · `phpunit --coverage-text` · `composer audit` · `psalm --taint-analysis`
 
 ## Idiomas
 - `declare(strict_types=1)` en todos los ficheros. Tipos en parámetros, retornos y propiedades.

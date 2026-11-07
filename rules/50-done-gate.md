@@ -1,10 +1,10 @@
 # 50 — Puerta de validez (Definition of Done)
 
-Un cambio es válido solo si ha superado las 8 fases. No se salta ninguna; si una no se puede ejecutar, se declara `SKIPPED (motivo)`.
+El núcleo (`~/.agents/AGENTS.md` §4) fija las 8 fases y su orden. Aquí está **cómo** se cumple cada una y el formato del reporte. Si una fase no se puede ejecutar, se declara `SKIPPED (motivo)`; ninguna se salta en silencio.
 
 ## Fase 1 — Contexto
-- [ ] `STACK.md` leído (o generado con `/csr-stack` si falta).
-- [ ] Leído el código colindante y sus convenciones; buscado si ya existe algo equivalente (no duplicar).
+- [ ] `STACK.md` leído (si falta: `csr-stack`, o comandos deducidos del manifiesto y dicho en una línea).
+- [ ] Leído el código colindante y sus convenciones; buscado si ya existe algo equivalente (`grep` del concepto, no solo del nombre).
 - [ ] Alcance acotado: qué entra, qué queda fuera (`DEFERRED:`).
 
 ## Fase 2 — Diseño
@@ -14,13 +14,13 @@ Un cambio es válido solo si ha superado las 8 fases. No se salta ninguna; si un
 - [ ] Alternativa más simple descartada conscientemente.
 
 ## Fase 3 — Implementación
-- [ ] `20-clean-code.md` y `rules/lang/<lenguaje>.md` aplicados.
-- [ ] `30-security.md` aplicado.
-- [ ] Sin TODOs, sin código muerto, sin prints de depuración, sin secretos.
+- [ ] `20-clean-code.md` y `lang/<lenguaje>.md` aplicados; `30-security.md` aplicado.
+- [ ] Cada API, import, flag o paquete nuevo verificado contra la versión instalada (tipos, `--help`, docs) y, si es una dependencia nueva, contra el registro (`80-supply-chain.md`).
+- [ ] Diff revisado línea a línea (`git diff`): sin TODOs, código muerto, prints de depuración, secretos ni cambios ajenos al alcance.
 - [ ] Cada supresión de lint/tipo justificada en línea.
 
 ## Fase 4 — Autorrevisión adversarial (pensar, no ejecutar)
-Responde por escrito, en una línea cada una:
+Responde por escrito, en una línea cada una, **sobre el diff concreto** (no en abstracto):
 1. ¿Cómo rompo esto siendo un atacante?
 2. ¿Qué entrada hace que esto se comporte mal y no está probada?
 3. ¿Qué pasa si la dependencia externa falla, tarda o devuelve basura?
@@ -28,20 +28,24 @@ Responde por escrito, en una línea cada una:
 5. ¿Qué pasa si se ejecuta dos veces a la vez? ¿Y dos veces seguidas?
 6. ¿Qué he asumido sin verificar? ¿Qué fichero no he leído y debería?
 7. ¿Qué parte de esto no entiendo del todo?
-Cualquier respuesta incómoda ⇒ vuelve a Fase 2 o 3.
+Cualquier respuesta incómoda ⇒ vuelve a Fase 2 o 3. "Nada" en las siete es sospechoso: busca una más.
 
 ## Fase 5 — Seguridad
 - [ ] Si toca entrada, auth, cripto, ficheros, red, SQL, procesos, deserialización o deps ⇒ `31-security-audit.md` completo.
+- [ ] Si llama a un LLM o define agentes, herramientas o MCP ⇒ `32-ai-security.md`.
 - [ ] Si no toca nada de eso, declarar: `sec: N/A (solo lógica interna pura)`.
 
 ## Fase 6 — Tests
 - [ ] `40-testing.md`: casos obligatorios cubiertos, test de regresión si era un bug.
-- [ ] Los tests fallan si deshaces el cambio (verificado o razonado).
+- [ ] Los tests nuevos **fallan sin el cambio**. Verifícalo ejecutándolos contra el código anterior (revierte temporalmente la corrección o usa el commit base en un worktree); si no es posible, razónalo en una línea.
+- [ ] Ningún test existente se ha relajado, saltado o borrado para quedar en verde (`40-testing.md` §El test defiende el requisito).
 
 ## Fase 7 — Gates automáticos (ejecutar de verdad)
-Orden y comandos exactos desde `STACK.md`:
-`format → lint → typecheck → build → test → coverage → sec-scan → deps-audit`
-Regla: **un gate no ejecutado nunca se reporta como PASS**. Si falla, se arregla la causa raíz y se reejecuta desde ese gate.
+Orden y comandos exactos desde `STACK.md` §3: `format → lint → typecheck → build → test → coverage → sec-scan → deps-audit`.
+- Si falla, arregla la causa raíz y reejecuta **desde ese gate**. Si la causa queda fuera de alcance: ese gate `FAIL`, los siguientes `SKIPPED (bloqueado por <gate>)`, y `BLOCKED:`.
+- Herramienta no instalada: `SKIPPED (no instalado: <herramienta>)`. No la instales sin permiso ni la sustituyas por otra sin decirlo.
+- Sin red: `SKIPPED (sin red)`. Gate que no existe en este stack (`N/A` en `STACK.md` §3): `N/A`.
+- Ejecuta en la shell que tengas (bash, Git Bash, PowerShell); si un comando de `STACK.md` no funciona en ella, dilo en vez de reescribirlo a ciegas.
 
 ## Fase 8 — Reporte final (formato fijo, sin prosa extra)
 ```
@@ -54,13 +58,12 @@ typecheck  | tsc --noEmit         | PASS
 build      | pnpm build           | PASS
 test       | pnpm test            | PASS 128/128
 coverage   | pnpm test:cov        | 86% cambiado
-sec-scan   | semgrep --config=auto| PASS
+sec-scan   | semgrep --config=auto| SKIPPED (no instalado: semgrep)
 deps       | npm audit            | SKIPPED (sin red)
 RISK: <si aplica>
 DEFERRED: <si aplica>
 ```
+Estados válidos: `PASS` (ejecutado y en verde) · `FAIL` (ejecutado y en rojo) · `SKIPPED (motivo)` (aplica, no se ejecutó) · `N/A` (no aplica a este stack).
 
-## Honestidad — YOU MUST
-- No afirmes que algo funciona si no lo ejecutaste.
-- No maquilles un fallo como advertencia.
-- Si el usuario pidió algo que no pudiste terminar, dilo con `BLOCKED:` o `DEFERRED:` y entrega el resto completo.
+## Honestidad
+Lo que no se terminó se dice con `BLOCKED:` o `DEFERRED:` y se entrega el resto completo. Un fallo no se rebaja a advertencia.

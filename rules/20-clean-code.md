@@ -44,9 +44,13 @@ Escribe código que parezca escrito por quien ya mantenía el repo: mismas conve
 - Prefiere composición a herencia; herencia solo para sustitución real (LSP).
 
 ## Comentarios
-- Explican **por qué**, nunca **qué**. Si el comentario explica el qué, renombra el código.
-- Comentario obligatorio en: decisiones no obvias, workarounds (con enlace al issue), invariantes, complejidad algorítmica elegida, cualquier supresión de lint/tipo.
-- Prohibido: código comentado, changelogs en cabecera, comentarios obsoletos.
+Explican **por qué**, nunca **qué**: si explica el qué, renombra el código. Cuándo son obligatorios y qué está prohibido: `90-docs-comments.md` §Comentarios.
+
+## Código generado con IA
+- Lee lo que vas a entregar como si lo hubiera escrito otro: el código plausible no es código correcto.
+- Cada import, función, flag o endpoint de un tercero se verifica contra la versión instalada (tipos, `--help`, docs de esa versión), no contra la memoria.
+- Sin sobreingeniería por defecto: ni capas, ni opciones, ni manejo de casos que el requisito no pide (YAGNI aplica doble).
+- Diff mínimo: no reformatees, renombres ni "mejores" código que no forma parte del cambio.
 
 ## Olores que obligan a refactor
 Función >40 líneas · clase >300 líneas · >3 niveles de anidamiento · lista de parámetros larga · envidia de características · obsesión por primitivos · cadenas de `if/else` sobre tipo (usa polimorfismo o match exhaustivo) · retorno de `null` como señal · booleano de control de flujo · dependencia circular · nombre con `Manager`/`Helper`/`Utils` sin significado.

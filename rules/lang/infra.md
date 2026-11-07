@@ -1,5 +1,5 @@
 # Infraestructura: Docker, Kubernetes, Terraform, CI, YAML
-**Gates**: `hadolint` · `trivy fs .` y `trivy image` · `checkov -d .` · `tfsec` · `terraform validate` + `plan` revisado · `kube-score`/`kubeconform` · `actionlint` · `yamllint`
+**Gates**: `hadolint` · `trivy fs .` y `trivy image` · `trivy config .` (IaC; sustituye a `tfsec`) · `checkov -d .` · `terraform validate` + `plan` revisado · `kube-score`/`kubeconform` · `actionlint` + `zizmor .` · `yamllint`
 
 ## Docker
 - Imagen base mínima y **fijada por digest** (`node:22-alpine@sha256:...`); multi-stage para no arrastrar herramientas de build.
@@ -24,10 +24,9 @@
 - Etiquetado consistente (dueño, entorno, coste) y entornos separados por cuenta o proyecto.
 
 ## CI/CD
-- Acciones de terceros ancladas por SHA; permisos del token mínimos; sin secretos accesibles desde PR de forks.
-- Gates bloqueantes: format, lint, typecheck, build, test, cobertura, `gitleaks`, SAST, auditoría de dependencias.
-- Construcción reproducible, artefactos con checksum o firma, SBOM en release.
+Reglas de seguridad del pipeline (SHA, permisos, forks, secretos, publicación): `80-supply-chain.md` §CI/CD. Propio de infraestructura:
 - Despliegue con rollback de un paso y salud verificada tras el cambio.
+- Credenciales de nube por identidad federada (OIDC del runner), no por claves de larga duración guardadas como secreto.
 
 ## YAML
 Indentación de 2 espacios, sin tabuladores · comilla las cadenas ambiguas (`yes`, `no`, `on`, versiones como `1.10`) · sin anclas crípticas · valida contra esquema cuando exista.
