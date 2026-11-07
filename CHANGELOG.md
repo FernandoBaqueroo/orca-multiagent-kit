@@ -5,6 +5,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-07
+
+Orquestador más robusto, plugin para la app Orca, instalador para Orca y Windows, y reglas de calidad (CSR) al día. Gracias a [Necro-Coder](https://github.com/Necro-Coder).
+
 ### Añadido
 - Orquestador: runs reanudables con el estado en `.work/runs/<run>/run.md` (`skills/orca/references/ledger.md`); la skill y el hook de spec-kit retoman un run a medias en vez de repartir de nuevo. Detalle en [`docs/ORQUESTADOR.md`](docs/ORQUESTADOR.md).
 - Orquestador: revisión cruzada por otro proveedor, presupuestos por talla, límite de reintentos y sección de confianza entre agentes en `95-multi-agent.md`.
@@ -95,7 +99,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/tag/v1.0.0
