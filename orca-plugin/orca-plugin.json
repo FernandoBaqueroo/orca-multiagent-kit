@@ -1,0 +1,80 @@
+{
+  "manifestVersion": 2,
+  "id": "multiagent-kit",
+  "name": "Orca Multiagent Kit",
+  "version": "0.1.0",
+  "description": "Comandos del kit en la paleta, el contrato del worker en cada despacho de orquestación del kit y los agentes activos en la barra de estado.",
+  "author": {
+    "name": "Fernando Baquero y Necro-Coder",
+    "url": "https://github.com/FernandoBaqueroo/orca-multiagent-kit"
+  },
+  "repository": "https://github.com/FernandoBaqueroo/orca-multiagent-kit",
+  "homepage": "https://github.com/FernandoBaqueroo/orca-multiagent-kit/blob/main/docs/PLUGIN-ORCA.md",
+  "license": "MIT",
+  "engines": {
+    "orca": ">=1.4.248"
+  },
+  "execution": "trusted-worker",
+  "pluginApi": 1,
+  "main": "src/worker.ts",
+  "capabilities": [
+    { "kind": "workspace:read" },
+    { "kind": "terminal:send" },
+    { "kind": "terminal:read" },
+    { "kind": "agent:launch" },
+    { "kind": "agent:read" },
+    { "kind": "notifications:show" },
+    { "kind": "settings:own" }
+  ],
+  "contributes": {
+    "commands": [
+      { "id": "kit.verify", "title": "Orca Multiagent Kit: verificar instalación", "when": "workspace" },
+      { "id": "kit.init", "title": "Orca Multiagent Kit: inicializar proyecto", "when": "workspace" },
+      { "id": "kit.update", "title": "Orca Multiagent Kit: actualizar kit", "when": "workspace" },
+      { "id": "agents.status", "title": "Orca Multiagent Kit: estado de los agentes" }
+    ],
+    "hooks": [
+      { "event": "agent.prompt.before", "onError": "pass" }
+    ],
+    "events": [
+      { "on": "agent.status.changed" },
+      { "on": "workspace.removed" }
+    ],
+    "statusBarItems": [
+      {
+        "id": "agents",
+        "text": "MAW",
+        "icon": "bot",
+        "tooltip": "Orca Multiagent Kit: agentes activos",
+        "command": "agents.status"
+      }
+    ],
+    "settings": [
+      {
+        "key": "contractHint",
+        "title": "Contrato del worker en los despachos",
+        "description": "Añade a cada despacho de orquestación una línea que remite a ~/.agents/skills/orca/references/worker-contract.md. «Solo del kit» actúa en los despachos de la skill orca (cabecera UNIT/RUN).",
+        "type": "string",
+        "default": "kit",
+        "enum": ["kit", "all", "off"],
+        "enumLabels": ["Solo despachos del kit", "Todos los despachos", "Desactivado"]
+      },
+      {
+        "key": "statusBar",
+        "title": "Agentes en la barra de estado",
+        "description": "Muestra cuántos agentes trabajan, están bloqueados o esperan, en todos los workspaces.",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "initAgent",
+        "title": "Agente para inicializar",
+        "description": "Id del agente que lanza «inicializar proyecto» con el prompt «inicializa el proyecto» (skill kit-init), por ejemplo claude o codex.",
+        "type": "string",
+        "default": "claude",
+        "maxLength": 40,
+        "placeholder": "claude"
+      }
+    ]
+  }
+}

@@ -1,0 +1,102 @@
+# Plugin de Orca
+
+El kit funciona en [Orca](https://www.onorca.dev) sin plugin: las skills viven en `~/.agents/skills` (el mismo sitio donde Orca instala las suyas) y la skill `orca` usa `orca orchestration` como motor. El plugin `orca-plugin/` añade lo que solo puede hacer la propia app: comandos en la paleta, un cambio en los despachos de orquestación y un indicador en la barra de estado.
+
+Requisitos: Orca ≥ 1.4.248 (hooks y barra de estado) con los plugins activados (*Settings → Plugins → Turn on plugins*). Para los comandos, el kit instalado (`omk` en el `PATH`).
+
+## Qué hace
+
+| Pieza | Qué ves | Cómo funciona |
+|---|---|---|
+| **Orca Multiagent Kit: verificar instalación** | Un terminal nuevo en el workspace activo que ejecuta `omk verify` | `terminal.create` con el literal `omk verify` |
+| **Orca Multiagent Kit: actualizar kit** | Lo mismo con `omk update` | `terminal.create` con el literal `omk update` |
+| **Orca Multiagent Kit: inicializar proyecto** | Un agente nuevo en el workspace activo con el prompt «inicializa el proyecto» (skill `kit-init`) | `agent.launch`; el agente sale del ajuste *Agente para inicializar* (por defecto `claude`) |
+| **Orca Multiagent Kit: estado de los agentes** | Una línea por agente activo: título y estado | Lo que ha ido contando la barra de estado |
+| **Contrato del worker** | Cada despacho de la skill `orca` lleva al final una línea que remite a `~/.agents/skills/orca/references/worker-contract.md` | Hook `agent.prompt.before` |
+| **Barra de estado** `MAW · 2 trabajando · 1 bloqueado` | Agentes trabajando, bloqueados o esperando en todos los workspaces. Ámbar si hay alguno bloqueado. Al pulsarlo, el estado de los agentes | Evento `agent.status.changed` y `agents.list` al arrancar |
+
+Si `omk` no está en el `PATH`, el terminal muestra el error del shell y, en unos 15 s, llega una notificación con cómo instalarlo (`npm install -g orca-multiagent-kit` o `./install.sh`). Si el plugin no identifica el workspace activo (ninguno enfocado, o dos con el mismo nombre y rama), avisa y no ejecuta nada: es preferible no lanzar nada a lanzarlo en otro workspace.
+
+### Por qué el contrato del worker
+
+Con el motor Orca, la skill `orca` solo copia en el despacho el alcance del contrato (§2), porque Orca ya le explica al worker cómo preguntar y cómo cerrar con `worker_done`. El resto del contrato (arranque, verificación con `csr-gate` y el formato fijo del informe que lee el coordinador) se quedaba fuera. El hook añade una línea que remite al fichero completo. Para eso:
+
+- Solo actúa sobre prompts que Orca marca como despacho de orquestación (`inputKind: "orchestration"`). Nunca toca lo que escribes tú, los prompts de arranque de un agente ni `orca terminal send`.
+- En el modo por defecto (*Solo despachos del kit*), además, el despacho tiene que llevar la cabecera de la skill `orca` (`UNIT: U<n> …` al principio de una línea y `RUN: …`). Los despachos de otros coordinadores pasan intactos. *Todos los despachos* lo añade a cualquiera; *Desactivado* lo apaga.
+- Si el prompt ya cita `worker-contract.md`, no lo repite.
+- **No deniega nunca** y falla en abierto (`"onError": "pass"`): si el worker del plugin falla o tarda más de 2 s, Orca envía el prompt sin cambios. Es una ayuda para el worker, no un control de seguridad.
+
+## Permisos que pide
+
+Es un plugin `trusted-worker`: Orca ejecuta `src/worker.ts` en un proceso Node aparte, con el acceso de tu usuario a la máquina. Por eso pide aprobación al instalarlo. Las capacidades, y para qué se usa cada una:
+
+| Capacidad | Para qué | Si no la concedes |
+|---|---|---|
+| `workspace:read` | Saber qué workspace está enfocado (`workspace.readContext` + `workspace.list`) y enterarse de los que se eliminan | Los comandos no saben dónde ejecutarse |
+| `terminal:send` | Abrir un terminal con `omk verify` / `omk update` (`terminal.create`) | No hay comandos de verificar ni actualizar |
+| `terminal:read` | Leer la salida de **ese** terminal para detectar que `omk` no existe y avisar | El fallo se ve en el terminal, pero no llega la notificación |
+| `agent:launch` | Lanzar el agente de «inicializar proyecto» (`agent.launch`) | No hay comando de inicializar |
+| `agent:read` | Contar agentes por estado para la barra (`agents.list`, `agent.status.changed`) | La barra se queda en `MAW` |
+| `notifications:show` | Avisos accionables (sin `omk`, sin workspace, fallos de Orca) | Los avisos solo quedan en `orca plugin logs` |
+| `settings:own` | Leer los tres ajustes del plugin | Se usan los valores por defecto |
+
+Lo que **no** hace: no envía al terminal texto que venga de un usuario, de un agente o de un fichero (los dos comandos son literales fijos). El id de agente del ajuste se valida (`^[a-z0-9][a-z0-9-]{0,39}$`) antes de pasarlo a `agent.launch`. No usa red, secretos ni almacenamiento, no lee ficheros del proyecto y no importa módulos de Node (`fs`, `child_process`…): todo pasa por la API de Orca y sus capacidades.
+
+## Instalar
+
+El manifiesto está en `orca-plugin/`, no en la raíz del repo, así que se instala desde una carpeta (ver *Limitaciones*). Elige la que tengas:
+
+```bash
+# Desde un clon o el zip de la release
+orca plugin install ./orca-plugin --json
+
+# Con el kit instalado por npm (npm i -g orca-multiagent-kit)
+orca plugin install "$(npm root -g)/orca-multiagent-kit/orca-plugin" --json
+```
+
+La primera vez termina con `approval_required` (código de salida 3). `error.data` lista lo que concedería (la tabla de arriba) y el comando exacto para repetirlo con `--approve <fingerprint>`. Revísalo y, si estás de acuerdo, ejecuta ese comando tal cual. La huella está ligada a esta versión, sus ficheros y su acceso: si una versión nueva pide algo más, Orca vuelve a preguntar. El plugin queda como `local.multiagent-kit`.
+
+Ajustes en *Settings → Plugins → Orca Multiagent Kit*:
+
+| Ajuste | Por defecto | Valores |
+|---|---|---|
+| Contrato del worker en los despachos | Solo despachos del kit | Solo del kit · Todos · Desactivado |
+| Agentes en la barra de estado | Activado | sí / no |
+| Agente para inicializar | `claude` | Id de agente de Orca (`claude`, `codex`…) |
+
+## Desactivar o quitar
+
+```bash
+orca plugin disable local.multiagent-kit --json     # deja de ejecutarse; se reactiva con enable
+orca plugin uninstall local.multiagent-kit --json   # lo quita
+```
+
+Sin plugin, el kit sigue funcionando igual. Solo se pierden la paleta, la barra y la línea del contrato en los despachos.
+
+## Limitaciones
+
+- **Barra de estado**: al arrancar solo conoce los agentes del workspace enfocado (`agents.list` no da más); los de los demás aparecen con su siguiente cambio de estado. Un agente cuyo terminal se cierra sin pasar a `done` sigue contando hasta que se elimina su workspace o se reinicia el plugin (`orca plugin restart local.multiagent-kit`).
+- **Detección de `omk` ausente**: es heurística. Busca durante ~15 s el mensaje de "comando no encontrado" de bash, zsh, fish, cmd y PowerShell, en inglés y español. Con otros idiomas o shells, el error se ve en el terminal pero no llega la notificación.
+- En un workspace remoto (SSH), `omk` se ejecuta en ese host, que es donde se usa el kit en ese workspace.
+
+DEFERRED:
+- **Progreso del run en la barra** (`ronda 1 · 2/3 unidades`): exige leer `.work/runs/<run>/units.md`, y la API de Orca no da acceso a ficheros a los workers. Hoy el coordinador lo deja en el comentario del worktree (`orca worktree set --comment`).
+- **Instalación desde Git** (`orca plugin install FernandoBaqueroo/orca-multiagent-kit`): la ayuda de `orca plugin install` (1.4.252) no documenta instalar desde una subcarpeta del repositorio. Haría falta un repo propio para el plugin o confirmar que Orca acepta una URL `tree/<ref>/orca-plugin`.
+- **Instalación automática** con `install.sh` / `omk install`: ahora se instala a mano. Para hacerlo automático hay que tocar el instalador, y se deja para otro PR.
+- **Preparar worktrees nuevos** (`workspace.create.after`): ya lo hacen `orca.yaml` y `worker-start --setup run`, así que un hook duplicaría ese trabajo.
+
+## Probarlo
+
+```bash
+orca plugin validate orca-plugin --json   # manifiesto como lo carga Orca
+orca plugin test orca-plugin --json       # 37 pruebas: src/kit.test.ts y src/worker.test.ts
+orca plugin check orca-plugin --json
+orca plugin inspect orca-plugin --json    # qué aporta y qué acceso pide
+bash scripts/check.sh                     # comprobación estática del manifiesto, también en CI (sin Orca)
+```
+
+Las pruebas usan `orca/testing`: `mountWorker` sobre un host simulado con las capacidades del manifiesto. Cubren el hook (con y sin cabecera del kit, otros `inputKind`, el modo apagado e idempotencia), los comandos (literal enviado, workspace sin identificar, fallo de Orca notificado, id de agente hostil) y la barra (eventos, siembra inicial, desactivada). La detección de `omk` ausente se prueba con los mensajes reales de cada shell.
+
+Para probarlo en Orca sin instalarlo: `orca plugin dev watch orca-plugin --json`. También pide aprobación, y `Ctrl-C` lo descarga.
+
+RISK: con Orca 1.4.252, `orca plugin test` falla al importar `orca-runtime.mjs` cuando la ruta del plugin contiene una carpeta que empieza por punto (por ejemplo `.claude/worktrees/…`). Si te pasa, copia `orca-plugin/` a una ruta sin carpetas ocultas y ejecútalo allí.

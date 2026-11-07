@@ -143,6 +143,8 @@ Solo tienes que conocer dos frases. El resto lo deciden los agentes.
 
 Convive con skills externas como **impeccable**, **supabase**, **spec-kit** y las de la app **Orca**: cada una manda en su terreno, y la puerta de validez y las prohibiciones se aplican siempre.
 
+**Plugin de Orca** (opcional, Orca ≥ 1.4.248): `omk verify`, «inicializa el proyecto» y `omk update` en la paleta de comandos, el contrato del worker añadido a cada despacho de orquestación del kit y los agentes activos en la barra de estado. Desde un clon o el zip: `orca plugin install ./orca-plugin`. Detalle, permisos que pide y cómo desactivarlo: [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md).
+
 <a id="flujo"></a>
 ## <img src="assets/icons/flow.svg" width="22" height="22" alt=""> Flujo de trabajo
 
@@ -183,6 +185,7 @@ orca-multiagent-kit/
 ├── speckit-extension/      extensión de spec-kit (hook before_implement)
 ├── templates/              AGENTS.md · CLAUDE.md · STACK.md · ORCHESTRATION.md · orca.yaml · .worktreeinclude
 ├── output-styles/          csr-minimal (Claude Code)
+├── orca-plugin/            plugin de Orca: comandos del kit, contrato del worker, barra de estado
 ├── install.sh              instala · migra · verifica · restaura · adopta
 ├── GUIA.html               guía visual del flujo
 ├── site/                   web interactiva (GitHub Pages)
@@ -202,6 +205,7 @@ orca-multiagent-kit/
 | [Guía visual](https://fernandobaqueroo.github.io/orca-multiagent-kit/guia.html) ([`GUIA.html`](GUIA.html)) | El flujo de trabajo completo, con esquemas |
 | [`docs/MANUAL.md`](docs/MANUAL.md) | Instalación detallada, migración, convivencia y problemas frecuentes |
 | [`AI_INSTALL.md`](AI_INSTALL.md) | Una IA que tiene que instalar o integrar el kit |
+| [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md) | Quien usa Orca y quiere el kit integrado en la app |
 | [`CHANGELOG.md`](CHANGELOG.md) | Historial de versiones ([SemVer](https://semver.org/lang/es/)) |
 
 <a id="contribuir"></a>
