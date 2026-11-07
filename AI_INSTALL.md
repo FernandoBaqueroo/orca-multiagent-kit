@@ -11,6 +11,9 @@ Una sola fuente: `~/.agents/` (núcleo `AGENTS.md`, `rules/`, `skills/`, `templa
 - No modifiques skills de terceros (`orca-cli`, `orchestration`, `supabase`, spec-kit…) ni `~/.agents/rules/personal.md`.
 - Nunca borres contenido de `CLAUDE.md`, `AGENTS.md` o `GEMINI.md` fuera de los bloques `<!-- CSR|MAW|AGENTS:BEGIN … :END -->`.
 - No pongas rutas de un agente concreto (`~/.claude/rules`, `~/.gemini/rules`) en reglas o skills: usa `~/.agents/…`.
+- Nunca escribas en un perfil de Claude de la app Orca (`…/orca/claude-profiles/<id>/home`, el `CLAUDE_CONFIG_DIR` que Orca inyecta). Es de Orca e importa `~/.claude/CLAUDE.md`: se instala en `~/.claude`. `install.sh` ya lo hace solo.
+- En Windows, solo enlaces nativos (Git Bash con Modo de desarrollador o como administrador). Si no se pueden crear, para y díselo al usuario; no copies.
+- Para probar el instalador, aísla siempre el entorno: `unset CLAUDE_CONFIG_DIR CODEX_HOME GEMINI_DIR AGENT_KIT_HOME ORCA_CLAUDE_INJECTED_CONFIG_DIR` además de un `HOME` desechable. Con solo `HOME`, esas variables siguen apuntando a la configuración real.
 
 ## 2. Instalación global / migración
 1. `./install.sh --dry-run`. Enseña al usuario la lista de cambios y pide un «sí»: toca su configuración global.

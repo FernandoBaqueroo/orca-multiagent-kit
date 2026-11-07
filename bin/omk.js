@@ -49,17 +49,23 @@ function die(msg, code = 1) {
   process.exit(code);
 }
 
+// En Windows, el `bash` del PATH puede ser el lanzador de WSL (System32\bash.exe): tiene otro $HOME y no
+// entiende rutas C:\, así que instalaría en Linux y no en el Windows del usuario. Solo vale un bash MSYS/Cygwin.
+function isWindowsBash(bash) {
+  const r = spawnSync(bash, ['-c', 'uname -s'], { encoding: 'utf8' });
+  return r.status === 0 && /^(MINGW|MSYS|CYGWIN)/.test((r.stdout || '').trim());
+}
+
 function findBash() {
   if (process.platform !== 'win32') return 'bash';
-  const candidates = [
-    process.env.OMK_BASH,
-    'C:\\Program Files\\Git\\bin\\bash.exe',
-    'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
-  ].filter(Boolean);
-  for (const c of candidates) if (fs.existsSync(c)) return c;
-  const probe = spawnSync('bash', ['--version'], { stdio: 'ignore' });
-  if (probe.status === 0) return 'bash';
-  die('Windows necesita Git Bash o WSL. Instala Git for Windows o ejecuta omk desde WSL (o define OMK_BASH).');
+  if (process.env.OMK_BASH) return process.env.OMK_BASH;
+  const roots = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs')];
+  for (const root of roots.filter(Boolean)) {
+    const c = path.join(root, 'Git', 'bin', 'bash.exe');
+    if (fs.existsSync(c)) return c;
+  }
+  if (isWindowsBash('bash')) return 'bash';
+  die('Windows necesita Git Bash. Instala Git for Windows, define OMK_BASH con la ruta de su bash.exe, o ejecuta omk dentro de WSL (instala en el $HOME de WSL).');
 }
 
 function runInstaller(args) {

@@ -171,6 +171,8 @@ Puedes editar directamente en `~/.agents/`, pero la próxima reinstalación lo s
 - **Devin** lee también `~/.claude/CLAUDE.md`. Por eso es opcional.
 - **Antigravity**: si al arrancar se queja del plugin `claude-session-rules` ausente, desactívalo en sus ajustes. Su contenido ya está en el núcleo.
 - **Nivel técnico** (`rules/10-communication.md`): la versión anterior te describía como "backend avanzado (Python, Kubernetes…)". Ahora pone fullstack con tu stack real. Ajústalo si no te encaja.
+- **Windows (Git Bash)**: el kit necesita enlaces simbólicos nativos. Activa el *Modo de desarrollador* (Configuración → Sistema → Para programadores) o abre Git Bash como administrador. Si no se pueden crear, el instalador se para antes de tocar nada; nunca deja copias. Detalle en [`INSTALADOR-ORCA-WINDOWS.md`](INSTALADOR-ORCA-WINDOWS.md).
+- **Claude dentro de la app Orca**: Orca lanza Claude con un perfil propio (`CLAUDE_CONFIG_DIR=…/orca/claude-profiles/<id>/home`) que importa `~/.claude/CLAUDE.md`. El instalador lo detecta, instala en `~/.claude` y no toca el perfil, así que puedes ejecutarlo desde una terminal de Orca.
 - **Permisos**: Orca y Antigravity ejecutan sin confirmación. Copia solo `.env` de desarrollo a los worktrees (`.worktreeinclude`) y revisa los permisos que tiene guardados Antigravity.
 
 ---

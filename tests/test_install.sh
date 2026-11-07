@@ -5,6 +5,8 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INSTALL="$ROOT/install.sh"
+# Estas variables apuntan a la configuración real (Orca las inyecta); heredadas, el $HOME desechable no aísla nada.
+unset CLAUDE_CONFIG_DIR CODEX_HOME GEMINI_DIR AGENT_KIT_HOME ORCA_CLAUDE_INJECTED_CONFIG_DIR
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  ok    %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; }
@@ -113,6 +115,51 @@ check "Cursor: pide la regla de usuario"         'printf "%s" "$OUT" | grep -q "
 mkdir -p "$H/.config/Cursor/User/globalStorage"; printf 'xx ~/.agents/AGENTS.md xx' > "$H/.config/Cursor/User/globalStorage/state.vscdb"
 OUT="$(HOME="$H" bash "$INSTALL" 2>&1)"
 check "Cursor: no la pide si ya está puesta"     '! printf "%s" "$OUT" | grep -q "User Rules"'
+
+echo "== 10. Perfil de Claude gestionado por Orca (CLAUDE_CONFIG_DIR inyectado)"
+H="$(newhome)"; PR="$H/AppData/Roaming/orca/claude-profiles/abc/home"; mkdir -p "$H/.claude" "$PR"
+printf '@~/.claude/CLAUDE.md\n' > "$PR/CLAUDE.md"
+HOME="$H" CLAUDE_CONFIG_DIR="$PR" bash "$INSTALL" >/dev/null 2>&1
+check "instala en ~/.claude, que el perfil importa" 'grep -q "@~/.agents/AGENTS.md" "$H/.claude/CLAUDE.md" && [ -L "$H/.claude/skills/orca" ]'
+check "el perfil de Orca queda intacto"          '[ "$(cat "$PR/CLAUDE.md")" = "@~/.claude/CLAUDE.md" ] && [ ! -e "$PR/skills" ] && [ ! -e "$PR/output-styles" ]'
+check "--verify pasa desde el perfil"            'HOME="$H" CLAUDE_CONFIG_DIR="$PR" bash "$INSTALL" --verify >/dev/null 2>&1'
+H="$(newhome)"; PR="$H/perfil-x"; mkdir -p "$H/.claude" "$PR"; printf '@~/.claude/CLAUDE.md\n' > "$PR/CLAUDE.md"
+HOME="$H" CLAUDE_CONFIG_DIR="$PR" ORCA_CLAUDE_INJECTED_CONFIG_DIR="$PR" bash "$INSTALL" >/dev/null 2>&1
+check "detecta el perfil por ORCA_CLAUDE_INJECTED_CONFIG_DIR" 'grep -q "@~/.agents/AGENTS.md" "$H/.claude/CLAUDE.md" && [ "$(cat "$PR/CLAUDE.md")" = "@~/.claude/CLAUDE.md" ]'
+H="$(newhome)"; PR="$H/AppData/Roaming/orca/claude-profiles/abc/home"; mkdir -p "$H/.claude" "$H/.codex" "$PR"
+printf 'otra cosa\n' > "$PR/CLAUDE.md"
+HOME="$H" CLAUDE_CONFIG_DIR="$PR" bash "$INSTALL" >/dev/null 2>&1
+check "perfil sin import de ~/.claude: no se toca" '[ "$(cat "$PR/CLAUDE.md")" = "otra cosa" ] && [ ! -e "$H/.claude/CLAUDE.md" ]'
+check "el resto de agentes sí se instala"        '[ "$(readlink "$H/.codex/AGENTS.md")" = "$H/.agents/AGENTS.md" ]'
+
+echo "== 11. Rutas en formato Windows (C:\\...)"
+if command -v cygpath >/dev/null 2>&1; then
+  H="$(newhome)"; mkdir -p "$H/claude-alt/rules"; echo viejo > "$H/claude-alt/rules/30-security.md"
+  HOME="$H" CLAUDE_CONFIG_DIR="$(cygpath -w "$H/claude-alt")" bash "$INSTALL" >/dev/null 2>&1
+  check "CLAUDE_CONFIG_DIR en formato Windows"   'grep -q "@~/.agents/AGENTS.md" "$H/claude-alt/CLAUDE.md"'
+  check "regla antigua al backup, sin rutas C:"  '[ ! -e "$H/claude-alt/rules/30-security.md" ] && [ -n "$(find "$H/.agents/backups" -name 30-security.md)" ] && [ -z "$(find "$H/.agents/backups" -name "*:*")" ]'
+else
+  echo "  skip  sin cygpath (no es Git Bash/MSYS/Cygwin)"
+fi
+
+echo "== 12. Backup y restauración de rutas fuera de \$HOME"
+H="$(newhome)"; FUERA="$(newhome)"; mkdir -p "$FUERA/claude/rules"
+echo viejo > "$FUERA/claude/rules/30-security.md"
+printf '<!-- CSR:BEGIN v1.0.0 x -->\nviejo\n<!-- CSR:END -->\n' > "$FUERA/claude/CLAUDE.md"
+HOME="$H" CLAUDE_CONFIG_DIR="$FUERA/claude" bash "$INSTALL" >/dev/null 2>&1
+check "regla antigua retirada"                   '[ ! -e "$FUERA/claude/rules/30-security.md" ]'
+STAMP="$(ls "$H/.agents/backups" | head -1)"
+HOME="$H" CLAUDE_CONFIG_DIR="$FUERA/claude" bash "$INSTALL" --restore "$STAMP" >/dev/null 2>&1
+check "regla devuelta a su ruta original"        'grep -q viejo "$FUERA/claude/rules/30-security.md"'
+check "CLAUDE.md devuelto a su ruta original"    'grep -q "CSR:BEGIN" "$FUERA/claude/CLAUDE.md"'
+check "nada restaurado dentro de \$HOME por error" '[ ! -e "$H/${FUERA#/}" ] && [ ! -e "$H/tmp" ]'
+
+echo "== 13. --verify detecta una copia donde debe haber enlace"
+H="$(newhome)"; mkdir -p "$H/.claude"; inst
+rm "$H/.claude/skills/csr-gate"; cp -R "$H/.agents/skills/csr-gate" "$H/.claude/skills/csr-gate"
+check "--verify falla con la copia"              '! HOME="$H" bash "$INSTALL" --verify >/dev/null 2>&1'
+HOME="$H" bash "$INSTALL" --verify > "$H/verify.txt" 2>&1 || true
+check "y dice que es una copia"                  'grep -q "copiadas en vez de enlazadas.* csr-gate" "$H/verify.txt"'
 
 printf '\n%s ok · %s fallos\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

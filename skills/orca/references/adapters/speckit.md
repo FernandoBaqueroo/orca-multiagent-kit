@@ -2,6 +2,8 @@
 
 **Si vienes del hook `before_implement`** (el usuario escribió `/speckit.implement`): ya estás en la sesión del coordinador. No vuelvas a invocar `/speckit.implement` ni lo pidas a los workers. Al terminar, todas las tareas integradas quedan `[x]` y el flujo de implement solo valida. Si decides «secuencial», no toques nada: implement sigue solo.
 
+**Run a medias**: si hay un `.work/runs/*/run.md` con `status: active` e `input: speckit specs/<esta feature>`, reanúdalo (`ledger.md` §Reanudar) en vez de planificar de nuevo. Las tareas ya `[x]` no cuentan; las de unidades `dispatched` tampoco se vuelven a repartir.
+
 Precondición: existen `spec.md`, `plan.md` y `tasks.md` en `specs/<feature>/`. Si falta `tasks.md`: `BLOCKED: ejecuta /speckit.tasks primero`. Recomendado haber pasado `/speckit.analyze` sin hallazgos CRITICAL.
 
 ## Lectura de tasks.md
