@@ -97,8 +97,6 @@ def banner():
       @keyframes lid{{0%,92%{{opacity:0}}93%,96%{{opacity:1}}97%,100%{{opacity:0}}}}
       .core{{animation:core 1.5s ease-in-out infinite}}
       @keyframes core{{0%,100%{{opacity:.25}}50%{{opacity:.9}}}}
-      .pb{{animation:pb 12s steps(1) infinite both}}
-      @keyframes pb{{0%{{opacity:0}}1%,100%{{opacity:1}}}}
       .ok{{animation:ok 12s steps(1) infinite both}}
       @keyframes ok{{0%,62%{{opacity:0}}63%,70%{{opacity:1}}71%{{opacity:0}}72%,100%{{opacity:1}}}}
       .cur{{animation:cur 1s steps(1) infinite}}
@@ -180,12 +178,14 @@ def banner():
             p.append(f'<rect x="-4" y="-4" width="8" height="8" fill="{col}">'
                      f'<animateMotion dur="3.2s" repeatCount="indefinite" begin="{begin:.2f}s" path="{path}"/></rect>')
 
-    # barra de progreso + SYNC OK
-    blocks, bx, by = 40, 44, H - 46
-    for i in range(blocks):
-        x = bx + i * 14
-        p.append(f'<rect x="{x}" y="{by}" width="10" height="12" fill="{GREY_DK}"/>')
-        p.append(f'<rect class="pb" style="animation-delay:{3.2 + i*0.1:.2f}s" x="{x}" y="{by}" width="10" height="12" fill="{LIME}"/>')
+    # skills que instala el kit, tecleadas una a una + SYNC OK
+    by = H - 32
+    p.append(text('SKILLS:', 44, by - 1, 2, GREY))
+    sx = 44 + width('SKILLS: ', 2) + 12
+    for i, sk in enumerate(['KIT-INIT', 'ORCA', 'CSR-STACK', 'CSR-GATE', 'CSR-AUDIT']):
+        p.append(text(sk, sx, by - 1, 2, GREY_DK))
+        p.append(letters(sk, sx, by - 1, 2, LIME, 'lt', 3.2 + i * 0.7, 0.03))
+        sx += width(sk, 2) + 24
     ok = 'SYNC OK · 5 AGENTES'
     p.append(f'<g class="ok">{text(ok, W - 44 - width(ok, 2), by - 1, 2, LIME)}</g>')
 
