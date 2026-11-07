@@ -8,6 +8,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 ### Añadido
 - Orquestador: runs reanudables con el estado en `.work/runs/<run>/run.md` (`skills/orca/references/ledger.md`); la skill y el hook de spec-kit retoman un run a medias en vez de repartir de nuevo. Detalle en [`docs/ORQUESTADOR.md`](docs/ORQUESTADOR.md).
 - Orquestador: revisión cruzada por otro proveedor, presupuestos por talla, límite de reintentos y sección de confianza entre agentes en `95-multi-agent.md`.
+- **Plugin de Orca** (`orca-plugin/`, Orca ≥ 1.4.248): comandos de paleta para verificar, inicializar y actualizar el kit; hook `agent.prompt.before` que añade la referencia al contrato del worker a los despachos de orquestación del kit; resumen de agentes activos en la barra de estado. Ver `docs/PLUGIN-ORCA.md`.
 
 ### Cambiado
 - Motor Orca alineado con el CLI 1.4.252: sin polling de `check`, DAG con `task-create --deps`, `--spec-file`, `--base-branch`, decision gates, `--retry-of` y circuit breaker.

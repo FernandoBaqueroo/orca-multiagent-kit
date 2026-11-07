@@ -55,6 +55,28 @@ if grep -rnE '~/\.(claude|gemini)/rules' core rules skills templates output-styl
   grep -rnE '~/\.(claude|gemini)/rules' core rules skills templates output-styles | sed 's/^/  /'; err "rutas específicas de un agente"
 else ok "sin rutas específicas"; fi
 
+echo "== plugin de Orca (manifiesto, sin Orca; la validación completa es \`orca plugin validate orca-plugin\`)"
+if command -v node >/dev/null; then
+  node - orca-plugin <<'EOF' && ok "orca-plugin/orca-plugin.json" || err "orca-plugin/orca-plugin.json"
+const fs = require('fs'), path = require('path')
+const dir = process.argv[2], problems = []
+let m
+try { m = JSON.parse(fs.readFileSync(path.join(dir, 'orca-plugin.json'), 'utf8')) } catch (e) { console.error(`  ${e.message}`); process.exit(1) }
+const c = m.contributes || {}
+if (m.manifestVersion !== 2) problems.push('manifestVersion debe ser 2')
+if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(m.id || '') || m.id.startsWith('orca-')) problems.push(`id no válido o reservado: ${m.id}`)
+if (!/^\d+\.\d+\.\d+$/.test(m.version || '')) problems.push(`version no es SemVer: ${m.version}`)
+if (!/^>=\d+\.\d+\.\d+$/.test((m.engines || {}).orca || '')) problems.push('engines.orca debe ser >=x.y.z')
+if (m.main && !fs.existsSync(path.join(dir, m.main))) problems.push(`main no existe: ${m.main}`)
+const ids = new Set((c.commands || []).map((x) => x.id))
+for (const item of c.statusBarItems || []) if (item.command && !ids.has(item.command)) problems.push(`statusBarItems.${item.id}: comando ${item.command} no declarado`)
+const kinds = new Set((m.capabilities || []).map((x) => x.kind))
+if ((c.settings || []).length && !kinds.has('settings:own')) problems.push('settings sin la capacidad settings:own')
+problems.forEach((p) => console.error(`  ${p}`))
+process.exit(problems.length ? 1 : 0)
+EOF
+else ok "plugin de Orca sin comprobar (no hay node)"; fi
+
 echo "== tamaño del núcleo (≤ 200 líneas)"
 n="$(wc -l < core/AGENTS.md | tr -d ' ')"; [ "$n" -le 200 ] && ok "$n líneas" || err "core/AGENTS.md tiene $n líneas"
 
