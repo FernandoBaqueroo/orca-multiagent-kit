@@ -2,7 +2,7 @@
 // omk — CLI de Orca Multiagent Kit. Sin dependencias: envuelve install.sh con comandos cortos.
 'use strict';
 
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -63,9 +63,14 @@ function findBash() {
 }
 
 function runInstaller(args) {
-  const r = spawnSync(findBash(), [path.join(KIT, 'install.sh'), ...args], { stdio: 'inherit', env: process.env });
-  if (r.error) die(r.error.message);
-  process.exit(r.status === null ? 1 : r.status);
+  const child = spawn(findBash(), [path.join(KIT, 'install.sh'), ...args], {
+    stdio: ['inherit', 'pipe', 'pipe'],
+    env: { ...process.env, OMK_CLI: '1', OMK_EVENTS: '1' },
+  });
+  child.on('error', (e) => die(e.message));
+  // Ctrl+C: deja la terminal limpia (sin el spinner a medias)
+  process.on('SIGINT', () => { process.stdout.write('\r\x1b[2K'); child.kill('SIGINT'); process.exit(130); });
+  require('./ui').render(child).then((code) => process.exit(code));
 }
 
 function listBackups() {
