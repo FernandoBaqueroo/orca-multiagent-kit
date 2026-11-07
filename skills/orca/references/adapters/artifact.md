@@ -29,4 +29,4 @@ No: "se parece al diseño".
 El brief de cada unidad incluye la referencia visual (ruta de la imagen en el repo o en `.work/runs/<run>/assets/`). El worker la necesita; una descripción en texto pierde detalle.
 
 ## Design Mode (Orca)
-Las anotaciones de Design Mode ya traen elemento, estilos y fichero:línea. Cada grupo de anotaciones del mismo componente = una unidad pequeña; normalmente `ENGINE: inline` sobre el agente de ese worktree, sin repartir.
+Las anotaciones de Design Mode ya traen elemento, estilos y fichero:línea. Cada grupo de anotaciones del mismo componente = una unidad pequeña; normalmente secuencial (motor `inline`) sobre el agente de ese worktree, sin repartir.

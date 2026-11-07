@@ -11,7 +11,9 @@ Te ha invocado el hook `before_implement` (o el usuario directamente) en un proy
    - **Entrada**: spec-kit; la feature activa es la que resuelve `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` (`FEATURE_DIR`).
    - **Paso 1 (¿compensa?)** con las user stories pendientes de `tasks.md`. Las tareas ya marcadas `[x]` no cuentan.
    - **No** vuelvas a invocar `/speckit.implement` ni `/speckit-implement`: ya estás dentro de él.
+   - **Run a medias**: si la feature ya tiene un run activo (`.work/runs/*/run.md`), la skill lo reanuda en vez de repartir de nuevo.
 2. Resultado, siempre en **una línea** al final:
    - `ORCA: secuencial — <motivo>. Continúa /speckit.implement.` → el flujo de implement sigue con su Outline normal.
    - `ORCA: orquestado — <n> tareas completadas en <r> rondas. /speckit.implement solo debe validar y ejecutar sus hooks posteriores.` → implement encontrará todas las tareas en `[x]`.
    - `ORCA: cancelado por el usuario. Continúa /speckit.implement en modo secuencial.` si en la confirmación 1 el usuario dice que no.
+   - `ORCA: pendiente — <k>/<n> tareas integradas; quedan <unidades> (BLOCKED o en curso). No continúes /speckit.implement hasta cerrarlas.` si el run no termina en esta sesión.
