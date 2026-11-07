@@ -14,6 +14,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - Motor Orca alineado con el CLI 1.4.252: sin polling de `check`, DAG con `task-create --deps`, `--spec-file`, `--base-branch`, decision gates, `--retry-of` y circuit breaker.
 - Integración: alcance comprobado con git, ensayo de merge con `git merge-tree`, orden topológico y revert de una unidad. Campos opcionales nuevos en unidades (`budget`, `review`) e informes (`base`, `time`).
 
+### Corregido
+- Instalador dentro de la app **Orca**: detecta el perfil de Claude que Orca inyecta en `CLAUDE_CONFIG_DIR`, instala en `~/.claude` (que el perfil importa) y no escribe nunca en el perfil.
+- **Windows**: las rutas `C:\…` de `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GEMINI_DIR`, `AGENT_KIT_HOME`, `--project` y `--adopt` se normalizan; Git Bash crea enlaces nativos (`winsymlinks:nativestrict`) o el instalador se para antes de tocar nada, en vez de dejar copias.
+- Backups y `--restore` de rutas fuera de `$HOME` (antes se restauraban dentro de `$HOME`). `--restore` ya no borra enlaces ajenos al kit (dotfiles, perfiles de Orca).
+- `--verify` distingue una copia (que acabará divergiendo) de un enlace que falta.
+- `omk` en Windows ya no usa el `bash` de WSL por error (instalaría en el `$HOME` de Linux).
+- Las pruebas aíslan `CLAUDE_CONFIG_DIR` y compañía: con solo un `HOME` desechable, escribían en la configuración real.
+Detalle: [`docs/INSTALADOR-ORCA-WINDOWS.md`](docs/INSTALADOR-ORCA-WINDOWS.md).
+
 ## [1.2.0] - 2026-11-07
 
 ### Añadido
