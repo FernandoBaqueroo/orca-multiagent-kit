@@ -31,7 +31,8 @@ jobs:
           echo "TAG=$T" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          # lanzado a mano: se publica desde la rama elegida y la release crea el tag
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || env.TAG }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -71,7 +72,7 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "Orca Multiagent Kit $TAG" --notes-file notes.md --latest
           else
-            gh release create "$TAG" --title "Orca Multiagent Kit $TAG" --notes-file notes.md --latest
+            gh release create "$TAG" --target "$(git rev-parse HEAD)" --title "Orca Multiagent Kit $TAG" --notes-file notes.md --latest
           fi
           gh release upload "$TAG" --clobber dist/orca-multiagent-kit-v$VERSION.zip dist/orca-multiagent-kit.zip dist/SHA256SUMS
 
