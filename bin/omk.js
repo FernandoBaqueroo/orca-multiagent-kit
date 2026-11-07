@@ -30,7 +30,7 @@ ${bold('Comandos')}
   ${lime('adopt')}    <carpeta-skill>              Comparte una skill externa con todos los agentes
   ${lime('backups')}                               Lista las copias de seguridad
   ${lime('restore')}  <fecha>                      Deshace una instalación (fecha de "omk backups")
-  ${lime('update')}                                Actualiza el kit a la última versión y reinstala
+  ${lime('update')}                                Actualiza a la última versión de npm y reinstala
   ${lime('where')}                                 Muestra dónde está cada cosa
   ${lime('version')}                               Muestra la versión
   ${lime('help')}                                  Esta ayuda
@@ -118,11 +118,34 @@ switch (cmd) {
     break;
 
   case 'update': {
-    console.log(lime('Actualizando desde ' + REPO + ' …'));
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const u = spawnSync(npm, ['install', '-g', REPO], { stdio: 'inherit' });
-    if (u.status !== 0) die('no se pudo actualizar con npm. Prueba: npx ' + REPO + ' install');
-    const r = spawnSync('omk', ['install', ...rest], { stdio: 'inherit', shell: process.platform === 'win32' });
+    const sh = { encoding: 'utf8', shell: process.platform === 'win32' };
+    const latest = (spawnSync(npm, ['view', REPO, 'version'], sh).stdout || '').trim();
+    if (!latest) die('no se pudo consultar npm. ¿Hay conexión?');
+    if (latest === VERSION && !rest.includes('--force')) {
+      console.log(`${lime('✓')} Ya tienes la última versión (${VERSION}). Reaplicando la instalación…`);
+    } else {
+      console.log(`${lime('›')} Actualizando ${dim(VERSION)} → ${lime(latest)}`);
+      const prefix = (spawnSync(npm, ['prefix', '-g'], sh).stdout || '').trim();
+      const libdir = process.platform === 'win32' ? prefix : path.join(prefix, 'lib', 'node_modules');
+      let writable = true;
+      try {
+        fs.accessSync(libdir, fs.constants.W_OK);
+        if (fs.existsSync(path.join(libdir, REPO))) fs.accessSync(path.join(libdir, REPO), fs.constants.W_OK);
+      } catch { writable = false; }
+      if (!writable) {
+        die(`no tienes permiso para escribir en ${libdir} (instalaste omk con sudo o Node está en una carpeta del sistema).
+
+  Rápido:       sudo npm i -g ${REPO}@latest && omk install
+  Recomendado:  que npm instale en tu carpeta de usuario, una sola vez:
+                  mkdir -p ~/.npm-global && npm config set prefix ~/.npm-global
+                  echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+                  sudo npm rm -g ${REPO} && npm i -g ${REPO}`);
+      }
+      const u = spawnSync(npm, ['install', '-g', `${REPO}@latest`], { stdio: 'inherit', shell: sh.shell });
+      if (u.status !== 0) die('no se pudo actualizar con npm. Prueba: npx ' + REPO + '@latest install');
+    }
+    const r = spawnSync('omk', ['install', ...rest.filter((a) => a !== '--force')], { stdio: 'inherit', shell: process.platform === 'win32' });
     process.exit(r.status === null ? 1 : r.status);
   }
 
