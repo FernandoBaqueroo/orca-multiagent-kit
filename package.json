@@ -1,6 +1,6 @@
 {
   "name": "orca-multiagent-kit",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Una sola fuente de reglas y skills (CSR + MAW) para Claude Code, Antigravity, Codex, Copilot y Cursor, con orquestación multiagente.",
   "license": "MIT",
   "author": "Fernando Baquero (https://github.com/FernandoBaqueroo)",

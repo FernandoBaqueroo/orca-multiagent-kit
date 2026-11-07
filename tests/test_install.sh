@@ -99,10 +99,20 @@ H="$(newhome)"; mkdir -p "$H/.claude" "$H/proj/.specify" "$H/bin"
 # specify falso: solo acepta una extensión que exista de verdad
 printf '%s\n' '#!/usr/bin/env bash' '[ "$1 $2 $3" = "extension add --dev" ] && [ -f "$4/extension.yml" ]' > "$H/bin/specify"; chmod +x "$H/bin/specify"
 # shellcheck disable=SC2034  # OUT se lee dentro de check (eval)
-OUT="$(HOME="$H" PATH="$H/bin:$PATH" OMK_CLI=1 bash "$INSTALL" --project-only "$H/proj" 2>&1)" || { echo "  salida de install.sh:"; printf '%s\n' "$OUT" | sed 's/^/    | /'; }
-check "hook instalado desde el propio kit"       'printf "%s" "$OUT" | grep -q "extension orca instalada"'
-check "avisa de ejecutar omk install"            'printf "%s" "$OUT" | grep -q "omk install"'
-check "mensaje final con comandos omk"           'printf "%s" "$OUT" | grep -q "omk verify"'
+OUT="$(HOME="$H" PATH="$H/bin:$PATH" OMK_CLI=1 OMK_EVENTS=1 bash "$INSTALL" --project-only "$H/proj" 2>&1)" || { echo "  salida de install.sh:"; printf '%s\n' "$OUT" | sed 's/^/    | /'; }
+check "hook instalado desde el propio kit"       'printf "%s" "$OUT" | grep -q "^::item::add::spec-kit: extensión orca instalada"'
+check "pendiente: ejecutar omk install"          'printf "%s" "$OUT" | grep -q "^::todo::.*omk install"'
+check "eventos de fase y resumen final"          'printf "%s" "$OUT" | grep -q "^::begin::Proyecto proj" && printf "%s" "$OUT" | grep -q "^::footer::project::"'
+
+echo "== 9. Salida de texto (./install.sh sin omk)"
+H="$(newhome)"; mkdir -p "$H/.claude" "$H/.cursor"
+OUT="$(HOME="$H" bash "$INSTALL" 2>&1)"
+check "sin eventos ni colores fuera de una terminal" '! printf "%s" "$OUT" | grep -q "^::" && ! printf "%s" "$OUT" | grep -q "$(printf "\\033")"'
+check "pendientes separados de la información"   'printf "%s" "$OUT" | grep -q "^Pendiente" && printf "%s" "$OUT" | grep -q "^Para tu información"'
+check "Cursor: pide la regla de usuario"         'printf "%s" "$OUT" | grep -q "User Rules"'
+mkdir -p "$H/.config/Cursor/User/globalStorage"; printf 'xx ~/.agents/AGENTS.md xx' > "$H/.config/Cursor/User/globalStorage/state.vscdb"
+OUT="$(HOME="$H" bash "$INSTALL" 2>&1)"
+check "Cursor: no la pide si ya está puesta"     '! printf "%s" "$OUT" | grep -q "User Rules"'
 
 printf '\n%s ok · %s fallos\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

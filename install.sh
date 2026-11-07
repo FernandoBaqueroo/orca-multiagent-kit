@@ -29,7 +29,7 @@ OLD_SKILLS="maw-route maw-brief maw-plan maw-dispatch maw-worker maw-integrate m
 OLD_RULES="00-router.md 10-communication.md 20-clean-code.md 30-security.md 31-security-audit.md 40-testing.md 50-done-gate.md 60-git-workflow.md 70-performance.md 75-reliability.md 80-supply-chain.md 90-docs-comments.md 95-multi-agent.md comunicacion-densa.md idioma-siempre.md"
 OLD_LANGS="cpp csharp dart-flutter go infra java kotlin php python react ruby rust shell sql swift typescript web"
 
-PROJECT=""; PROJECT_ONLY=0; VERIFY=0; DRY=0; AGENTS=""; RESTORE=""; ADOPT=""; WARN=""
+PROJECT=""; PROJECT_ONLY=0; VERIFY=0; DRY=0; AGENTS=""; RESTORE=""; ADOPT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --project)      PROJECT="${2:-}"; shift 2 ;;
@@ -44,10 +44,54 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-step() { printf '[kit] %s\n' "$1"; }
-warn() { WARN="${WARN}  - $1
-"; }
-run()  { if [ "$DRY" -eq 1 ]; then printf '  (dry) %s\n' "$*"; else "$@"; fi; }
+# ------------------------------------------------------------------ salida
+# Con OMK_EVENTS=1 (lo pone omk) se emiten eventos «::tipo::…» que omk dibuja con spinner y color.
+# Sin él (./install.sh), el mismo contenido en texto, con color si es una terminal.
+EV="${OMK_EVENTS:-}"
+C_L=''; C_D=''; C_Y=''; C_R=''; C_B=''; C_0=''
+if [ -z "$EV" ] && [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  C_L=$'\033[38;5;154m'; C_D=$'\033[2m'; C_Y=$'\033[38;5;221m'; C_R=$'\033[38;5;203m'; C_B=$'\033[1m'; C_0=$'\033[0m'
+fi
+TODO=""; INFO=""; MOVED=0
+ev()    { printf '::%s\n' "$1"; }
+title() { if [ -n "$EV" ]; then ev "title::$1::${2:-}"; else printf '\n%s%s%s %s%s%s\n%s%s%s\n\n' "$C_L$C_B" "■" "$C_0" "$C_B" "$1" "$C_0" "$C_D" "${2:-}" "$C_0"; fi; }
+phase() { if [ -n "$EV" ]; then ev "begin::$1"; else printf '  %s›%s %s%s%s\n' "$C_L" "$C_0" "$C_B" "$1" "$C_0"; fi; }
+done_phase() { if [ -n "$EV" ]; then ev "end::${1:-}"; elif [ -n "${1:-}" ]; then printf '    %s%s%s\n' "$C_D" "$1" "$C_0"; fi; return 0; }
+item()  { # $1 add|keep|dry|warn|fail · $2 texto
+  if [ -n "$EV" ]; then ev "item::$1::$2"; return 0; fi
+  case "$1" in add) m="$C_L+$C_0" ;; keep) m="$C_D=$C_0" ;; dry) m="$C_Y~$C_0" ;; fail) m="${C_R}✗${C_0}" ;; *) m="$C_Y!$C_0" ;; esac
+  printf '    %s %s\n' "$m" "$2"; }
+todo()  { TODO="${TODO}$1
+"; if [ -n "$EV" ]; then ev "todo::$1"; fi; return 0; }
+info()  { INFO="${INFO}$1
+"; if [ -n "$EV" ]; then ev "info::$1"; fi; return 0; }
+short() { local x="$*"; x="${x//"$SRC"/<kit>}"; printf '%s' "${x//"$HOME"/~}"; }
+run()  { if [ "$DRY" -eq 1 ]; then item dry "$(short "$*")"; else "$@"; fi; }
+# Resumen final: pendientes, información y siguientes pasos (solo texto; omk lo dibuja él)
+footer() { # $1 global|project|both
+  local st=""; [ -d "$BK" ] && [ "$DRY" -eq 0 ] && st="$STAMP"
+  if [ -n "$EV" ]; then ev "footer::$1::$st::$DRY"; return 0; fi
+  if [ -n "$TODO" ]; then printf '\n%sPendiente%s\n' "$C_Y$C_B" "$C_0"; printf '%s' "$TODO" | while IFS= read -r l; do printf '  %s›%s %s\n' "$C_Y" "$C_0" "$l"; done; fi
+  if [ -n "$INFO" ]; then printf '\n%sPara tu información%s\n' "$C_D$C_B" "$C_0"; printf '%s' "$INFO" | while IFS= read -r l; do printf '  %s· %s%s\n' "$C_D" "$l" "$C_0"; done; fi
+  if [ "$DRY" -eq 1 ]; then printf '\n%sSimulación: no se ha escrito nada.%s\n\n' "$C_Y" "$C_0"; return 0; fi
+  printf '\n%s✓ Hecho%s\n' "$C_L$C_B" "$C_0"
+  case "$1" in
+    global) printf '  %scomprobar%s  ./install.sh --verify\n  %sproyecto%s   ./install.sh --project-only <ruta>\n' "$C_D" "$C_0" "$C_D" "$C_0" ;;
+    *)      printf '  %ssiguiente%s  en el agente: «inicializa el proyecto»\n' "$C_D" "$C_0" ;;
+  esac
+  [ -n "$st" ] && printf '  %sdeshacer%s   ./install.sh --restore %s\n' "$C_D" "$C_0" "$st"
+  printf '\n'; }
+NSK=0; for _s in $KIT_SKILLS; do NSK=$((NSK+1)); done
+# Cursor guarda las reglas de usuario en su base de datos de estado: basta con buscar la ruta del núcleo.
+cursor_rule_set() {
+  local f
+  for f in "$HOME/Library/Application Support/Cursor/User/globalStorage/state.vscdb" "$HOME/.config/Cursor/User/globalStorage/state.vscdb"; do
+    [ -f "$f" ] && grep -aq '.agents/AGENTS.md' "$f" 2>/dev/null && return 0
+  done
+  return 1; }
+agent_names() { local o="" a; for a in $(printf '%s' "$AGENTS" | tr ',' ' '); do
+  case "$a" in claude) a="Claude Code" ;; antigravity) a="Antigravity" ;; codex) a="Codex" ;; copilot) a="Copilot CLI" ;; cursor) a="Cursor" ;; devin) a="Devin" ;; esac
+  o="${o:+$o · }$a"; done; printf '%s' "$o"; }
 has_agent() { case ",$AGENTS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 
 # Mueve una ruta al backup conservando su ruta relativa a $HOME.
@@ -57,6 +101,7 @@ stash() {
   rel="${p#$HOME/}"
   run mkdir -p "$BK/$(dirname "$rel")"
   run mv "$p" "$BK/$rel"
+  MOVED=$((MOVED+1))
 }
 # Copia (sin mover) una ruta al backup.
 snapshot() {
@@ -90,24 +135,32 @@ extract_overrides() { # $1 fichero -> stdout
        inb && ov && !/^<!--/ && !/^-[[:space:]]*$/ && NF>0 {print}' "$1"
 }
 write_file() { # $1 destino, stdin contenido
-  if [ "$DRY" -eq 1 ]; then cat >/dev/null; printf '  (dry) escribir %s\n' "$1"; else mkdir -p "$(dirname "$1")"; cat > "$1"; fi
+  if [ "$DRY" -eq 1 ]; then cat >/dev/null; item dry "escribir $(short "$1")"; else mkdir -p "$(dirname "$1")"; cat > "$1"; fi
 }
 
 [ -f "$SRC/core/AGENTS.md" ] || { echo "No encuentro core/AGENTS.md en $SRC" >&2; exit 1; }
 
 # ------------------------------------------------------------------ restore
 if [ -n "$RESTORE" ]; then
-  R="$AG/backups/$RESTORE"; [ -d "$R" ] || { echo "No existe $R" >&2; exit 1; }
-  step "Restaurando desde $R"
-  (cd "$R" && find . \( -type f -o -type l \) | sed 's#^\./##') | while IFS= read -r rel; do
+  R="$AG/backups/$RESTORE"; [ -d "$R" ] || { echo "No existe la copia $R (consulta: omk backups)" >&2; exit 1; }
+  title "Restaurar" "copia $RESTORE"
+  phase "Devolviendo ficheros a su sitio"
+  N=0
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
     dest="$HOME/$rel"
     # si algun directorio padre es ahora un enlace (p. ej. una skill enlazada), quita el enlace: no escribir a traves de el
     p="$(dirname "$dest")"
     while [ "$p" != "$HOME" ] && [ "$p" != "/" ]; do [ -L "$p" ] && run rm -f "$p"; p="$(dirname "$p")"; done
     if [ -L "$dest" ] || [ -f "$dest" ]; then run rm -f "$dest"; fi
     run mkdir -p "$(dirname "$dest")"; run cp -a "$R/$rel" "$dest"
-  done
-  step "Hecho. Los enlaces creados donde antes no habia nada se mantienen; borralos a mano si quieres."
+    N=$((N+1))
+  done <<EOF
+$(cd "$R" && find . \( -type f -o -type l \) | sed 's#^\./##')
+EOF
+  done_phase "$N ficheros restaurados"
+  info "Los enlaces que el kit creó donde antes no había nada siguen ahí; bórralos a mano si quieres."
+  if [ -n "$EV" ]; then ev "footer::restore::$RESTORE::$DRY"; else printf '\n%s✓ Restaurado%s\n\n' "$C_L$C_B" "$C_0"; fi
   exit 0
 fi
 
@@ -128,56 +181,71 @@ if [ -n "$ADOPT" ]; then
   [ -L "$SKD" ] && { echo "Ya es un enlace: $SKD -> $(readlink "$SKD")" >&2; exit 1; }
   NAME="$(basename "$SKD")"; DEST="$AG/skills/$NAME"
   [ -e "$DEST" ] && { echo "Ya existe $DEST. Si es la misma skill, borra una de las dos copias antes." >&2; exit 1; }
-  step "Adoptando $NAME: $SKD -> $DEST (en su sitio original queda un enlace)"
+  title "Adoptar skill" "$NAME"
+  phase "Compartiendo $NAME con todos los agentes"
   run mkdir -p "$BK" "$AG/skills"
   run cp -a "$SKD" "$BK/$NAME.orig"
   run mv "$SKD" "$DEST"
   run ln -s "$DEST" "$SKD"
-  case "$SKD" in "$CLAUDE_DIR"/skills/*) ;; *) has_agent claude && link "$DEST" "$CLAUDE_DIR/skills/$NAME" ;; esac
-  case "$SKD" in "$GEMINI_DIR"/*) ;; *) has_agent antigravity && link "$DEST" "$GEMINI_DIR/config/skills/$NAME" ;; esac
-  step "Hecho. Codex, Copilot y Cursor la leen desde $AG/skills. Si la skill se actualiza con su propio instalador, vuelve a adoptarla."
+  item add "copia única en $(short "$DEST")"
+  item add "en su sitio original queda un enlace"
+  case "$SKD" in "$CLAUDE_DIR"/skills/*) ;; *) has_agent claude && { link "$DEST" "$CLAUDE_DIR/skills/$NAME"; item add "enlazada en Claude Code"; } ;; esac
+  case "$SKD" in "$GEMINI_DIR"/*) ;; *) has_agent antigravity && { link "$DEST" "$GEMINI_DIR/config/skills/$NAME"; item add "enlazada en Antigravity"; } ;; esac
+  done_phase "Codex, Copilot y Cursor la leen desde ~/.agents/skills"
+  info "Si la skill se actualiza con su propio instalador, vuelve a adoptarla."
+  footer global
   exit 0
 fi
 
 # ------------------------------------------------------------------ verify
 if [ "$VERIFY" -eq 1 ]; then
-  bad=0
-  ok()   { echo "  OK    $1"; }
-  fail() { echo "  MAL   $1"; bad=1; }
-  chk_link() { if [ -L "$2" ] && [ "$(readlink "$2")" = "$1" ]; then ok "$2 -> $1"; else fail "$2 no enlaza a $1"; fi; }
-  [ -f "$AG/AGENTS.md" ] && ok "$AG/AGENTS.md" || fail "$AG/AGENTS.md"
-  n=$(ls -1 "$AG/rules/lang"/*.md 2>/dev/null | wc -l | tr -d ' '); [ "$n" -ge 17 ] && ok "rules/lang: $n" || fail "rules/lang: $n (esperado 17)"
-  for s in $KIT_SKILLS; do [ -f "$AG/skills/$s/SKILL.md" ] || fail "skill $s"; done
-  [ -f "$AG/speckit-ext/orca/extension.yml" ] && ok "extension spec-kit orca" || fail "$AG/speckit-ext/orca"
-  for s in $OLD_SKILLS; do [ -e "$AG/skills/$s" ] && fail "skill retirada sigue instalada: $s"; done
+  bad=0; nok=0
+  vok()   { nok=$((nok+1)); if [ -n "$EV" ]; then ev "check::ok::$1"; else printf '  %s✓%s %s\n' "$C_L" "$C_0" "$1"; fi; }
+  vfail() { bad=$((bad+1)); if [ -n "$EV" ]; then ev "check::fail::$1"; else printf '  %s✗ %s%s\n' "$C_R" "$1" "$C_0"; fi; }
+  vinfo() { if [ -n "$EV" ]; then ev "check::info::$1"; else printf '  %s· %s%s\n' "$C_D" "$1" "$C_0"; fi; }
+  chk_link() { if [ -L "$3" ] && [ "$(readlink "$3")" = "$2" ]; then vok "$1"; else vfail "$1: $(short "$3") no enlaza a $(short "$2")"; fi; }
+  title "Verificación" "$(agent_names)"
+  [ -f "$AG/AGENTS.md" ] && vok "núcleo en ~/.agents/AGENTS.md (v$(cat "$AG/AGENT_KIT_VERSION" 2>/dev/null || echo '?'))" || vfail "falta ~/.agents/AGENTS.md: ejecuta omk install"
+  n=$(ls -1 "$AG/rules/lang"/*.md 2>/dev/null | wc -l | tr -d ' '); [ "$n" -ge 17 ] && vok "$n guías de lenguaje" || vfail "guías de lenguaje: $n de 17"
+  ms=""; for s in $KIT_SKILLS; do [ -f "$AG/skills/$s/SKILL.md" ] || ms="$ms $s"; done
+  [ -z "$ms" ] && vok "$NSK skills del kit" || vfail "faltan skills:$ms"
+  [ -f "$AG/speckit-ext/orca/extension.yml" ] && vok "extensión de spec-kit" || vfail "falta la extensión de spec-kit (~/.agents/speckit-ext/orca)"
+  for s in $OLD_SKILLS; do [ -e "$AG/skills/$s" ] && vfail "skill retirada sigue instalada: $s"; done
   if has_agent claude; then
-    grep -q '@~/.agents/AGENTS.md' "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && ok "CLAUDE.md importa AGENTS.md" || fail "CLAUDE.md sin import"
-    grep -Eq '<!-- (CSR|MAW):BEGIN' "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && fail "CLAUDE.md conserva bloques CSR/MAW antiguos" || true
-    for r in $OLD_RULES; do [ -e "$CLAUDE_DIR/rules/$r" ] && fail "copia divergente: $CLAUDE_DIR/rules/$r (Claude la carga SIEMPRE)"; done
-    for s in $KIT_SKILLS; do chk_link "$AG/skills/$s" "$CLAUDE_DIR/skills/$s"; done
+    grep -q '@~/.agents/AGENTS.md' "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && vok "Claude Code: CLAUDE.md importa el núcleo" || vfail "Claude Code: CLAUDE.md no importa el núcleo"
+    grep -Eq '<!-- (CSR|MAW):BEGIN' "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && vfail "Claude Code: CLAUDE.md conserva bloques CSR/MAW antiguos" || true
+    for r in $OLD_RULES; do [ -e "$CLAUDE_DIR/rules/$r" ] && vfail "Claude Code: copia antigua $(short "$CLAUDE_DIR/rules/$r") (Claude la carga siempre)"; done
+    ms=""; for s in $KIT_SKILLS; do [ -L "$CLAUDE_DIR/skills/$s" ] && [ "$(readlink "$CLAUDE_DIR/skills/$s")" = "$AG/skills/$s" ] || ms="$ms $s"; done
+    [ -z "$ms" ] && vok "Claude Code: skills enlazadas" || vfail "Claude Code: skills sin enlazar:$ms"
   fi
   if has_agent antigravity; then
-    chk_link "$AG/AGENTS.md" "$GEMINI_DIR/GEMINI.md"
-    for r in $OLD_RULES; do [ -e "$GEMINI_DIR/rules/$r" ] && fail "copia divergente: $GEMINI_DIR/rules/$r"; done
-    [ -e "$GEMINI_DIR/config/plugins/claude-session-rules" ] && fail "plugin claude-session-rules sigue instalado (duplica csr-*)"
-    for s in $KIT_SKILLS; do chk_link "$AG/skills/$s" "$GEMINI_DIR/config/skills/$s"; done
+    chk_link "Antigravity: GEMINI.md es el núcleo" "$AG/AGENTS.md" "$GEMINI_DIR/GEMINI.md"
+    for r in $OLD_RULES; do [ -e "$GEMINI_DIR/rules/$r" ] && vfail "Antigravity: copia antigua $(short "$GEMINI_DIR/rules/$r")"; done
+    [ -e "$GEMINI_DIR/config/plugins/claude-session-rules" ] && vfail "Antigravity: el plugin claude-session-rules sigue instalado (duplica csr-*)"
+    ms=""; for s in $KIT_SKILLS; do [ -L "$GEMINI_DIR/config/skills/$s" ] && [ "$(readlink "$GEMINI_DIR/config/skills/$s")" = "$AG/skills/$s" ] || ms="$ms $s"; done
+    [ -z "$ms" ] && vok "Antigravity: skills enlazadas" || vfail "Antigravity: skills sin enlazar:$ms"
   fi
-  has_agent codex   && chk_link "$AG/AGENTS.md" "$CODEX_DIR/AGENTS.md"
-  has_agent copilot && chk_link "$AG/AGENTS.md" "$COPILOT_DIR/copilot-instructions.md"
-  has_agent devin   && chk_link "$AG/AGENTS.md" "$DEVIN_DIR/AGENTS.md"
-  has_agent cursor  && echo "  INFO  cursor: lee ~/.agents/skills solo; reglas globales en Settings -> Rules (no hay fichero)"
-  [ "$bad" -eq 0 ] && { step "Verificacion: OK ($AGENTS)"; exit 0; }
-  step "Verificacion: con fallos"; exit 1
+  has_agent codex   && chk_link "Codex: AGENTS.md es el núcleo" "$AG/AGENTS.md" "$CODEX_DIR/AGENTS.md"
+  has_agent copilot && chk_link "Copilot CLI: copilot-instructions.md es el núcleo" "$AG/AGENTS.md" "$COPILOT_DIR/copilot-instructions.md"
+  has_agent devin   && chk_link "Devin: AGENTS.md es el núcleo" "$AG/AGENTS.md" "$DEVIN_DIR/AGENTS.md"
+  if has_agent cursor; then
+    if cursor_rule_set; then vok "Cursor: regla de usuario configurada"; else vinfo "Cursor: no veo la regla de usuario que apunta a ~/.agents/AGENTS.md (Settings → Rules)"; fi
+  fi
+  if [ -n "$EV" ]; then ev "result::$bad::$nok"; exit $((bad > 0)); fi
+  if [ "$bad" -eq 0 ]; then printf '\n%s✓ Todo correcto%s  %s%s comprobaciones%s\n\n' "$C_L$C_B" "$C_0" "$C_D" "$nok" "$C_0"; exit 0; fi
+  printf '\n%s✗ %s fallos%s  %sejecuta «omk install» para repararlos%s\n\n' "$C_R$C_B" "$bad" "$C_0" "$C_D" "$C_0"; exit 1
 fi
 
 # ------------------------------------------------------------------ global
 if [ "$PROJECT_ONLY" -eq 0 ]; then
-  [ -n "$AGENTS" ] || { echo "No detecto ningun agente. Usa --agents." >&2; exit 1; }
-  step "Orca Multiagent Kit v$VERSION · agentes: $AGENTS"
-  step "Fuente unica: $AG · backup: $BK"
+  [ -n "$AGENTS" ] || { echo "No detecto ningún agente (Claude Code, Antigravity, Codex, Copilot o Cursor). Indica cuáles con --agents." >&2; exit 1; }
+  SUB="$(agent_names)"; [ "$DRY" -eq 1 ] && SUB="$SUB · simulación, no se escribe nada"
+  title "Orca Multiagent Kit v${VERSION}" "$SUB"
   run mkdir -p "$BK"
 
   # 1. Fuente canonica
+  phase "Fuente única en ~/.agents"
+  PREV="$(cat "$AG/AGENT_KIT_VERSION" 2>/dev/null || true)"
   [ -f "$AG/AGENTS.md" ] && snapshot "$AG/AGENTS.md"
   run mkdir -p "$AG/rules" "$AG/skills" "$AG/templates" "$AG/output-styles"
   run cp "$SRC/core/AGENTS.md" "$AG/AGENTS.md"
@@ -190,21 +258,31 @@ if [ "$PROJECT_ONLY" -eq 0 ]; then
   run cp -R "$SRC/templates/." "$AG/templates/"
   run cp -R "$SRC/output-styles/." "$AG/output-styles/"
   run cp "$SRC/VERSION" "$AG/AGENT_KIT_VERSION"
+  run mkdir -p "$AG/speckit-ext"
+  [ -e "$AG/speckit-ext/orca" ] && run rm -rf "$AG/speckit-ext/orca"
+  run cp -R "$SRC/speckit-extension/orca" "$AG/speckit-ext/orca"
+  NR=$(find "$SRC/rules" -name '*.md' | wc -l | tr -d ' '); NS=$NSK
+  if [ -z "$PREV" ]; then item add "instalada v${VERSION}"; elif [ "$PREV" = "$VERSION" ]; then item keep "v${VERSION} reinstalada"; else item add "actualizada de v${PREV} a v${VERSION}"; fi
+  done_phase "núcleo · $NR reglas · $NS skills · extensión de spec-kit"
+
+  # 2. Restos de versiones anteriores
+  phase "Versiones anteriores"
+  M0=$MOVED
   [ -d "$AG/maw" ] && stash "$AG/maw"              # restos de MAW v1
   for s in $OLD_SKILLS; do
     stash "$AG/skills/$s"; stash "$CLAUDE_DIR/skills/$s"; stash "$GEMINI_DIR/config/skills/$s"
   done
-  run mkdir -p "$AG/speckit-ext"
-  [ -e "$AG/speckit-ext/orca" ] && run rm -rf "$AG/speckit-ext/orca"
-  run cp -R "$SRC/speckit-extension/orca" "$AG/speckit-ext/orca"
+  if [ $((MOVED-M0)) -gt 0 ]; then done_phase "$((MOVED-M0)) elementos retirados a la copia de seguridad"; else done_phase "nada que retirar"; fi
 
-  # 2. Claude Code: import en CLAUDE.md; reglas fuera de ~/.claude/rules (Claude carga TODO lo que hay ahi)
+  # 3. Claude Code: import en CLAUDE.md; reglas fuera de ~/.claude/rules (Claude carga TODO lo que hay ahi)
   if has_agent claude; then
-    step "Claude Code"
+    phase "Claude Code"
+    M0=$MOVED
     if [ -L "$CLAUDE_DIR/CLAUDE.md" ]; then stash "$CLAUDE_DIR/CLAUDE.md"; fi
     [ -f "$CLAUDE_DIR/CLAUDE.md" ] && snapshot "$CLAUDE_DIR/CLAUDE.md"
     TMP="$(mktemp)"; [ -f "$CLAUDE_DIR/CLAUDE.md" ] && strip_blocks "$CLAUDE_DIR/CLAUDE.md" > "$TMP"
     { printf '<!-- AGENTS:BEGIN v%s Orca Multiagent Kit -- reglas globales: edita ~/.agents/AGENTS.md, no este bloque -->\n@~/.agents/AGENTS.md\n<!-- AGENTS:END -->\n' "$VERSION"; [ -s "$TMP" ] && { printf '\n'; cat "$TMP"; }; true; } | write_file "$CLAUDE_DIR/CLAUDE.md"
+    [ -s "$TMP" ] && KEPT=1 || KEPT=0
     rm -f "$TMP"
     for r in $OLD_RULES; do stash "$CLAUDE_DIR/rules/$r"; done
     for l in $OLD_LANGS; do stash "$CLAUDE_DIR/rules/lang/$l.md"; done
@@ -212,17 +290,21 @@ if [ "$PROJECT_ONLY" -eq 0 ]; then
     for s in $KIT_SKILLS; do link "$AG/skills/$s" "$CLAUDE_DIR/skills/$s"; done
     link "$AG/output-styles/csr-minimal.md" "$CLAUDE_DIR/output-styles/csr-minimal.md"
     stash "$CLAUDE_DIR/templates/STACK.md"; stash "$CLAUDE_DIR/templates/project-CLAUDE.md"
-    warn "Claude Code: en sesiones de Cowork (app de escritorio) no se cargan imports de fuera de la carpeta de trabajo; en la CLI y el IDE, si."
+    item add "CLAUDE.md importa el núcleo"
+    [ "$KEPT" -eq 1 ] && item keep "tu contenido propio de CLAUDE.md se conserva debajo"
+    item add "$NS skills enlazadas · estilo csr-minimal"
+    [ $((MOVED-M0)) -gt 0 ] && item add "$((MOVED-M0)) copias antiguas de reglas retiradas"
+    done_phase
+    info "Claude Code: en la app de escritorio (Cowork) no se cargan imports de fuera de la carpeta de trabajo; en la terminal y el IDE sí."
   fi
 
-  # 3. Antigravity: GEMINI.md pasa a ser un enlace a la fuente unica
+  # 4. Antigravity: GEMINI.md pasa a ser un enlace a la fuente unica
   if has_agent antigravity; then
-    step "Antigravity"
+    phase "Antigravity"
+    M0=$MOVED
     if [ -f "$GEMINI_DIR/GEMINI.md" ] && [ ! -L "$GEMINI_DIR/GEMINI.md" ]; then
       EXTRA="$(strip_blocks "$GEMINI_DIR/GEMINI.md" | grep -v '^[[:space:]]*$' || true)"
-      if [ -n "$EXTRA" ]; then
-        warn "Antigravity: GEMINI.md tenia contenido fuera de los bloques (va al backup). Idioma y comunicacion ya estan en AGENTS.md; si habia algo mas tuyo, pasalo a ~/.agents/rules/personal.md"
-      fi
+      [ -n "$EXTRA" ] && info "Antigravity: lo que tenías en GEMINI.md fuera de los bloques está en la copia de seguridad. Si era tuyo, pásalo a ~/.agents/rules/personal.md."
     fi
     link "$AG/AGENTS.md" "$GEMINI_DIR/GEMINI.md"
     for r in $OLD_RULES; do stash "$GEMINI_DIR/rules/$r"; done
@@ -232,73 +314,90 @@ if [ "$PROJECT_ONLY" -eq 0 ]; then
     stash "$GEMINI_DIR/output-styles/csr-minimal.md"
     if [ -e "$GEMINI_DIR/config/plugins/claude-session-rules" ]; then
       stash "$GEMINI_DIR/config/plugins/claude-session-rules"
-      warn "Antigravity: plugin claude-session-rules retirado (sus csr-* y su estilo ya estan en la fuente unica). Si Antigravity se queja de un plugin ausente, desactivalo en su configuracion."
+      item add "plugin claude-session-rules retirado (ya está en la fuente única)"
+      info "Antigravity: si se queja de un plugin ausente (claude-session-rules), desactívalo en su configuración."
     fi
     for s in $KIT_SKILLS; do link "$AG/skills/$s" "$GEMINI_DIR/config/skills/$s"; done
-    [ -d "$GEMINI_DIR/config/plugins/user-workflows/skills/planificar" ] && warn "Antigravity: 'planificar' sigue activo; 'orca' (plan por sprints) lo sustituye. Desactivalo cuando lo hayas probado."
+    item add "GEMINI.md es un enlace al núcleo"
+    item add "$NS skills enlazadas"
+    [ $((MOVED-M0)) -gt 0 ] && item add "$((MOVED-M0)) copias antiguas retiradas"
+    done_phase
+    [ -d "$GEMINI_DIR/config/plugins/user-workflows/skills/planificar" ] && todo "Antigravity: desactiva la skill «planificar» cuando hayas probado «orca», que la sustituye."
   fi
 
-  # 4. Agentes que leen ~/.agents/skills de forma nativa: solo hay que enlazar las reglas globales
-  if has_agent codex;   then step "Codex";   link "$AG/AGENTS.md" "$CODEX_DIR/AGENTS.md"; fi
-  if has_agent copilot; then step "Copilot CLI"; link "$AG/AGENTS.md" "$COPILOT_DIR/copilot-instructions.md"; fi
-  if has_agent devin;   then step "Devin CLI"; link "$AG/AGENTS.md" "$DEVIN_DIR/AGENTS.md"
-    warn "Devin: tambien lee ~/.claude/CLAUDE.md; si ves reglas duplicadas, quita uno de los dos."; fi
-  if has_agent cursor;  then step "Cursor (skills: nativo en ~/.agents/skills)"
-    warn "Cursor: sus reglas de usuario no estan en ficheros. Pega en Settings -> Rules -> User Rules: «Al empezar, lee y aplica ~/.agents/AGENTS.md y, bajo demanda, ~/.agents/rules/»."
-    has_agent claude && warn "Cursor: tambien lee ~/.claude/skills por compatibilidad; puede listar las skills dos veces (mismo contenido)."; fi
+  # 5. Agentes que leen ~/.agents/skills de forma nativa: solo hay que enlazar las reglas globales
+  if has_agent codex;   then phase "Codex"; link "$AG/AGENTS.md" "$CODEX_DIR/AGENTS.md"; item add "AGENTS.md es un enlace al núcleo"; item add "skills: las lee de ~/.agents/skills"; done_phase; fi
+  if has_agent copilot; then phase "Copilot CLI"; link "$AG/AGENTS.md" "$COPILOT_DIR/copilot-instructions.md"; item add "copilot-instructions.md es un enlace al núcleo"; item add "skills: las lee de ~/.agents/skills"; done_phase; fi
+  if has_agent devin;   then phase "Devin"; link "$AG/AGENTS.md" "$DEVIN_DIR/AGENTS.md"; item add "AGENTS.md es un enlace al núcleo"; done_phase
+    info "Devin: también lee ~/.claude/CLAUDE.md; si ves reglas duplicadas, quita uno de los dos."; fi
+  if has_agent cursor;  then phase "Cursor"
+    item add "skills: las lee de ~/.agents/skills"
+    if cursor_rule_set; then item keep "regla de usuario ya configurada"; else
+      item warn "falta la regla de usuario (Cursor no la guarda en un fichero)"
+      todo "Cursor: añade en Settings → Rules → User Rules una regla con este texto: «Al empezar, lee y aplica ~/.agents/AGENTS.md y, bajo demanda, ~/.agents/rules/»"
+    fi
+    done_phase
+    has_agent claude && info "Cursor: también lee ~/.claude/skills, así que puede listar las skills dos veces (con el mismo contenido)."
+  fi
 fi
 
 # ------------------------------------------------------------------ proyecto
 if [ -n "$PROJECT" ]; then
   [ -d "$PROJECT" ] || { echo "No existe la ruta de proyecto: $PROJECT" >&2; exit 1; }
-  step "Proyecto: $PROJECT"
+  PNAME="$(basename "$PROJECT")"
+  [ "$PROJECT_ONLY" -eq 1 ] && title "Orca Multiagent Kit v${VERSION}" "proyecto $(short "$PROJECT")$([ "$DRY" -eq 1 ] && echo ' · simulación')"
+  phase "Proyecto $PNAME"
   INSTALLED="$(cat "$AG/AGENT_KIT_VERSION" 2>/dev/null || true)"
   if [ "$PROJECT_ONLY" -eq 1 ] && [ "$INSTALLED" != "$VERSION" ]; then
     if [ -n "${OMK_CLI:-}" ]; then FIX="omk install"; else FIX="./install.sh"; fi
-    warn "Global: en ~/.agents hay ${INSTALLED:-una version sin instalar} y este kit es v$VERSION. Ejecuta «$FIX» para que las skills del proyecto (orca, hook de spec-kit) esten disponibles."
+    todo "Instalación global: en ~/.agents hay ${INSTALLED:-una versión sin instalar} y este kit es v${VERSION}. Ejecuta «${FIX}» para tener las skills orca y kit-init."
   fi
   OV=""
   for f in "$PROJECT/CLAUDE.md" "$PROJECT/AGENTS.md"; do [ -f "$f" ] && OV="$OV$(extract_overrides "$f")
 "; done
   OV="$(printf '%s' "$OV" | awk 'NF && !seen[$0]++')"
   for f in AGENTS.md CLAUDE.md; do [ -f "$PROJECT/$f" ] && snapshot "$PROJECT/$f"; done
+  [ -f "$PROJECT/AGENTS.md" ] && HADAG=1 || HADAG=0
 
   TMP="$(mktemp)"; [ -f "$PROJECT/AGENTS.md" ] && strip_blocks "$PROJECT/AGENTS.md" > "$TMP"
   { if [ -n "$OV" ]; then OV="$OV" awk '/^-$/ && !d {print ENVIRON["OV"]; d=1; next} {print}' "$SRC/templates/AGENTS.md"; else cat "$SRC/templates/AGENTS.md"; fi
     [ -s "$TMP" ] && { printf '\n'; cat "$TMP"; }; true; } | write_file "$PROJECT/AGENTS.md"
   REST="$(mktemp)"; [ -f "$PROJECT/CLAUDE.md" ] && strip_blocks "$PROJECT/CLAUDE.md" > "$REST"
   { cat "$SRC/templates/CLAUDE.md"; [ -s "$REST" ] && { printf '\n'; cat "$REST"; }; true; } | write_file "$PROJECT/CLAUDE.md"
-  grep -q '[^[:space:]]' "$REST" && warn "Proyecto: CLAUDE.md tiene reglas propias fuera del bloque; solo las ve Claude. Muevelas a AGENTS.md para que las vean todos."
+  if [ "$HADAG" -eq 1 ]; then item add "AGENTS.md actualizado (tu contenido se conserva)"; else item add "AGENTS.md creado"; fi
+  [ -n "$OV" ] && item add "overrides del proyecto movidos a AGENTS.md"
+  item add "CLAUDE.md importa AGENTS.md"
+  grep -q '[^[:space:]]' "$REST" && todo "$PNAME: CLAUDE.md tiene reglas propias que solo ve Claude. Pide al agente «inicializa el proyecto» para pasarlas a AGENTS.md y que las vean todos."
   rm -f "$TMP" "$REST"
-  [ -n "$OV" ] && step "  overrides migrados a AGENTS.md"
   for f in STACK.md ORCHESTRATION.md orca.yaml .worktreeinclude; do
-    if [ -e "$PROJECT/$f" ]; then step "  $f ya existe: no se toca"; else run cp "$SRC/templates/$f" "$PROJECT/$f"; step "  $f creado"; fi
+    if [ -e "$PROJECT/$f" ]; then item keep "$f ya existía: no se toca"; else run cp "$SRC/templates/$f" "$PROJECT/$f"; item add "$f creado"; fi
   done
-  if [ ! -e "$PROJECT/.claude/settings.json" ] && has_agent claude; then run mkdir -p "$PROJECT/.claude"; run cp "$SRC/templates/claude-settings.json" "$PROJECT/.claude/settings.json"; step "  .claude/settings.json creado"; fi
+  if [ ! -e "$PROJECT/.claude/settings.json" ] && has_agent claude; then run mkdir -p "$PROJECT/.claude"; run cp "$SRC/templates/claude-settings.json" "$PROJECT/.claude/settings.json"; item add ".claude/settings.json creado"; fi
   if [ -d "$PROJECT/.specify" ]; then
     EXT="$PROJECT/.specify/extensions.yml"
-    if grep -q 'speckit.orca.implement' "$EXT" 2>/dev/null; then step "  spec-kit: hook orca ya activo"
+    if grep -q 'speckit.orca.implement' "$EXT" 2>/dev/null; then item keep "spec-kit: el hook de orquestación ya estaba activo"
     elif command -v specify >/dev/null 2>&1; then
       SKX="$AG/speckit-ext/orca"; [ -f "$SKX/extension.yml" ] || SKX="$SRC/speckit-extension/orca"
-      (cd "$PROJECT" && run specify extension add --dev "$SKX") && step "  spec-kit: extension orca instalada (hook before_implement)" \
-        || warn "Proyecto: 'specify extension add' fallo; en el agente, «inicializa el proyecto» añadira el hook."
+      if (cd "$PROJECT" && run specify extension add --dev "$SKX") >/dev/null 2>&1; then item add "spec-kit: extensión orca instalada (hook before_implement)"
+      else item warn "spec-kit: «specify extension add» ha fallado"; todo "$PNAME: no se pudo activar el hook de spec-kit. Pide al agente «inicializa el proyecto» y lo añadirá."; fi
     elif [ ! -e "$EXT" ]; then
       # mismo formato que escribe 'specify extension add'
       printf '%s\n' 'installed:' '- orca' 'settings:' '  auto_execute_hooks: true' 'hooks:' '  before_implement:' '  - extension: orca' \
         '    command: speckit.orca.implement' '    enabled: true' '    optional: false' '    priority: 10' \
         '    description: "Orquestacion multiagente: reparte las user stories si compensa"' | write_file "$EXT"
-      step "  spec-kit: hook before_implement creado en .specify/extensions.yml"
+      item add "spec-kit: hook before_implement creado en .specify/extensions.yml"
     else
-      warn "Proyecto: .specify/extensions.yml ya existe y no hay CLI 'specify'. En el agente, «inicializa el proyecto» añadira el hook sin romper lo que hay."
+      item warn "spec-kit: hay extensions.yml y no está el comando specify"
+      todo "$PNAME: pide al agente «inicializa el proyecto» para añadir el hook de spec-kit sin romper tu extensions.yml."
     fi
+  else
+    item keep "sin spec-kit (.specify/): no hace falta hook"
   fi
   if ! grep -qxF '.work/' "$PROJECT/.gitignore" 2>/dev/null; then
-    if [ "$DRY" -eq 1 ]; then echo "  (dry) añadir .work/ a .gitignore"; else printf '\n# Orca Multiagent Kit: briefs e informes de runs multiagente\n.work/\n' >> "$PROJECT/.gitignore"; fi
-    step "  .work/ añadido a .gitignore"
+    if [ "$DRY" -eq 1 ]; then item dry "añadir .work/ a .gitignore"; else printf '\n# Orca Multiagent Kit: briefs e informes de runs multiagente\n.work/\n' >> "$PROJECT/.gitignore"; fi
+    item add ".work/ añadido a .gitignore"
   fi
-  step "  Siguiente: en el agente, «inicializa el proyecto» (kit-init: detecta el stack y prepara la orquestacion)."
+  done_phase
 fi
 
-[ -n "$WARN" ] && { step "Avisos:"; printf '%s' "$WARN"; }
-if [ -n "${OMK_CLI:-}" ]; then step "Hecho. Comprueba con: omk verify   ·   deshacer: omk restore $STAMP"
-else step "Hecho. Comprueba con: ./install.sh --verify   ·   deshacer: ./install.sh --restore $STAMP"; fi
+if [ -n "$PROJECT" ] && [ "$PROJECT_ONLY" -eq 0 ]; then footer both; elif [ -n "$PROJECT" ]; then footer project; else footer global; fi
