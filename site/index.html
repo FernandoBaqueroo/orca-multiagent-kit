@@ -270,13 +270,13 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
   var title=document.getElementById('title');
   function glitch(){ title.classList.remove('glitch'); void title.offsetWidth; title.classList.add('glitch'); }
   setInterval(glitch,5200);
-  var cmd='npx github:FernandoBaqueroo/orca-multiagent-kit install', typed=document.getElementById('typed');
+  var cmd='npx orca-multiagent-kit install', typed=document.getElementById('typed');
   if(reduce){typed.textContent='> '+cmd} else { var i=0; (function tick(){ typed.textContent='> '+cmd.slice(0,i++); if(i<=cmd.length)setTimeout(tick,28); })(); }
 
   // terminal de instalación con pestañas
   var TABS=[
-    {id:'npx',label:'npx',cmd:'npx github:FernandoBaqueroo/orca-multiagent-kit install',out:'[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,antigravity,cursor\n[kit] Fuente unica: ~/.agents · backup: ~/.agents/backups/20261107-091500\n[kit] Claude Code\n[kit] Antigravity\n[kit] Cursor (skills: nativo en ~/.agents/skills)\n[kit] Hecho. Comprueba con: ./install.sh --verify'},
-    {id:'npm',label:'npm -g',cmd:'npm install -g github:FernandoBaqueroo/orca-multiagent-kit\nomk install\nomk init ~/Dev/mi-app',out:'added 1 package\n[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,antigravity\n[kit] Proyecto: ~/Dev/mi-app\n[kit]   STACK.md creado\n[kit]   ORCHESTRATION.md creado\n[kit]   Siguiente: en el agente, «ejecuta kit-init»'},
+    {id:'npx',label:'npx',cmd:'npx orca-multiagent-kit install',out:'[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,antigravity,cursor\n[kit] Fuente unica: ~/.agents · backup: ~/.agents/backups/20261107-091500\n[kit] Claude Code\n[kit] Antigravity\n[kit] Cursor (skills: nativo en ~/.agents/skills)\n[kit] Hecho. Comprueba con: ./install.sh --verify'},
+    {id:'npm',label:'npm -g',cmd:'npm install -g orca-multiagent-kit\nomk install\nomk init ~/Dev/mi-app',out:'added 1 package\n[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,antigravity\n[kit] Proyecto: ~/Dev/mi-app\n[kit]   STACK.md creado\n[kit]   ORCHESTRATION.md creado\n[kit]   Siguiente: en el agente, «ejecuta kit-init»'},
     {id:'curl',label:'curl',cmd:'curl -fsSL https://raw.githubusercontent.com/FernandoBaqueroo/orca-multiagent-kit/main/scripts/get.sh | bash',out:'[omk] Descargando la última versión de FernandoBaqueroo/orca-multiagent-kit\n[omk] Kit v1.0.0 en ~/.local/share/orca-multiagent-kit\n[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,codex\n[kit] Hecho.'},
     {id:'zip',label:'zip',cmd:'curl -LO https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest/download/orca-multiagent-kit.zip\nunzip orca-multiagent-kit.zip && cd orca-multiagent-kit\n./install.sh --dry-run && ./install.sh',out:'  (dry) cp core/AGENTS.md ~/.agents/AGENTS.md\n  (dry) ln -s ~/.agents/AGENTS.md ~/.gemini/GEMINI.md\n[kit] Hecho.'}
   ];

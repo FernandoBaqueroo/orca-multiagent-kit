@@ -56,7 +56,7 @@ Un fichero nuevo en `rules/`, una fila en `rules/00-router.md` (disparador y cos
 2. `python3 scripts/banner.py assets && bash scripts/check.sh`.
 3. Commit `chore(release): vX.Y.Z`.
 4. Publica la release: en GitHub, *Releases → Draft a new release* con el tag `vX.Y.Z` (o sube el tag).
-5. El workflow **Release** comprueba que el tag coincide con `VERSION` y `package.json`, ejecuta las pruebas, adjunta el zip y `SHA256SUMS` y, si existe el secreto `NPM_TOKEN`, publica en npm.
+5. El workflow **Release** comprueba que el tag coincide con `VERSION` y `package.json`, ejecuta las pruebas, adjunta el zip y `SHA256SUMS` y publica en npm con Trusted Publishing (sin tokens).
 
 ## Conducta
 
