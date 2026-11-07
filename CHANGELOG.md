@@ -5,10 +5,6 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
-### Añadido
-- La release se publica sola al fusionar en `main` un cambio de `VERSION` (GitHub y npm).
-- `omk update` compara con la última versión de npm y, si no tienes permisos (instalación con `sudo`), explica cómo arreglarlo en vez de mostrar el error de npm.
-
 ## [1.2.0] - 2026-11-07
 
 ### Añadido
@@ -17,6 +13,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - `omk verify` agrupa las comprobaciones por agente y da un total.
 - Cursor: el instalador detecta si ya tienes la regla de usuario y deja de pedirla.
 - `./install.sh` sin `omk` muestra la misma estructura en texto, con color en terminal.
+- `omk update` compara con la última versión de npm y, si no tienes permisos (instalación con `sudo`), explica cómo arreglarlo en vez de mostrar el error de npm.
+- La release se publica sola al fusionar en `main` un cambio de `VERSION` (GitHub y npm).
 - `check.sh` detecta `$VAR` pegado a un carácter no ASCII, que rompe bash 3.2 en macOS.
 
 ### Corregido
