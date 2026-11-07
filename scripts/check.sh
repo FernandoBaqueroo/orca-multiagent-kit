@@ -9,6 +9,10 @@ ok(){ printf '  ok    %s\n' "$1"; }
 echo "== sintaxis bash"
 node --check bin/omk.js 2>/dev/null && ok "bin/omk.js" || { command -v node >/dev/null && err "bin/omk.js"; }
 for f in install.sh scripts/*.sh tests/*.sh; do bash -n "$f" && ok "$f" || err "$f"; done
+# bash 3.2 (macOS) lee un carácter no ASCII pegado a $VAR como parte del nombre: «$FIX»» falla con set -u. Usa ${VAR}.
+for f in install.sh scripts/*.sh tests/*.sh; do
+  if LC_ALL=C grep -nE '\$[A-Za-z_][A-Za-z0-9_]*[^ -~]' "$f" | LC_ALL=C grep -vqE '^[0-9]+:[[:space:]]*#' ; [ "${PIPESTATUS[1]}" -eq 0 ]; then err "$f: \$VAR pegado a un carácter no ASCII (usa \${VAR})"; fi
+done
 
 echo "== skills (frontmatter estándar SKILL.md)"
 for f in skills/*/SKILL.md; do

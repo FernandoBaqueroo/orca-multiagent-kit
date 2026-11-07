@@ -5,18 +5,36 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
-### Cambiado
-- Publicado en npm: `npx orca-multiagent-kit install` y `npm i -g orca-multiagent-kit`, sin el prefijo `github:`.
-- Las releases publican en npm con Trusted Publishing (OIDC), sin tokens guardados en el repo.
-
 ### Corregido
 - Instalador dentro de la app **Orca**: detecta el perfil de Claude que Orca inyecta en `CLAUDE_CONFIG_DIR`, instala en `~/.claude` (que el perfil importa) y no escribe nunca en el perfil.
 - **Windows**: las rutas `C:\…` de `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GEMINI_DIR`, `AGENT_KIT_HOME`, `--project` y `--adopt` se normalizan; Git Bash crea enlaces nativos (`winsymlinks:nativestrict`) o el instalador se para antes de tocar nada, en vez de dejar copias.
 - Backups y `--restore` de rutas fuera de `$HOME` (antes se restauraban dentro de `$HOME`). `--restore` ya no borra enlaces ajenos al kit (dotfiles, perfiles de Orca).
-- `--verify` distingue «es una copia» de «no enlaza».
+- `--verify` distingue una copia (que acabará divergiendo) de un enlace que falta.
 - `omk` en Windows ya no usa el `bash` de WSL por error (instalaría en el `$HOME` de Linux).
 - Las pruebas aíslan `CLAUDE_CONFIG_DIR` y compañía: con solo un `HOME` desechable, escribían en la configuración real.
 Detalle: [`docs/INSTALADOR-ORCA-WINDOWS.md`](docs/INSTALADOR-ORCA-WINDOWS.md).
+
+## [1.2.0] - 2026-11-07
+
+### Añadido
+- **Salida nueva de `omk`**: spinner por fase, color lima, símbolos de estado (`+` creado, `=` sin cambios, `!` aviso) y tiempo total. Sin dependencias.
+- El resumen final separa **Pendiente** (lo que tienes que hacer tú) de **Para tu información**, y acaba con los siguientes pasos (`omk verify`, `omk init`, `omk restore`).
+- `omk verify` agrupa las comprobaciones por agente y da un total.
+- Cursor: el instalador detecta si ya tienes la regla de usuario y deja de pedirla.
+- `./install.sh` sin `omk` muestra la misma estructura en texto, con color en terminal.
+- `omk update` compara con la última versión de npm y, si no tienes permisos (instalación con `sudo`), explica cómo arreglarlo en vez de mostrar el error de npm.
+- La release se publica sola al fusionar en `main` un cambio de `VERSION` (GitHub y npm).
+- `check.sh` detecta `$VAR` pegado a un carácter no ASCII, que rompe bash 3.2 en macOS.
+
+### Corregido
+- `omk init` en un proyecto con spec-kit fallaba con «Directory not found: ~/.agents/speckit-ext/orca» si aún no se había ejecutado `omk install` con esta versión. Ahora usa la extensión del propio kit y avisa de que falta `omk install`.
+- macOS: un mensaje con `«$FIX»` cortaba el instalador (bash 3.2 tomaba `«` como parte del nombre de la variable).
+- «deshacer» solo aparece cuando hay copia de seguridad que restaurar.
+- Banner: la barra de carga del pie, que no representaba nada, se sustituye por las skills que instala el kit.
+
+### Cambiado
+- Publicado en npm: `npx orca-multiagent-kit install` y `npm i -g orca-multiagent-kit`, sin el prefijo `github:`.
+- Las releases publican en npm con Trusted Publishing (OIDC), sin tokens guardados en el repo.
 
 ## [1.1.0] - 2026-11-07
 
@@ -64,6 +82,7 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/tag/v1.0.0

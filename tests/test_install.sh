@@ -96,7 +96,27 @@ echo "== 7. Sin agentes detectados"
 H="$(newhome)"
 check "falla con mensaje claro"                  '! HOME="$H" bash "$INSTALL" >/dev/null 2>&1'
 
-echo "== 8. Perfil de Claude gestionado por Orca (CLAUDE_CONFIG_DIR inyectado)"
+echo "== 8. omk init sin omk install previo"
+H="$(newhome)"; mkdir -p "$H/.claude" "$H/proj/.specify" "$H/bin"
+# specify falso: solo acepta una extensión que exista de verdad
+printf '%s\n' '#!/usr/bin/env bash' '[ "$1 $2 $3" = "extension add --dev" ] && [ -f "$4/extension.yml" ]' > "$H/bin/specify"; chmod +x "$H/bin/specify"
+# shellcheck disable=SC2034  # OUT se lee dentro de check (eval)
+OUT="$(HOME="$H" PATH="$H/bin:$PATH" OMK_CLI=1 OMK_EVENTS=1 bash "$INSTALL" --project-only "$H/proj" 2>&1)" || { echo "  salida de install.sh:"; printf '%s\n' "$OUT" | sed 's/^/    | /'; }
+check "hook instalado desde el propio kit"       'printf "%s" "$OUT" | grep -q "^::item::add::spec-kit: extensión orca instalada"'
+check "pendiente: ejecutar omk install"          'printf "%s" "$OUT" | grep -q "^::todo::.*omk install"'
+check "eventos de fase y resumen final"          'printf "%s" "$OUT" | grep -q "^::begin::Proyecto proj" && printf "%s" "$OUT" | grep -q "^::footer::project::"'
+
+echo "== 9. Salida de texto (./install.sh sin omk)"
+H="$(newhome)"; mkdir -p "$H/.claude" "$H/.cursor"
+OUT="$(HOME="$H" bash "$INSTALL" 2>&1)"
+check "sin eventos ni colores fuera de una terminal" '! printf "%s" "$OUT" | grep -q "^::" && ! printf "%s" "$OUT" | grep -q "$(printf "\\033")"'
+check "pendientes separados de la información"   'printf "%s" "$OUT" | grep -q "^Pendiente" && printf "%s" "$OUT" | grep -q "^Para tu información"'
+check "Cursor: pide la regla de usuario"         'printf "%s" "$OUT" | grep -q "User Rules"'
+mkdir -p "$H/.config/Cursor/User/globalStorage"; printf 'xx ~/.agents/AGENTS.md xx' > "$H/.config/Cursor/User/globalStorage/state.vscdb"
+OUT="$(HOME="$H" bash "$INSTALL" 2>&1)"
+check "Cursor: no la pide si ya está puesta"     '! printf "%s" "$OUT" | grep -q "User Rules"'
+
+echo "== 10. Perfil de Claude gestionado por Orca (CLAUDE_CONFIG_DIR inyectado)"
 H="$(newhome)"; PR="$H/AppData/Roaming/orca/claude-profiles/abc/home"; mkdir -p "$H/.claude" "$PR"
 printf '@~/.claude/CLAUDE.md\n' > "$PR/CLAUDE.md"
 HOME="$H" CLAUDE_CONFIG_DIR="$PR" bash "$INSTALL" >/dev/null 2>&1
@@ -112,7 +132,7 @@ HOME="$H" CLAUDE_CONFIG_DIR="$PR" bash "$INSTALL" >/dev/null 2>&1
 check "perfil sin import de ~/.claude: no se toca" '[ "$(cat "$PR/CLAUDE.md")" = "otra cosa" ] && [ ! -e "$H/.claude/CLAUDE.md" ]'
 check "el resto de agentes sí se instala"        '[ "$(readlink "$H/.codex/AGENTS.md")" = "$H/.agents/AGENTS.md" ]'
 
-echo "== 9. Rutas en formato Windows (C:\\...)"
+echo "== 11. Rutas en formato Windows (C:\\...)"
 if command -v cygpath >/dev/null 2>&1; then
   H="$(newhome)"; mkdir -p "$H/claude-alt/rules"; echo viejo > "$H/claude-alt/rules/30-security.md"
   HOME="$H" CLAUDE_CONFIG_DIR="$(cygpath -w "$H/claude-alt")" bash "$INSTALL" >/dev/null 2>&1
@@ -122,24 +142,24 @@ else
   echo "  skip  sin cygpath (no es Git Bash/MSYS/Cygwin)"
 fi
 
-echo "== 10. Backup y restauración de rutas fuera de \$HOME"
-H="$(newhome)"; OUT="$(newhome)"; mkdir -p "$OUT/claude/rules"
-echo viejo > "$OUT/claude/rules/30-security.md"
-printf '<!-- CSR:BEGIN v1.0.0 x -->\nviejo\n<!-- CSR:END -->\n' > "$OUT/claude/CLAUDE.md"
-HOME="$H" CLAUDE_CONFIG_DIR="$OUT/claude" bash "$INSTALL" >/dev/null 2>&1
-check "regla antigua retirada"                   '[ ! -e "$OUT/claude/rules/30-security.md" ]'
+echo "== 12. Backup y restauración de rutas fuera de \$HOME"
+H="$(newhome)"; FUERA="$(newhome)"; mkdir -p "$FUERA/claude/rules"
+echo viejo > "$FUERA/claude/rules/30-security.md"
+printf '<!-- CSR:BEGIN v1.0.0 x -->\nviejo\n<!-- CSR:END -->\n' > "$FUERA/claude/CLAUDE.md"
+HOME="$H" CLAUDE_CONFIG_DIR="$FUERA/claude" bash "$INSTALL" >/dev/null 2>&1
+check "regla antigua retirada"                   '[ ! -e "$FUERA/claude/rules/30-security.md" ]'
 STAMP="$(ls "$H/.agents/backups" | head -1)"
-HOME="$H" CLAUDE_CONFIG_DIR="$OUT/claude" bash "$INSTALL" --restore "$STAMP" >/dev/null 2>&1
-check "regla devuelta a su ruta original"        'grep -q viejo "$OUT/claude/rules/30-security.md"'
-check "CLAUDE.md devuelto a su ruta original"    'grep -q "CSR:BEGIN" "$OUT/claude/CLAUDE.md"'
-check "nada restaurado dentro de \$HOME por error" '[ ! -e "$H/${OUT#/}" ] && [ ! -e "$H/tmp" ]'
+HOME="$H" CLAUDE_CONFIG_DIR="$FUERA/claude" bash "$INSTALL" --restore "$STAMP" >/dev/null 2>&1
+check "regla devuelta a su ruta original"        'grep -q viejo "$FUERA/claude/rules/30-security.md"'
+check "CLAUDE.md devuelto a su ruta original"    'grep -q "CSR:BEGIN" "$FUERA/claude/CLAUDE.md"'
+check "nada restaurado dentro de \$HOME por error" '[ ! -e "$H/${FUERA#/}" ] && [ ! -e "$H/tmp" ]'
 
-echo "== 11. --verify detecta una copia donde debe haber enlace"
+echo "== 13. --verify detecta una copia donde debe haber enlace"
 H="$(newhome)"; mkdir -p "$H/.claude"; inst
 rm "$H/.claude/skills/csr-gate"; cp -R "$H/.agents/skills/csr-gate" "$H/.claude/skills/csr-gate"
 check "--verify falla con la copia"              '! HOME="$H" bash "$INSTALL" --verify >/dev/null 2>&1'
 HOME="$H" bash "$INSTALL" --verify > "$H/verify.txt" 2>&1 || true
-check "y dice que es una copia"                  'grep -q "csr-gate es una copia" "$H/verify.txt"'
+check "y dice que es una copia"                  'grep -q "copiadas en vez de enlazadas.* csr-gate" "$H/verify.txt"'
 
 printf '\n%s ok · %s fallos\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
