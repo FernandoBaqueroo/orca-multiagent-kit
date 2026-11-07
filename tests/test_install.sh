@@ -99,7 +99,7 @@ H="$(newhome)"; mkdir -p "$H/.claude" "$H/proj/.specify" "$H/bin"
 # specify falso: solo acepta una extensión que exista de verdad
 printf '%s\n' '#!/usr/bin/env bash' '[ "$1 $2 $3" = "extension add --dev" ] && [ -f "$4/extension.yml" ]' > "$H/bin/specify"; chmod +x "$H/bin/specify"
 # shellcheck disable=SC2034  # OUT se lee dentro de check (eval)
-OUT="$(HOME="$H" PATH="$H/bin:$PATH" OMK_CLI=1 bash "$INSTALL" --project-only "$H/proj" 2>&1)"
+OUT="$(HOME="$H" PATH="$H/bin:$PATH" OMK_CLI=1 bash "$INSTALL" --project-only "$H/proj" 2>&1)" || { echo "  salida de install.sh:"; printf '%s\n' "$OUT" | sed 's/^/    | /'; }
 check "hook instalado desde el propio kit"       'printf "%s" "$OUT" | grep -q "extension orca instalada"'
 check "avisa de ejecutar omk install"            'printf "%s" "$OUT" | grep -q "omk install"'
 check "mensaje final con comandos omk"           'printf "%s" "$OUT" | grep -q "omk verify"'
