@@ -1,0 +1,4 @@
+# Ficheros gitignorados que Orca COPIA en cada worktree nuevo.
+# Solo rutas literales (sin globs). Solo entorno de DESARROLLO: nunca credenciales de producción,
+# porque los agentes pueden ejecutarse sin confirmación dentro del worktree.
+.env.local

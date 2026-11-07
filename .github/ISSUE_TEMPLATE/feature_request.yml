@@ -1,0 +1,29 @@
+name: ✨ Mejora
+description: Nueva regla, skill, agente soportado o mejora del flujo
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options: [Núcleo (core/AGENTS.md), Reglas (rules/), Skill CSR, Skill MAW, Instalador, Nuevo agente, Documentación / guía]
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema
+      description: Qué te pasa hoy al trabajar con tus agentes y por qué importa.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Propuesta
+      description: Qué cambiarías. Recuerda "una regla, un sitio" y el límite de 200 líneas del núcleo (CONTRIBUTING.md).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas

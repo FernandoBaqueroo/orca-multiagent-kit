@@ -1,0 +1,5 @@
+# Orca: directorios gitignorados que cada worktree comparte (symlink) con el checkout principal.
+# Solo se aplican si existen en el checkout principal Y están en .gitignore. maw-setup ajusta esta lista.
+worktree:
+  sharedDirectories:
+    - node_modules

@@ -1,0 +1,46 @@
+name: 🐛 Bug
+description: Algo del instalador, una regla o una skill no funciona como dice la documentación
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Versión
+      description: Salida de `cat VERSION` en tu copia del kit
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: agents
+    attributes:
+      label: Agentes afectados
+      multiple: true
+      options: [Claude Code, Antigravity, Codex, Copilot CLI, Cursor, Devin, Orca, Otro]
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Sistema operativo
+      placeholder: "macOS 26 (arm64) / Ubuntu 24.04 / Windows + Git Bash"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Qué pasó y qué esperabas
+      description: Pasos para reproducirlo, comando o prompt usado y resultado.
+    validations:
+      required: true
+  - type: textarea
+    id: verify
+    attributes:
+      label: Salida de `./install.sh --verify`
+      render: text
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Comprobación
+      options:
+        - label: He revisado que lo que pego no contiene tokens, `.env` ni datos privados
+          required: true

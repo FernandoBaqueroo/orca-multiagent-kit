@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Pruebas (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS: bash 3.2 y herramientas BSD, como en el portátil de quien lo instala
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comprobaciones estáticas
+        run: bash scripts/check.sh
+      - name: Pruebas del instalador
+        run: bash tests/test_install.sh
+      - name: Empaquetado
+        run: bash scripts/build-release.sh
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: shellcheck -S warning install.sh scripts/*.sh tests/*.sh

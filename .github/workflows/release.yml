@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: El tag coincide con VERSION
+        run: |
+          V="$(tr -d '[:space:]' < VERSION)"
+          [ "v$V" = "$GITHUB_REF_NAME" ] || { echo "::error::El tag $GITHUB_REF_NAME no coincide con VERSION ($V)"; exit 1; }
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+
+      - name: Comprobaciones y pruebas
+        run: |
+          bash scripts/check.sh
+          bash tests/test_install.sh
+
+      - name: Empaquetar
+        run: bash scripts/build-release.sh
+
+      - name: Notas desde CHANGELOG.md
+        run: |
+          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} f && /^## \[/ {exit} f' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "### Descarga"
+            echo "- \`orca-multiagent-kit-v$VERSION.zip\` (o \`orca-multiagent-kit.zip\`, que siempre apunta a la última versión)"
+            echo "- Descomprime, \`cd orca-multiagent-kit && ./install.sh --dry-run\` y después \`./install.sh\`."
+            echo "- Comprueba la integridad con \`SHA256SUMS\`."
+          } >> notes.md
+
+      - name: Publicar release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Orca Multiagent Kit $GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            --latest \
+            dist/orca-multiagent-kit-v$VERSION.zip dist/orca-multiagent-kit.zip dist/SHA256SUMS
