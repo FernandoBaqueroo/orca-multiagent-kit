@@ -160,7 +160,7 @@ footer{margin-top:64px;color:var(--muted);font-size:13px;text-align:center}
 </nav>
 
 <header class="hero">
-  <div class="eyebrow">Orca Multiagent Kit v1.0 · CSR + MAW</div>
+  <div class="eyebrow">Orca Multiagent Kit v1.1 · CSR + MAW</div>
   <h1>Un solo sitio para las reglas de todos tus agentes</h1>
   <p class="lede">Claude Code, Antigravity, Codex, Copilot y Cursor leen las mismas reglas y las mismas skills desde <code>~/.agents/</code>. Trabajan en paralelo, cada uno en su worktree, y nada se mergea sin tu «sí».</p>
 </header>
@@ -185,7 +185,7 @@ footer{margin-top:64px;color:var(--muted);font-size:13px;text-align:center}
       <text x="380" y="146" text-anchor="middle" font-size="16" font-weight="700">~/.agents</text>
       <text class="mono" x="380" y="168" text-anchor="middle">AGENTS.md · núcleo</text>
       <text class="mono" x="380" y="186" text-anchor="middle">rules/ · bajo demanda</text>
-      <text class="mono" x="380" y="204" text-anchor="middle">skills/ · csr · maw · tuyas</text>
+      <text class="mono" x="380" y="204" text-anchor="middle">skills/ · csr · orca · tuyas</text>
       <!-- agentes -->
       <g><rect class="node" x="25" y="40" width="175" height="60" rx="16"/><circle cx="45" cy="70" r="6" fill="var(--c-claude)"/><text x="59" y="67" font-size="14" font-weight="600">Claude Code</text><text class="lbl" x="59" y="85">import en CLAUDE.md</text></g>
       <g><rect class="node" x="25" y="240" width="175" height="60" rx="16"/><circle cx="45" cy="270" r="6" fill="var(--c-gemini)"/><text x="59" y="267" font-size="14" font-weight="600">Antigravity</text><text class="lbl" x="59" y="285">GEMINI.md → enlace</text></g>
@@ -203,7 +203,7 @@ footer{margin-top:64px;color:var(--muted);font-size:13px;text-align:center}
 
 <section id="instalar">
   <h2>Instalar (una vez por ordenador)</h2>
-  <p class="sub">Migra CSR y MAW v1 automáticamente, con backup de todo lo que toca.</p>
+  <p class="sub">Migra instalaciones anteriores automáticamente, con backup de todo lo que toca.</p>
   <div class="steps">
     <div class="step"><div><h3>Mira qué haría, sin tocar nada</h3>
       <div class="cmd"><pre>cd ~/Documents/orca-multiagent-kit
@@ -223,12 +223,12 @@ chmod +x install.sh
 <section id="proyecto">
   <h2>Proyecto nuevo o antiguo: un solo prompt</h2>
   <p class="sub">Abre cualquier agente en el repo y escribe «inicializa el proyecto». El stack lo detecta solo, leyendo el repo: no hace falta describírselo.</p>
-  <div class="glass pad diagram lanes" role="img" aria-label="kit-init: reglas, stack con csr-stack, orquestación con maw-setup, y resumen">
+  <div class="glass pad diagram lanes" role="img" aria-label="kit-init: reglas, stack con csr-stack, orquestación y hook de spec-kit, y resumen">
     <svg viewBox="0 0 760 150">
       <path class="flow" style="stroke:var(--c-core)" d="M150 75 H 230"/><path class="flow" style="stroke:var(--c-core)" d="M380 75 H 450"/><path class="flow" style="stroke:var(--c-core)" d="M600 75 H 630"/>
       <g><rect class="node" x="10" y="30" width="140" height="90" rx="18"/><text x="80" y="62" text-anchor="middle" font-size="14" font-weight="600">Reglas</text><text class="mono" x="80" y="82" text-anchor="middle">AGENTS.md</text><text class="mono" x="80" y="98" text-anchor="middle">CLAUDE.md → @</text></g>
       <g><rect class="node" x="230" y="30" width="150" height="90" rx="18"/><text x="305" y="62" text-anchor="middle" font-size="14" font-weight="600">Stack</text><text class="mono" x="305" y="82" text-anchor="middle">csr-stack</text><text class="mono" x="305" y="98" text-anchor="middle">→ STACK.md</text></g>
-      <g><rect class="node" x="450" y="30" width="150" height="90" rx="18"/><text x="525" y="62" text-anchor="middle" font-size="14" font-weight="600">Orquestación</text><text class="mono" x="525" y="82" text-anchor="middle">maw-setup</text><text class="mono" x="525" y="98" text-anchor="middle">→ ORCHESTRATION</text></g>
+      <g><rect class="node" x="450" y="30" width="150" height="90" rx="18"/><text x="525" y="62" text-anchor="middle" font-size="14" font-weight="600">Orquestación</text><text class="mono" x="525" y="82" text-anchor="middle">+ hook spec-kit</text><text class="mono" x="525" y="98" text-anchor="middle">→ ORCHESTRATION</text></g>
       <g><rect class="node" x="630" y="30" width="125" height="90" rx="18"/><text x="692" y="62" text-anchor="middle" font-size="14" font-weight="600">Listo</text><text class="mono" x="692" y="82" text-anchor="middle">≤4 preguntas</text><text class="mono" x="692" y="98" text-anchor="middle">commit</text></g>
     </svg>
   </div>
@@ -236,8 +236,8 @@ chmod +x install.sh
 </section>
 
 <section id="modos">
-  <h2>Cada petición, su modo</h2>
-  <p class="sub">El agente elige el modo con <code>maw-route</code> y lo declara en una línea, por ejemplo <code>MODE: spec · ENGINE: orca</code>. Si no te convence, díselo («hazlo inline», «sin Orca»).</p>
+  <h2>Qué pasa según cómo trabajes</h2>
+  <p class="sub">No eliges tú: la skill <code>orca</code> decide sola si compensa repartir y lo dice en una línea, por ejemplo <code>ORCA: 4 unidades · 2 rondas · motor orca · autonomía semi</code>. Si no te convence, díselo («hazlo tú solo», «sin Orca»).</p>
   <div class="glass pad">
     <div class="modes" role="tablist" aria-label="Modos de trabajo"></div>
     <div id="mode-panel" role="tabpanel"></div>
@@ -246,20 +246,20 @@ chmod +x install.sh
 
 <section id="paralelo">
   <h2>Cómo trabajan en paralelo sin pisarse</h2>
-  <p class="sub">Toda entrada se convierte en unidades de trabajo. El coordinador hace la base común (U0), cada unidad va a su worktree y su rama, y la integración espera tu confirmación.</p>
-  <div class="glass pad diagram lanes" role="img" aria-label="Pipeline: entrada, maw-brief, U0 del coordinador, tres workers en paralelo en worktrees (Claude, Antigravity, Codex), maw-integrate con gates y tu sí">
+  <p class="sub">Toda entrada se convierte en unidades de trabajo. El coordinador hace la base común (U0), cada unidad va a su worktree y su rama, y todo se integra en una rama de trabajo. Con autonomía <code>semi</code> solo confirmas dos veces: el plan de rondas y el merge final.</p>
+  <div class="glass pad diagram lanes" role="img" aria-label="Pipeline: entrada, unidades, U0 del coordinador, tres workers en paralelo en worktrees (Claude, Antigravity, Codex), integración con gates y tu sí">
     <svg viewBox="0 0 760 300">
       <g><rect class="node" x="10" y="115" width="110" height="70" rx="16"/><text x="65" y="144" text-anchor="middle" font-size="13" font-weight="600">Entrada</text><text class="lbl" x="65" y="163" text-anchor="middle">chat · plan · spec</text></g>
       <path class="flow" style="stroke:var(--c-core)" d="M120 150 H 150"/>
-      <g><rect class="node" x="150" y="115" width="110" height="70" rx="16"/><text x="205" y="144" text-anchor="middle" font-size="13" font-weight="600">maw-brief</text><text class="lbl" x="205" y="163" text-anchor="middle">unidades</text></g>
+      <g><rect class="node" x="150" y="115" width="110" height="70" rx="16"/><text x="205" y="144" text-anchor="middle" font-size="13" font-weight="600">unidades</text><text class="lbl" x="205" y="163" text-anchor="middle">unidades</text></g>
       <path class="flow" style="stroke:var(--c-core)" d="M260 150 H 290"/>
       <g><rect class="node" x="290" y="115" width="100" height="70" rx="16"/><text x="340" y="144" text-anchor="middle" font-size="13" font-weight="600">U0</text><text class="lbl" x="340" y="163" text-anchor="middle">coordinador</text></g>
       <path class="flow" style="stroke:var(--c-claude)" d="M390 150 C 410 150, 410 60, 430 60"/>
       <path class="flow" style="stroke:var(--c-gemini)" d="M390 150 H 430"/>
       <path class="flow" style="stroke:var(--c-codex)" d="M390 150 C 410 150, 410 240, 430 240"/>
-      <g><rect class="node" x="430" y="30" width="170" height="60" rx="14"/><text x="445" y="54" font-size="12.5" font-weight="600">U1 · Claude Code</text><text class="mono" x="445" y="70">maw/run/u1</text><rect x="445" y="77" width="140" height="4" rx="2" fill="var(--hair)"/><rect class="bar" x="445" y="77" width="140" height="4" rx="2" fill="var(--c-claude)"/></g>
-      <g><rect class="node" x="430" y="120" width="170" height="60" rx="14"/><text x="445" y="144" font-size="12.5" font-weight="600">U2 · Antigravity</text><text class="mono" x="445" y="160">maw/run/u2</text><rect x="445" y="167" width="140" height="4" rx="2" fill="var(--hair)"/><rect class="bar b2" x="445" y="167" width="140" height="4" rx="2" fill="var(--c-gemini)"/></g>
-      <g><rect class="node" x="430" y="210" width="170" height="60" rx="14"/><text x="445" y="234" font-size="12.5" font-weight="600">U3 · Codex</text><text class="mono" x="445" y="250">maw/run/u3</text><rect x="445" y="257" width="140" height="4" rx="2" fill="var(--hair)"/><rect class="bar b3" x="445" y="257" width="140" height="4" rx="2" fill="var(--c-codex)"/></g>
+      <g><rect class="node" x="430" y="30" width="170" height="60" rx="14"/><text x="445" y="54" font-size="12.5" font-weight="600">U1 · Claude Code</text><text class="mono" x="445" y="70">orca/run/u1</text><rect x="445" y="77" width="140" height="4" rx="2" fill="var(--hair)"/><rect class="bar" x="445" y="77" width="140" height="4" rx="2" fill="var(--c-claude)"/></g>
+      <g><rect class="node" x="430" y="120" width="170" height="60" rx="14"/><text x="445" y="144" font-size="12.5" font-weight="600">U2 · Antigravity</text><text class="mono" x="445" y="160">orca/run/u2</text><rect x="445" y="167" width="140" height="4" rx="2" fill="var(--hair)"/><rect class="bar b2" x="445" y="167" width="140" height="4" rx="2" fill="var(--c-gemini)"/></g>
+      <g><rect class="node" x="430" y="210" width="170" height="60" rx="14"/><text x="445" y="234" font-size="12.5" font-weight="600">U3 · Codex</text><text class="mono" x="445" y="250">orca/run/u3</text><rect x="445" y="257" width="140" height="4" rx="2" fill="var(--hair)"/><rect class="bar b3" x="445" y="257" width="140" height="4" rx="2" fill="var(--c-codex)"/></g>
       <path class="flow" style="stroke:var(--c-gate)" d="M600 60 C 620 60, 620 150, 640 150"/>
       <path class="flow" style="stroke:var(--c-gate)" d="M600 150 H 640"/>
       <path class="flow" style="stroke:var(--c-gate)" d="M600 240 C 620 240, 620 150, 640 150"/>
@@ -275,7 +275,7 @@ chmod +x install.sh
 
 <section id="speckit">
   <h2>Con spec-kit</h2>
-  <p class="sub">Las decisiones siguen siendo tuyas (specify → clarify → plan → tasks → analyze). La implementación es lo que se reparte.</p>
+  <p class="sub">Las decisiones siguen siendo tuyas (specify → clarify → plan → tasks). Al escribir <code>/speckit.implement</code>, el hook <code>before_implement</code> de la extensión <code>orca</code> decide si compensa repartir. Si compensa, te enseña el plan de rondas; si no, implement sigue normal.</p>
   <div class="glass table-wrap">
     <table>
       <thead><tr><th>spec-kit</th><th>Se convierte en</th><th>Lo hace</th></tr></thead>
@@ -310,11 +310,11 @@ chmod +x install.sh
     <table>
       <thead><tr><th>Skill</th><th>Relación</th></tr></thead>
       <tbody>
-        <tr><td><code>impeccable</code></td><td>Diseño de UI. <code>maw-brief</code> la usa en unidades de interfaz y <code>maw-integrate</code> pasa su <code>audit</code>. Su <code>audit</code> (diseño) y <code>csr-audit</code> (seguridad) se complementan. Hoy solo la ve Antigravity: usa <code>--adopt</code> para compartirla.</td></tr>
+        <tr><td><code>impeccable</code></td><td>Diseño de UI. <code>orca</code> la usa en las unidades de interfaz y pasa su <code>audit</code> al integrar. Su <code>audit</code> (diseño) y <code>csr-audit</code> (seguridad) se complementan. Hoy solo la ve Antigravity: usa <code>--adopt</code> para compartirla.</td></tr>
         <tr><td><code>supabase</code></td><td>Complementa las reglas de seguridad (RLS) y de fiabilidad (migraciones).</td></tr>
-        <tr><td><code>orca-cli</code>, <code>orchestration</code></td><td>Sin cambios. <code>maw-dispatch</code> las usa para los comandos exactos de tu versión de Orca.</td></tr>
+        <tr><td><code>orca-cli</code>, <code>orchestration</code></td><td>Sin cambios. <code>orca</code> las usa para los comandos exactos de tu versión de Orca.</td></tr>
         <tr><td>spec-kit</td><td>No se modifica. Se lee su <code>tasks.md</code>.</td></tr>
-        <tr><td><code>planificar</code></td><td>Sustituida por <code>maw-plan</code>: mismos dos modos más el paralelo. Desactívala cuando lo hayas probado.</td></tr>
+        <tr><td><code>planificar</code></td><td>Sustituida por <code>orca</code> («planifica en sprints»): mismos dos modos más el paralelo. Desactívala cuando lo hayas probado.</td></tr>
       </tbody>
     </table>
   </div>
@@ -350,7 +350,7 @@ chmod +x install.sh
     <details><summary>Antigravity no ve las skills</summary><p>Comprueba los enlaces en <code>~/.gemini/config/skills/</code> con <code>--verify</code> y reinicia Antigravity. Si se queja del plugin <code>claude-session-rules</code>, desactívalo: su contenido ya está en el núcleo.</p></details>
     <details><summary>El agente orquesta tareas pequeñas</summary><p>Dile «hazlo inline». Si pasa a menudo, ajusta los umbrales en <code>rules/95-multi-agent.md</code>, en «Cuándo paralelizar».</p></details>
     <details><summary>Conflictos en <code>tasks.md</code> o en el plan</summary><p>Un worker lo editó. Revierte su cambio en ese fichero: solo el coordinador marca tareas.</p></details>
-    <details><summary>Un worktree arranca sin dependencias o sin <code>.env</code></summary><p>Ejecuta <code>maw-setup</code>. Lo que va en <code>orca.yaml</code> y <code>.worktreeinclude</code> tiene que existir y estar en <code>.gitignore</code>. Solo <code>.env</code> de desarrollo.</p></details>
+    <details><summary>Un worktree arranca sin dependencias o sin <code>.env</code></summary><p>Repite «inicializa el proyecto». Lo que va en <code>orca.yaml</code> y <code>.worktreeinclude</code> tiene que existir y estar en <code>.gitignore</code>. Solo <code>.env</code> de desarrollo.</p></details>
     <details><summary>Quiero volver atrás</summary><p><code>./install.sh --restore &lt;fecha&gt;</code> con la fecha que imprimió la instalación. Los backups están en <code>~/.agents/backups/</code>.</p></details>
   </div>
 </section>
@@ -372,11 +372,11 @@ chmod +x install.sh
   });
 
   var MODES=[
-    {id:'directo',name:'Directo',when:'Un cambio lógico y claro, en pocos ficheros.',chain:[['csr-gate','lo hace y pasa los gates']],engine:'inline',say:'Añade validación de email al formulario de registro',out:'Sin MAW: orquestar lo pequeño cuesta más que hacerlo.'},
-    {id:'plan',name:'Plan',when:'Varios cambios relacionados, requisitos claros, sin decisiones de producto pendientes.',chain:[['maw-plan','sprints en planes/'],['maw-brief','sprints → unidades'],['maw-dispatch','reparto o secuencial'],['maw-integrate','tu «sí» y gates']],engine:'inline · orca',say:'Planifica en sprints el módulo de notificaciones',out:'Eliges: sprint a sprint con visto bueno, o en paralelo.'},
-    {id:'spec',name:'Spec',when:'Feature nueva, requisitos por decidir o varias user stories. El repo usa spec-kit.',chain:[['/speckit.*','specify → tasks → analyze'],['maw-brief','U0 + una por story'],['maw-dispatch','un worker por story'],['maw-integrate','marca [x] en tasks.md']],engine:'orca',say:'Reparte las user stories de specs/003-recargas',out:'Las decisiones son tuyas; la implementación se reparte.'},
-    {id:'race',name:'Carrera',when:'Bug difícil de causa desconocida, o varias soluciones plausibles.',chain:[['maw-brief','una unidad + test que falla'],['maw-race','2–3 agentes distintos'],['tabla','puntuación de diffs'],['maw-integrate','solo la ganadora']],engine:'orca · manual',say:'Carrera entre Claude y Gemini: el pago se duplica a veces',out:'Gana el mejor diff, no el mejor informe.'},
-    {id:'artifact',name:'Diseño',when:'La entrada es un mockup, una captura, un documento o anotaciones de Design Mode.',chain:[['maw-brief','criterios visuales comprobables'],['impeccable','si está disponible'],['maw-dispatch','una pantalla por unidad'],['maw-integrate','impeccable audit + gates']],engine:'inline · orca',say:'Implementa esta pantalla (adjunto el mockup)',out:'«Que quede como esto» se traduce en medidas que se pueden comprobar.'}
+    {id:'directo',name:'Directo',when:'Un cambio lógico y claro, en pocos ficheros.',chain:[['agente','lo hace él solo'],['csr-gate','pasa los gates']],engine:'un agente',say:'Añade validación de email al formulario de registro',out:'orca ni se activa: orquestar lo pequeño cuesta más que hacerlo.'},
+    {id:'spec',name:'spec-kit',when:'Tu flujo habitual: specify → plan → tasks. Al implementar, se reparte solo si compensa.',chain:[['/speckit.implement','lo escribes como siempre'],['hook orca','¿compensa repartir?'],['tú','confirmas el plan de rondas'],['workers','una user story por worktree'],['integración','gates y [x] en tasks.md'],['tú','confirmas el merge final']],engine:'orca',say:'/speckit.implement',out:'Si no compensa, implement sigue normal, con un agente.'},
+    {id:'chat',name:'Petición',when:'Pides una feature grande sin spec. El agente detecta las partes independientes.',chain:[['orca','sola, por iniciativa del agente'],['unidades','reescribe tu petición como brief'],['tú','confirmas el plan de rondas'],['workers','en paralelo'],['tú','confirmas el merge final']],engine:'orca · subagentes',say:'Añade el módulo de notificaciones: email, push y preferencias',out:'Lo mismo sirve con un plan del modo plan o un implementation_plan.md.'},
+    {id:'plan',name:'Sprints',when:'Quieres un plan por sprints antes de tocar código.',chain:[['orca','modo plan'],['planes/x.md','sprints con ficheros y dependencias'],['tú','sprint a sprint o en paralelo']],engine:'un agente · orca',say:'Planifica en sprints el panel de administración',out:'Mantiene los dos modos de planificar y añade el paralelo.'},
+    {id:'race',name:'Carrera',when:'Bug difícil de causa desconocida, o varias soluciones plausibles.',chain:[['orca','modo carrera'],['test','reproducción que falla'],['2–3 agentes','mismo problema'],['tabla','puntuación de diffs'],['tú','eliges la ganadora']],engine:'orca',say:'Carrera entre Claude y Gemini: el pago se duplica a veces',out:'Gana el mejor diff, no el mejor informe.'}
   ];
   var bar=document.querySelector('.modes'),panel=document.getElementById('mode-panel');
   function render(i){
@@ -386,12 +386,12 @@ chmod +x install.sh
     panel.innerHTML='<div class="mode-panel"><div><h3>Cuándo</h3><p class="muted">'+m.when+'</p><p class="small"><span class="muted">Motor habitual:</span> <code>'+m.engine+'</code></p><div class="say"><small>Por ejemplo, escribes</small>«'+m.say+'»</div><p class="muted small" style="margin-top:10px">'+m.out+'</p></div><div><h3>Qué pasa</h3><ul class="chain">'+chain+'</ul></div></div>';
   }
   MODES.forEach(function(m,i){var b=document.createElement('button');b.type='button';b.setAttribute('role','tab');b.textContent=m.name;b.addEventListener('click',function(){render(i)});bar.appendChild(b)});
-  render(2);
+  render(1);
 
   var PH=[
-    ['inicializa el proyecto','kit-init'],['¿qué modo usarías para esto?','maw-route'],['planifica en sprints …','maw-plan'],
-    ['reparte las user stories de specs/…','maw-brief → dispatch'],['convierte este plan en unidades','maw-brief'],['carrera entre Claude y Gemini: …','maw-race'],
-    ['integra la ronda','maw-integrate'],['hazlo inline, sin repartir','override'],['pasa los gates','csr-gate'],['audita la seguridad del diff','csr-audit']
+    ['inicializa el proyecto','kit-init'],['/speckit.implement','se reparte solo si compensa'],['hazlo en paralelo','orca'],
+    ['planifica en sprints …','orca · plan'],['carrera entre Claude y Gemini: …','orca · carrera'],['hazlo tú solo, sin repartir','sin orquestar'],
+    ['pasa los gates','csr-gate'],['audita la seguridad del diff','csr-audit']
   ];
   var box=document.getElementById('phrases');
   PH.forEach(function(p){var b=document.createElement('button');b.type='button';b.className='phrase';b.innerHTML='«'+p[0]+'»<span>'+p[1]+'</span>';b.addEventListener('click',function(){copy(p[0],b)});box.appendChild(b)});

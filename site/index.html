@@ -144,7 +144,7 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
   <div class="grid">
     <div class="card"><h3>Fuente única</h3><p>Reglas y skills en <code>~/.agents</code>. Claude Code lo importa, Antigravity, Codex y Copilot lo enlazan y Cursor lo lee de serie. Editas una vez y lo ven todos.</p></div>
     <div class="card"><h3>Calidad CSR</h3><p>Puerta de validez en 8 fases, seguridad OWASP/ASVS/CWE, tests y tabla de gates. Las respuestas son cortas: el agente gasta tokens en pensar, no en hablar.</p></div>
-    <div class="card"><h3>Multiagente MAW</h3><p>Chat, plan, spec-kit o diseño se convierten en unidades de trabajo. Cada unidad va a su worktree, con Orca o sin él, y la integración espera tu confirmación.</p></div>
+    <div class="card"><h3>Multiagente automático</h3><p>El agente detecta cuándo una tarea se puede repartir y lanza un agente por parte, cada uno en su worktree. Con spec-kit, <code>/speckit.implement</code> lo hace solo. Tú confirmas el plan y el merge final.</p></div>
   </div>
 </section>
 
@@ -171,7 +171,7 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
       <tr><td><code>omk where</code> · <code>omk version</code></td><td>Rutas y versión</td></tr>
     </tbody>
   </table></div>
-  <p class="muted" style="font-size:13px">Dentro de cada agente: «inicializa el proyecto», «planifica en sprints», «reparte las user stories», «carrera entre Claude y Gemini», «integra la ronda». Todo el flujo, en la <a href="guia.html">guía visual</a>.</p>
+  <p class="muted" style="font-size:13px">Dentro de cada agente solo necesitas dos frases: «inicializa el proyecto» la primera vez y, con spec-kit, <code>/speckit.implement</code> como siempre. El reparto lo propone el agente. Todo el flujo, en la <a href="guia.html">guía visual</a>.</p>
 </section>
 
 <section id="descargar">

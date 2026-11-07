@@ -1,5 +1,7 @@
 # Adaptador: spec-kit → unidades
 
+**Si vienes del hook `before_implement`** (el usuario escribió `/speckit.implement`): ya estás en la sesión del coordinador. No vuelvas a invocar `/speckit.implement` ni lo pidas a los workers. Al terminar, todas las tareas integradas quedan `[x]` y el flujo de implement solo valida. Si decides «secuencial», no toques nada: implement sigue solo.
+
 Precondición: existen `spec.md`, `plan.md` y `tasks.md` en `specs/<feature>/`. Si falta `tasks.md`: `BLOCKED: ejecuta /speckit.tasks primero`. Recomendado haber pasado `/speckit.analyze` sin hallazgos CRITICAL.
 
 ## Lectura de tasks.md
@@ -36,5 +38,5 @@ Las stories se escriben "independientes", pero suelen compartir: router/rutas, e
 - No ejecutar `/speckit.implement` completo: implementa solo las tareas `T0xx–T0yy` de su unidad, en el orden de `tasks.md` (tests antes si la spec los pide).
 - Si encuentra un hueco en la spec: `ask`/`BLOCKED:` al coordinador, no inventa requisito.
 
-## Tras integrar (lo hace `maw-integrate`)
+## Tras integrar (lo hace la integración (`integrate.md`))
 Marcar `[x]` las tareas de las unidades integradas en `tasks.md`, en un commit del coordinador: `chore(spec): marcar US2 completada`.

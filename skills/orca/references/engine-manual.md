@@ -14,14 +14,14 @@ Escribe el mensaje de despacho en `<worktree>/.work/BRIEF.md` (dentro del worktr
 
 ## 3. Instrucciones al usuario (una sola vez, en bloque)
 ```
-Abre un agente en cada carpeta y pégale: «Ejecuta .work/BRIEF.md con la skill maw-worker»
+Abre un agente en cada carpeta y pégale: «Ejecuta .work/BRIEF.md con la skill worker-contract.md»
 U1 → ../<repo>-wt/<run>-u1  (Claude Code)
 U2 → ../<repo>-wt/<run>-u2  (Antigravity)
 Cuando terminen, dime «ronda lista».
 ```
 
 ## 4. Recoger
-Cada worker escribe su informe en `<worktree>/.work/REPORT.md`. Léelos, cópialos a `.work/runs/<run>/reports/` y pasa a `maw-integrate`.
+Cada worker escribe su informe en `<worktree>/.work/REPORT.md`. Léelos, cópialos a `.work/runs/<run>/reports/` y pasa a la integración (`integrate.md`).
 
 ## 5. Limpieza (tras integrar, con confirmación)
 ```bash

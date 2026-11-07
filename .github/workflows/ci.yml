@@ -31,6 +31,19 @@ jobs:
       - name: Empaquetado
         run: bash scripts/build-release.sh
 
+  speckit:
+    name: Extensión spec-kit (CLI real)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar spec-kit
+        run: pip install "git+https://github.com/github/spec-kit.git"
+      - name: Probar la extensión orca
+        run: bash tests/test_speckit.sh
+
   shellcheck:
     name: ShellCheck
     runs-on: ubuntu-latest

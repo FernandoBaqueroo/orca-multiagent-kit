@@ -19,7 +19,7 @@ OMK="$W/prefix/bin/omk"
 echo "== paquete npm"
 # Listado en fichero: con pipefail, tar | grep -q puede fallar por SIGPIPE
 tar -tzf "$TGZ" > "$W/files.txt"
-check "el paquete incluye install.sh y skills" 'grep -q "package/install.sh" "$W/files.txt" && grep -q "package/skills/maw-route/SKILL.md" "$W/files.txt"'
+check "el paquete incluye install.sh y skills" 'grep -q "package/install.sh" "$W/files.txt" && grep -q "package/skills/orca/SKILL.md" "$W/files.txt"'
 check "el paquete no incluye tests ni .github"  '! grep -Eq "package/(tests|\.github)/" "$W/files.txt"'
 check "binario omk instalado"                   '[ -x "$OMK" ]'
 

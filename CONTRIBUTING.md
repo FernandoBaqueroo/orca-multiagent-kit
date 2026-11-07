@@ -8,7 +8,7 @@ Gracias por querer mejorar **Orca Multiagent Kit**. Este documento explica cómo
 2. **Rutas neutrales.** Reglas y skills usan `~/.agents/…`. Nada de `~/.claude/rules` ni `~/.gemini/rules`: eso lo resuelve el instalador.
 3. **El núcleo es caro.** `core/AGENTS.md` se carga en cada mensaje de cada agente. Límite: 200 líneas. Si algo no hace falta siempre, va a `rules/` o a una skill.
 4. **Lo que un linter puede imponer no se escribe aquí.** Estas reglas son para lo que ninguna herramienta verifica.
-5. **Contratos estables.** El formato de unidad (`maw-brief`) y el formato de informe (`maw-worker`) se usan entre agentes. Si cambias un campo, cámbialo en los dos lados y súbelo como cambio MAJOR.
+5. **Contratos estables.** El formato de unidad (`skills/orca/references/units.md`) y el contrato del worker (`references/worker-contract.md`) se usan entre agentes. Si cambias un campo, cámbialo en los dos lados y súbelo como cambio MAJOR.
 
 ## Estructura
 

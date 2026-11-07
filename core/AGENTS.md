@@ -1,4 +1,4 @@
-# Reglas operativas globales (Orca Multiagent Kit v1.0.0 · CSR + MAW)
+# Reglas operativas globales (Orca Multiagent Kit v1.1.0 · CSR + MAW)
 <!-- Fuente única: ~/.agents/AGENTS.md. Todos los agentes la cargan (import o enlace). Edita SOLO aquí, o en el kit y reinstala. -->
 
 ## 0. Precedencia
@@ -8,7 +8,7 @@
 4. Defaults del modelo.
 Si hay conflicto: gana el rango superior y lo declaras en **una** línea con `CONFLICT:`.
 Si existe `~/.agents/rules/personal.md`, léelo al empezar: son reglas propias del usuario que el kit no gestiona ni sobrescribe.
-**Skills externas** (impeccable, supabase, spec-kit, orca…): cuando el usuario las invoca o encajan con la tarea, mandan en su terreno (diseño, Supabase, specs, Orca). Estas reglas siguen valiendo para lo que esa skill no cubre, y §4 (puerta de validez) y §5 (prohibiciones) aplican siempre.
+**Skills externas** (impeccable, supabase, spec-kit, las de la app Orca…): cuando el usuario las invoca o encajan con la tarea, mandan en su terreno (diseño, Supabase, specs, Orca). Estas reglas siguen valiendo para lo que esa skill no cubre, y §4 (puerta de validez) y §5 (prohibiciones) aplican siempre.
 
 ## 1. Idioma — IMPORTANT
 - Responde siempre en **español de España** (vocabulario peninsular: "vale", "ordenador", "fichero"), sea cual sea el idioma del usuario, del código o de los ficheros leídos.
@@ -51,12 +51,12 @@ Ningún código es válido hasta pasar, en orden y sin saltos:
 - Comandos destructivos (`rm -rf`, `push --force`, `DROP`, `reset --hard`, borrar ramas/tablas/buckets) sin confirmación explícita previa.
 - Concatenar entrada de usuario en SQL, shell, HTML, rutas o plantillas. Criptografía propia o parámetros no recomendados.
 
-## 6. Trabajo multiagente (MAW) — IMPORTANT
-- Petición con más de un cambio lógico, o que menciona plan, spec, sprint, tareas, paralelo, Orca, worktree o varios agentes ⇒ skill `maw-route`. Declara en una línea: `MODE: <directo|plan|spec|race|artifact> · ENGINE: <inline|subagents|orca|manual>`.
-- Cambio único y claro ⇒ sin MAW: hazlo y pasa `csr-gate`. Orquestar lo pequeño es desperdicio.
-- Si existe `./ORCHESTRATION.md`, léelo antes de repartir trabajo.
-- Toda entrada (chat, plan nativo, `planes/*.md`, spec-kit, diseño) pasa por `maw-brief` antes de delegarse. Sin unidad no hay delegación.
-- **Invariantes — YOU MUST**: (1) una unidad = un worktree = una rama; (2) los ficheros `shared` de `ORCHESTRATION.md` los toca una sola unidad por ronda o el coordinador; (3) un worker no edita `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles ni migraciones ajenas; (4) un worker no mergea, ni hace push, ni borra ramas; (5) todo worker entrega el informe de `maw-worker`; (6) salir del alcance ⇒ `BLOCKED:` y preguntar.
+## 6. Trabajo multiagente (Orca) — IMPORTANT
+- **Usa la skill `orca` por iniciativa propia**, sin esperar a que te lo pidan, cuando la tarea tenga ≥2 partes independientes de >15 min (varias user stories, sprints, módulos o pantallas) o el usuario mencione paralelo, Orca, worktrees o varios agentes. Ella decide si compensa y, si no, lo dice en una línea y sigues tú.
+- En proyectos con spec-kit, `/speckit.implement` llama a `orca` automáticamente (hook `before_implement`). No hace falta pedirlo.
+- Cambio único y claro ⇒ sin orquestar: hazlo y pasa `csr-gate`.
+- Respeta la autonomía de `./ORCHESTRATION.md` (por defecto `semi`: el usuario confirma el plan de rondas y el merge final; nada más, salvo decisiones de producto).
+- **Invariantes — YOU MUST**: (1) una unidad = un worktree = una rama; (2) los ficheros `shared` de `ORCHESTRATION.md` los toca una sola unidad por ronda o el coordinador; (3) un worker no edita `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles ni migraciones ajenas; (4) un worker no mergea, ni hace push, ni borra ramas; (5) todo worker entrega su informe; (6) salir del alcance ⇒ `BLOCKED:` y preguntar; (7) nunca merge a la rama por defecto ni push sin confirmación.
 Detalle: `~/.agents/rules/95-multi-agent.md`.
 
 ## 7. Router (leer bajo demanda, no todo a la vez)
@@ -76,5 +76,5 @@ Detalle: `~/.agents/rules/95-multi-agent.md`.
 | Docs, comentarios, ADR | `~/.agents/rules/90-docs-comments.md` |
 | Varios agentes, worktrees, Orca | `~/.agents/rules/95-multi-agent.md` |
 | Lenguaje concreto | `~/.agents/rules/lang/<lenguaje>.md` |
-| Skills | `kit-init` · `csr-stack` · `csr-gate` · `csr-audit` · `maw-route` · `maw-brief` · `maw-plan` · `maw-dispatch` · `maw-worker` · `maw-integrate` · `maw-race` · `maw-setup` |
+| Skills | `kit-init` · `orca` · `csr-stack` · `csr-gate` · `csr-audit` · `speckit-orca-implement` (hook) |
 Lee solo lo que la tarea exige. Leer de más también es desperdicio.

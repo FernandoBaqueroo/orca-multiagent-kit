@@ -1,0 +1,26 @@
+schema_version: "1.0"
+
+extension:
+  id: orca
+  name: "Orca Multiagent"
+  version: "1.1.0"
+  description: "Implementa specs en paralelo con varios agentes (Orca, subagentes o worktrees) desde /speckit.implement."
+  author: "Fernando Baquero"
+  repository: "https://github.com/FernandoBaqueroo/orca-multiagent-kit"
+  license: "MIT"
+  homepage: "https://fernandobaqueroo.github.io/orca-multiagent-kit/"
+
+requires:
+  speckit_version: ">=1.0.0"
+
+provides:
+  commands:
+    - name: speckit.orca.implement
+      file: commands/implement.md
+      description: "Decide si compensa implementar la feature en paralelo y, si compensa, la orquesta con varios agentes."
+
+hooks:
+  before_implement:
+    command: speckit.orca.implement
+    optional: false
+    description: "Orquestación multiagente: reparte las user stories entre agentes si compensa; si no, implement sigue normal."

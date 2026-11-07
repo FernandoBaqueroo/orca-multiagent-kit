@@ -39,7 +39,7 @@ Si falla cualquiera: secuencial en un solo agente. Decláralo: `ENGINE: inline (
 | `subagents` | Paralelo con el mismo proveedor, sin Orca | Subagentes nativos del agente (Claude Code: Agent/Task con aislamiento en worktree; Antigravity: Agent Manager; Codex/Cursor/Copilot: los suyos) |
 | `orca` | Paralelo con varios proveedores, o se quiere seguimiento en UI | `orca orchestration` (Run, tasks, workers). Requiere Orca abierto y orquestación activada |
 | `manual` | Ninguno de los anteriores disponible | `git worktree add` por unidad + brief en `.work/` para que el humano abra un agente en cada uno |
-Detección y comandos: `maw-dispatch`.
+Detección y comandos: skill `orca`, `references/engine-*.md`.
 
 ## Cuotas
 - Reparte por proveedor según `ORCHESTRATION.md` §Agentes. Sin esa ficha: alterna proveedores para no agotar una sola cuota.

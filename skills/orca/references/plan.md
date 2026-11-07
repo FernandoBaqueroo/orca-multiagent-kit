@@ -1,11 +1,6 @@
----
-name: maw-plan
-description: Planificador por sprints con aprobacion humana (evolucion de planificar) - genera un plan maestro en planes/ con sprints que declaran ficheros, dependencias y paralelismo, y ejecuta sprints uno a uno o los entrega a maw-brief y maw-dispatch para hacerlos en paralelo. Usar con /maw-plan, /planificar, "planifica", "divide en sprints" o "comienza el Sprint N".
----
+# Planificar por sprints (sustituye a «planificar»)
 
-# maw-plan — Plan maestro por sprints
-
-Evolución de `planificar`: mismos dos modos y misma aprobación humana, pero cada sprint trae lo que hace falta para repartirlo entre agentes.
+Para peticiones grandes sin plan ni spec. Mantiene los dos modos de `planificar` (plan maestro y sprint con visto bueno) y añade el paralelo.
 
 ## MODO 1 — Plan maestro
 Disparador: idea grande, refactor o feature compleja sin plan previo.
@@ -35,7 +30,7 @@ Objetivo: <1–2 líneas> · Creado: AAAA-MM-DD · Estado: en curso
   - ...
 - Verificación:
 ```
-4. Al usuario: ruta del plan + tabla `sprint | depende | paralelo` (nada más). Pregunta una sola cosa: ¿ejecución secuencial con aprobación por sprint (modo 2), o en paralelo (`maw-brief` → `maw-dispatch`)?
+4. Al usuario: ruta del plan + tabla `sprint | depende | paralelo` (nada más). Pregunta una sola cosa: ¿sprint a sprint con visto bueno (modo 2) o en paralelo con orca (modo 3)?
 
 ## MODO 2 — Ejecutar un sprint (secuencial, human-in-the-loop)
 Disparador: "comienza el Sprint N de planes/<feature>.md".
@@ -45,8 +40,7 @@ Disparador: "comienza el Sprint N de planes/<feature>.md".
 4. Aplica, pasa `csr-gate`, y marca el sprint `[completado]` en el plan con fecha.
 
 ## MODO 3 — Ejecutar en paralelo
-Disparador: el usuario elige paralelo, o "lanza los sprints N y M".
-`maw-brief` (adaptador `plan-file`) → `maw-dispatch`. La aprobación pasa del código propuesto al diff final en `maw-integrate`. El plan lo actualiza solo el coordinador.
+Disparador: el usuario elige paralelo, o "lanza los sprints N y M". Vuelve a `SKILL.md` §2 con el adaptador `plan-file`. La aprobación pasa del código propuesto al plan de rondas y al merge final. El plan lo actualiza solo el coordinador.
 
 ## Reglas
 - Un sprint que toca >10 ficheros o varias capas sin contrato entre ellas: divídelo.

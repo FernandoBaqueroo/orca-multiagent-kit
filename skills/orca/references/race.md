@@ -1,15 +1,12 @@
----
-name: maw-race
-description: Lanza la misma unidad a 2 o 3 agentes distintos en worktrees separados, compara sus soluciones con criterios fijos y recomienda la ganadora. Usar para bugs dificiles de causa desconocida, decisiones de diseno con varios enfoques plausibles, o cuando el usuario pide "que lo intenten varios" o "carrera de agentes".
----
+# Modo carrera: varios agentes, un problema
 
-# maw-race — Varios agentes, un problema
+Para bugs difíciles de causa desconocida o decisiones con 2–3 enfoques plausibles. Cuesta N veces más: úsalo solo cuando el usuario lo pida o la incertidumbre lo justifique.
 
 ## Cuándo no usarla
 Bug con causa visible en un stack trace, cambio mecánico, o unidad `S`. Una carrera multiplica el coste por N.
 
 ## 1. Unidad única
-Con `maw-brief` (adaptador `chat` o el que toque) genera **una** unidad. Refuerza:
+Con el adaptador que toque (`adapters/chat.md` normalmente) genera **una** unidad. Refuerza:
 - `acceptance` con un test de reproducción que hoy falla (si es bug). Si no existe, escríbelo tú primero en la base: sin él, no hay forma objetiva de comparar.
 - `notes`: "Enfoque libre. Explica en el informe por qué elegiste el tuyo."
 
@@ -35,4 +32,4 @@ race U1 · ganador: B (antigravity) · 11/13
 A: arregla el síntoma (añade retry); B: corrige el orden de await en payment.service.ts:88
 mezcla sugerida: test extra de A (concurrencia) sobre la solución de B
 ```
-Después: `maw-integrate` solo con la ganadora (más los añadidos que el usuario apruebe). Las ramas perdedoras se borran con confirmación.
+Después: integra (`integrate.md`) solo la ganadora (más los añadidos que el usuario apruebe). Las ramas perdedoras se borran con confirmación.

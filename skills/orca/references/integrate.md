@@ -1,9 +1,4 @@
----
-name: maw-integrate
-description: Cierra una ronda de trabajo multiagente - revisa el diff de cada worker contra su unidad, decide el orden de merge, integra con confirmacion del usuario, repasa la puerta de validez sobre el resultado combinado y actualiza el estado (tasks.md, plan, checkpoints, limpieza de worktrees).
----
-
-# maw-integrate — Revisar, integrar, cerrar
+# Integrar una ronda
 
 Entrada: informes en `.work/runs/<run>/reports/` de la ronda actual.
 
@@ -19,10 +14,10 @@ Opcional: en Orca, el usuario puede revisar con Annotate AI Diff y devolver come
 ## 2. Orden de merge
 Prioridad de la unidad (P1 antes que P2) → dependencias → la que menos `shared` toca primero.
 
-## 3. Integrar — requiere confirmación
-Presenta el plan de merge en una tabla y espera "sí" del usuario (ese «sí» es la autorización de commit que exige `60-git-workflow.md`). Si un worker no hizo commits, primero haz tú un commit atómico en su worktree con los cambios revisados (`feat(<ámbito>): <unidad>`). Luego, por unidad:
+## 3. Integrar en la rama de integración
+Con autonomía `semi` o `auto`, la confirmación 1 del run ya autoriza estos commits y merges (solo en ramas de trabajo y en la rama de integración, nunca en la de por defecto). Con `manual`, pide un «sí» por ronda. Si un worker no hizo commits, haz tú un commit atómico en su worktree con los cambios revisados (`feat(<ámbito>): <unidad>`). Luego, por unidad:
 ```bash
-git switch <rama-integración o la rama del feature>
+git switch feat/<feature>          # rama de integración del run
 git merge --no-ff maw/<run>/<unit>
 ```
 Conflicto ⇒ `95-multi-agent.md` §Conflictos. Nunca `--force`, nunca a la rama por defecto sin que el usuario lo pida.
@@ -37,13 +32,6 @@ Si la ronda tocó UI y existe `impeccable`: `impeccable audit` sobre las vistas 
 - Orca: `worker-release` de cada dispatch aceptado; comentario del worktree principal con el estado del run.
 - `.work/runs/<run>/run.md`: ronda cerrada, sha resultante.
 
-## 6. Limpieza — requiere confirmación
-Worktrees y ramas de unidades integradas: borrado con `git worktree remove` + `git branch -d` (o el borrado de worktree de Orca). Unidades `discard`: confirmar explícitamente antes de borrar su rama.
+## 6. Limpieza
+Tras el merge final (confirmación 2): worktrees y ramas de unidades integradas con `git worktree remove` + `git branch -d` (o `worker-release` en Orca). Las ramas de unidades `discard` solo se borran si el usuario lo confirma.
 
-## Reporte final del run
-```
-run 20261107-recargas · rondas: 2 · unidades: 4 (accept 3, rework 1→accept)
-merge: <sha> en feat/003-recargas
-<tabla de gates combinados>
-DEFERRED: Polish (T030–T034) pendiente de nueva ronda
-```

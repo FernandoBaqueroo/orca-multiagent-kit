@@ -1,6 +1,6 @@
 ---
 name: kit-init
-description: Inicializa o migra un proyecto al Orca Multiagent Kit con un solo prompt - crea o actualiza AGENTS.md y CLAUDE.md desde las plantillas, detecta el stack (csr-stack), prepara la orquestacion multiagente (maw-setup) y deja .work/ ignorado. Usar con "inicializa el proyecto", "prepara este repo", "kit-init", al abrir un repo sin AGENTS.md o STACK.md, o con un AGENTS.md/CLAUDE.md con bloques CSR antiguos.
+description: Inicializa o migra un proyecto al Orca Multiagent Kit con un solo prompt - crea o actualiza AGENTS.md y CLAUDE.md desde las plantillas, detecta el stack (csr-stack), prepara la orquestacion multiagente, activa el hook de spec-kit para que /speckit.implement reparta el trabajo y deja .work/ ignorado. Usar con "inicializa el proyecto", "prepara este repo", "kit-init", al abrir un repo sin AGENTS.md o STACK.md, o con un AGENTS.md/CLAUDE.md con bloques CSR antiguos.
 ---
 
 # kit-init — Proyecto listo en un prompt
@@ -25,17 +25,37 @@ Comprueba y anota en una línea cada uno:
 - Si está relleno: no lo toques; solo avisa (`RISK:`) si sus comandos no coinciden con el manifiesto.
 
 ## 4. Orquestación
-Ejecuta `maw-setup` (`ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude`, `.work/` en `.gitignore`). Añade a la lista `shared` los ficheros de contexto de otras herramientas que existan: `PRODUCT.md`, `DESIGN.md`, `.specify/memory/constitution.md`.
+Sigue `~/.agents/skills/orca/references/setup.md` (`ORCHESTRATION.md` con su nivel de autonomía, `orca.yaml`, `.worktreeinclude`, `.work/` en `.gitignore`). Añade a la lista `shared` los ficheros de contexto de otras herramientas que existan: `PRODUCT.md`, `DESIGN.md`, `.specify/memory/constitution.md`.
 Agrupa sus preguntas con las de `csr-stack` en **una sola tanda** (máximo 4 en total).
 
-## 5. Cierre
+## 5. spec-kit (si existe `.specify/`)
+Activa la implementación orquestada: el hook `before_implement` de la extensión `orca`.
+1. Si existe el CLI `specify`: `specify extension add --dev ~/.agents/speckit-ext/orca`.
+2. Si no, añade el hook a mano en `.specify/extensions.yml` (créalo si no existe; conserva lo que haya):
+   ```yaml
+   installed:
+   - orca
+   hooks:
+     before_implement:
+     - extension: orca
+       command: speckit.orca.implement
+       enabled: true
+       optional: false
+       priority: 10
+       description: "Orquestación multiagente: reparte las user stories si compensa"
+   ```
+   El comando lo resuelve la skill global `speckit-orca-implement`.
+3. Comprueba que `/speckit.implement` lo verá: la skill `speckit-implement` del proyecto debe mencionar `hooks.before_implement`. Si es una versión antigua sin hooks: `RISK:` y propón actualizar spec-kit.
+
+## 6. Cierre
 No hagas commit sin permiso. Reporta:
 ```
 kit-init · <proyecto>
 AGENTS.md   | creado / migrado (overrides: N) / ya ok
 CLAUDE.md   | @AGENTS.md
 STACK.md    | detectado: <stack en 1 línea> · TODO: <n>
-ORCHESTR.   | agentes: <reparto> · shared: <n> ficheros
+ORCHESTR.   | agentes: <reparto> · shared: <n> ficheros · autonomía: <nivel>
+spec-kit    | hook before_implement: activo / no aplica
 convive con | spec-kit · impeccable · …
 commit sugerido: chore: inicializar Orca Multiagent Kit (AGENTS, STACK, ORCHESTRATION)
 ```

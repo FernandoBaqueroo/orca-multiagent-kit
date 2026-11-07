@@ -21,7 +21,7 @@ check "CLAUDE.md importa el núcleo"              'grep -q "@~/.agents/AGENTS.md
 check "GEMINI.md es enlace al núcleo"            '[ "$(readlink "$H/.gemini/GEMINI.md")" = "$H/.agents/AGENTS.md" ]'
 check "Codex AGENTS.md es enlace al núcleo"      '[ "$(readlink "$H/.codex/AGENTS.md")" = "$H/.agents/AGENTS.md" ]'
 check "skill enlazada en Claude"                 '[ -L "$H/.claude/skills/csr-gate" ]'
-check "skill enlazada en Antigravity"            '[ -L "$H/.gemini/config/skills/maw-route" ]'
+check "skill enlazada en Antigravity"            '[ -L "$H/.gemini/config/skills/orca" ]'
 check "--verify pasa"                            'HOME="$H" bash "$INSTALL" --verify >/dev/null 2>&1'
 
 echo "== 2. Idempotencia"
@@ -52,7 +52,22 @@ check "plantillas de proyecto creadas"           '[ -f "$H/proj/STACK.md" ] && [
 check ".work/ en .gitignore"                     'grep -qx ".work/" "$H/proj/.gitignore"'
 check "--verify pasa tras migrar"                'HOME="$H" bash "$INSTALL" --verify >/dev/null 2>&1'
 
+H3="$H"
+echo "== 3b. Migración desde 1.0 (skills maw-* retiradas) y hook de spec-kit"
+H="$(newhome)"; mkdir -p "$H/.claude/skills" "$H/.agents/skills/maw-route" "$H/proj/.specify"
+echo "viejo" > "$H/.agents/skills/maw-route/SKILL.md"; ln -s "$H/.agents/skills/maw-route" "$H/.claude/skills/maw-route"
+PATH_NO_SPECIFY="$(printf '%s' "$PATH" | tr ':' '\n' | while read -r d; do [ -x "$d/specify" ] || printf '%s:' "$d"; done)"
+HOME="$H" PATH="$PATH_NO_SPECIFY" bash "$INSTALL" --project "$H/proj" >/dev/null 2>&1
+check "maw-route retirada de ~/.agents/skills"   '[ ! -e "$H/.agents/skills/maw-route" ]'
+check "enlace maw-route retirado de Claude"      '[ ! -e "$H/.claude/skills/maw-route" ] && [ ! -L "$H/.claude/skills/maw-route" ]'
+check "skill orca enlazada"                      '[ -L "$H/.claude/skills/orca" ]'
+check "extensión spec-kit en ~/.agents"          '[ -f "$H/.agents/speckit-ext/orca/extension.yml" ]'
+check "hook before_implement creado"             'grep -q "speckit.orca.implement" "$H/proj/.specify/extensions.yml"'
+HOME="$H" PATH="$PATH_NO_SPECIFY" bash "$INSTALL" --project "$H/proj" >/dev/null 2>&1
+check "reinstalar no duplica el hook"            '[ "$(grep -c "speckit.orca.implement" "$H/proj/.specify/extensions.yml")" -eq 1 ]'
+
 echo "== 4. Restauración"
+H="$H3"
 STAMP="$(ls "$H/.agents/backups" | head -1)"
 HOME="$H" bash "$INSTALL" --restore "$STAMP" >/dev/null 2>&1
 check "CLAUDE.md vuelve a tener CSR"             'grep -q "CSR:BEGIN" "$H/.claude/CLAUDE.md"'

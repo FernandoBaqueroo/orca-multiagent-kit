@@ -1,9 +1,8 @@
----
-name: maw-worker
-description: Contrato de un worker MAW - implementa una sola unidad de trabajo en su propio worktree, sin salir de su alcance, pasa la puerta de validez y entrega un informe con formato fijo al coordinador. Usar cuando llega un mensaje con "UNIT:" y "RUN:", un .work/BRIEF.md, o una tarea despachada por Orca con Task y Dispatch IDs.
----
+# Contrato del worker (va dentro de cada brief)
 
-# maw-worker — Ejecutar una unidad
+Copia este texto en el mensaje de cada worker de motores `subagents` y `manual`. Con Orca, copia solo §2 (alcance): Orca ya le da el contrato de `worker_done`, preguntas y heartbeats.
+
+Eres un worker de un run orquestado. Ejecutas **una** unidad.
 
 ## 1. Arranque (antes de editar nada)
 1. Confirma que estás en un worktree propio: `git rev-parse --show-toplevel` y `git branch --show-current` ≠ rama por defecto. Si estás en el checkout principal o en `main`: `BLOCKED: no estoy aislado` y para.

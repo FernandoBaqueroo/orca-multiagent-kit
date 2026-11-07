@@ -22,7 +22,7 @@ Sin shell disponible: replica `install.sh` por pasos, en este orden: (a) copia `
 
 ## 3. Proyecto
 1. `./install.sh --project-only <ruta>`. Migra los overrides del bloque CSR antiguo a `AGENTS.md` y deja `CLAUDE.md` como `@AGENTS.md`.
-2. Ejecuta la skill `kit-init`: migra las reglas, detecta el stack (`csr-stack`) y prepara la orquestación (`maw-setup`). Sin terminal, `kit-init` hace también el paso 1.
+2. Ejecuta la skill `kit-init`: migra las reglas, detecta el stack (`csr-stack`) prepara la orquestación y, si hay spec-kit, activa el hook `before_implement`. Sin terminal, `kit-init` hace también el paso 1.
 3. Si `CLAUDE.md` tenía reglas propias fuera del bloque, propón moverlas a `AGENTS.md` (sección *Overrides*) para que las vean todos los agentes. No lo hagas sin confirmación.
 4. No hagas commit sin permiso. Se commitean `AGENTS.md`, `CLAUDE.md`, `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude` y `.claude/settings.json`; `.work/` no.
 
@@ -39,7 +39,7 @@ prueba                                         | esperado                       
 ls ~/.claude/rules ~/.gemini/rules             | sin ficheros de CSR/MAW                    |
 grep -c 'CSR:BEGIN' ~/.claude/CLAUDE.md        | 0                                          |
 nueva sesión: «¿dónde están tus reglas de seguridad?» | ~/.agents/rules/30-security.md      |
-nueva sesión: «reparte las user stories de specs/x»   | MODE: spec, U0 + 1 unidad por story |
+nueva sesión con spec-kit: `/speckit.implement` | el hook orca decide y muestra el plan de rondas |
 ```
 
 ## 6. Qué no hacer

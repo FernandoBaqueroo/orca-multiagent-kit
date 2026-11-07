@@ -4,8 +4,8 @@ Un solo proveedor, sin Orca. Más barato de montar; menos visibilidad.
 
 ## Claude Code
 - Lanza un subagente por unidad con la herramienta de agentes/tareas del entorno, con **aislamiento en worktree** si está disponible (opción de worktree/isolation). Sin aislamiento, dos subagentes comparten checkout ⇒ solo paralelo si sus `write` son disjuntos **y** no ejecutan instaladores, migraciones ni servidores; en caso contrario, secuencial.
-- Prompt del subagente = mensaje de despacho completo (`maw-dispatch` §3).
-- El informe es el mensaje final del subagente: exígelo con el formato de `maw-worker`.
+- Prompt del subagente = mensaje de despacho completo (`SKILL.md` §5).
+- El informe es el mensaje final del subagente: exígelo con el formato de `worker-contract.md`.
 - Agent Teams / modos de varios agentes del producto sirven igual; las reglas de `write` y `shared` no cambian.
 
 ## Antigravity
@@ -16,4 +16,4 @@ Un solo proveedor, sin Orca. Más barato de montar; menos visibilidad.
 ## Común
 - Límite práctico: 3 subagentes simultáneos.
 - Los subagentes no ven tu conversación: todo el contexto va en el despacho.
-- Al terminar, la integración es igual: `maw-integrate`.
+- Al terminar, la integración es igual: la integración (`integrate.md`).

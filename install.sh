@@ -22,7 +22,9 @@ DEVIN_DIR="$HOME/.config/devin"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BK="$AG/backups/$STAMP"
 VERSION="$(cat "$SRC/VERSION")"
-KIT_SKILLS="kit-init csr-stack csr-gate csr-audit maw-route maw-brief maw-plan maw-dispatch maw-worker maw-integrate maw-race maw-setup"
+KIT_SKILLS="kit-init orca speckit-orca-implement csr-stack csr-gate csr-audit"
+# Skills de versiones anteriores que esta versión retira (consolidadas en "orca")
+OLD_SKILLS="maw-route maw-brief maw-plan maw-dispatch maw-worker maw-integrate maw-race maw-setup"
 # Ficheros de reglas que versiones anteriores (CSR v1, MAW v1) copiaban dentro de cada agente.
 OLD_RULES="00-router.md 10-communication.md 20-clean-code.md 30-security.md 31-security-audit.md 40-testing.md 50-done-gate.md 60-git-workflow.md 70-performance.md 75-reliability.md 80-supply-chain.md 90-docs-comments.md 95-multi-agent.md comunicacion-densa.md idioma-siempre.md"
 OLD_LANGS="cpp csharp dart-flutter go infra java kotlin php python react ruby rust shell sql swift typescript web"
@@ -146,6 +148,8 @@ if [ "$VERIFY" -eq 1 ]; then
   [ -f "$AG/AGENTS.md" ] && ok "$AG/AGENTS.md" || fail "$AG/AGENTS.md"
   n=$(ls -1 "$AG/rules/lang"/*.md 2>/dev/null | wc -l | tr -d ' '); [ "$n" -ge 17 ] && ok "rules/lang: $n" || fail "rules/lang: $n (esperado 17)"
   for s in $KIT_SKILLS; do [ -f "$AG/skills/$s/SKILL.md" ] || fail "skill $s"; done
+  [ -f "$AG/speckit-ext/orca/extension.yml" ] && ok "extension spec-kit orca" || fail "$AG/speckit-ext/orca"
+  for s in $OLD_SKILLS; do [ -e "$AG/skills/$s" ] && fail "skill retirada sigue instalada: $s"; done
   if has_agent claude; then
     grep -q '@~/.agents/AGENTS.md' "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && ok "CLAUDE.md importa AGENTS.md" || fail "CLAUDE.md sin import"
     grep -Eq '<!-- (CSR|MAW):BEGIN' "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && fail "CLAUDE.md conserva bloques CSR/MAW antiguos" || true
@@ -187,6 +191,12 @@ if [ "$PROJECT_ONLY" -eq 0 ]; then
   run cp -R "$SRC/output-styles/." "$AG/output-styles/"
   run cp "$SRC/VERSION" "$AG/AGENT_KIT_VERSION"
   [ -d "$AG/maw" ] && stash "$AG/maw"              # restos de MAW v1
+  for s in $OLD_SKILLS; do
+    stash "$AG/skills/$s"; stash "$CLAUDE_DIR/skills/$s"; stash "$GEMINI_DIR/config/skills/$s"
+  done
+  run mkdir -p "$AG/speckit-ext"
+  [ -e "$AG/speckit-ext/orca" ] && run rm -rf "$AG/speckit-ext/orca"
+  run cp -R "$SRC/speckit-extension/orca" "$AG/speckit-ext/orca"
 
   # 2. Claude Code: import en CLAUDE.md; reglas fuera de ~/.claude/rules (Claude carga TODO lo que hay ahi)
   if has_agent claude; then
@@ -225,7 +235,7 @@ if [ "$PROJECT_ONLY" -eq 0 ]; then
       warn "Antigravity: plugin claude-session-rules retirado (sus csr-* y su estilo ya estan en la fuente unica). Si Antigravity se queja de un plugin ausente, desactivalo en su configuracion."
     fi
     for s in $KIT_SKILLS; do link "$AG/skills/$s" "$GEMINI_DIR/config/skills/$s"; done
-    [ -d "$GEMINI_DIR/config/plugins/user-workflows/skills/planificar" ] && warn "Antigravity: 'planificar' sigue activo; 'maw-plan' lo sustituye. Desactivalo cuando hayas probado maw-plan."
+    [ -d "$GEMINI_DIR/config/plugins/user-workflows/skills/planificar" ] && warn "Antigravity: 'planificar' sigue activo; 'orca' (plan por sprints) lo sustituye. Desactivalo cuando lo hayas probado."
   fi
 
   # 4. Agentes que leen ~/.agents/skills de forma nativa: solo hay que enlazar las reglas globales
@@ -260,11 +270,27 @@ if [ -n "$PROJECT" ]; then
     if [ -e "$PROJECT/$f" ]; then step "  $f ya existe: no se toca"; else run cp "$SRC/templates/$f" "$PROJECT/$f"; step "  $f creado"; fi
   done
   if [ ! -e "$PROJECT/.claude/settings.json" ] && has_agent claude; then run mkdir -p "$PROJECT/.claude"; run cp "$SRC/templates/claude-settings.json" "$PROJECT/.claude/settings.json"; step "  .claude/settings.json creado"; fi
+  if [ -d "$PROJECT/.specify" ]; then
+    EXT="$PROJECT/.specify/extensions.yml"
+    if grep -q 'speckit.orca.implement' "$EXT" 2>/dev/null; then step "  spec-kit: hook orca ya activo"
+    elif command -v specify >/dev/null 2>&1; then
+      (cd "$PROJECT" && run specify extension add --dev "$AG/speckit-ext/orca") && step "  spec-kit: extension orca instalada (hook before_implement)" \
+        || warn "Proyecto: 'specify extension add' fallo; en el agente, «inicializa el proyecto» añadira el hook."
+    elif [ ! -e "$EXT" ]; then
+      # mismo formato que escribe 'specify extension add'
+      printf '%s\n' 'installed:' '- orca' 'settings:' '  auto_execute_hooks: true' 'hooks:' '  before_implement:' '  - extension: orca' \
+        '    command: speckit.orca.implement' '    enabled: true' '    optional: false' '    priority: 10' \
+        '    description: "Orquestacion multiagente: reparte las user stories si compensa"' | write_file "$EXT"
+      step "  spec-kit: hook before_implement creado en .specify/extensions.yml"
+    else
+      warn "Proyecto: .specify/extensions.yml ya existe y no hay CLI 'specify'. En el agente, «inicializa el proyecto» añadira el hook sin romper lo que hay."
+    fi
+  fi
   if ! grep -qxF '.work/' "$PROJECT/.gitignore" 2>/dev/null; then
     if [ "$DRY" -eq 1 ]; then echo "  (dry) añadir .work/ a .gitignore"; else printf '\n# Orca Multiagent Kit: briefs e informes de runs multiagente\n.work/\n' >> "$PROJECT/.gitignore"; fi
     step "  .work/ añadido a .gitignore"
   fi
-  step "  Siguiente: en el agente, «ejecuta kit-init» (detecta el stack y prepara la orquestacion)."
+  step "  Siguiente: en el agente, «inicializa el proyecto» (kit-init: detecta el stack y prepara la orquestacion)."
 fi
 
 [ -n "$WARN" ] && { step "Avisos:"; printf '%s' "$WARN"; }

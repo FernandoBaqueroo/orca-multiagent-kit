@@ -53,7 +53,7 @@ npx github:FernandoBaqueroo/orca-multiagent-kit install
 | Parte | Qué aporta |
 |:--|:--|
 | **CSR — Claude Session Rules** | Código de calidad profesional, auditado en seguridad (OWASP Top 10 2025, ASVS 5.0, CWE Top 25) y con tests. Una puerta de validez en 8 fases y una tabla de gates al cerrar cada tarea. Respuestas mínimas: el agente gasta tokens en pensar, no en hablar. |
-| **MAW — Multi-Agent Work** | Varios agentes a la vez sin pisarse. Cualquier entrada (chat, plan, spec-kit o diseño) se convierte en unidades de trabajo; cada unidad va a su worktree y a su rama; la integración se hace con revisión y tu confirmación. Funciona con [Orca](https://www.onorca.dev), con subagentes nativos o con worktrees a mano. |
+| **MAW — Multi-Agent Work** | Varios agentes a la vez sin pisarse, sin que tengas que coordinarlos. El agente detecta cuándo una tarea se puede repartir, la divide, lanza un agente por parte en su propio worktree ([Orca](https://www.onorca.dev), subagentes nativos o worktrees a mano) e integra el resultado. Con spec-kit, `/speckit.implement` lo hace solo. |
 
 | Sin el kit | Con el kit |
 |:--|:--|
@@ -128,38 +128,38 @@ En cada proyecto, las reglas van en `AGENTS.md`, que leen todos los agentes. `CL
 <a id="skills"></a>
 ## <img src="assets/icons/skills.svg" width="22" height="22" alt=""> Skills
 
-| Skill | Para qué | Pídelo así |
-|:--|:--|:--|
-| `kit-init` | Prepara o migra un proyecto: reglas, stack y orquestación | «inicializa el proyecto» |
-| `csr-stack` | Genera `STACK.md` detectando lenguajes, comandos y riesgos | «genera el STACK.md» |
-| `csr-gate` | Puerta de validez: format → lint → tipos → build → tests → cobertura → seguridad | «pasa los gates» |
-| `csr-audit` | Auditoría de seguridad OWASP / ASVS / CWE | «audita la seguridad del diff» |
-| `maw-route` | Elige modo (directo · plan · spec · carrera · diseño) y motor | automático |
-| `maw-brief` | Convierte chat, plan, spec-kit o mockup en unidades de trabajo | «conviértelo en unidades» |
-| `maw-plan` | Plan maestro por sprints, con aprobación humana o en paralelo | «planifica X en sprints» |
-| `maw-dispatch` | Coordinador: U0, reparto y supervisión (Orca · subagentes · manual) | «reparte las user stories» |
-| `maw-worker` | Contrato de cada worker e informe con formato fijo | automático |
-| `maw-integrate` | Revisión, merge con tu «sí» y gates del conjunto | «integra la ronda» |
-| `maw-race` | El mismo problema a 2–3 agentes; gana el mejor diff | «carrera entre Claude y Gemini» |
-| `maw-setup` | `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude` | «prepara la orquestación» |
+Solo tienes que conocer dos frases. El resto lo deciden los agentes.
 
-Convive con skills externas como **impeccable**, **supabase**, **spec-kit** y las de **Orca**: cada una manda en su terreno, y la puerta de validez y las prohibiciones se aplican siempre.
+| Skill | Cuándo se usa | Cómo |
+|:--|:--|:--|
+| `kit-init` | Proyecto nuevo, o con reglas antiguas | «inicializa el proyecto» |
+| `orca` | Tareas con varias partes independientes: user stories, sprints, módulos, pantallas | **Sola**, por iniciativa del agente. O «hazlo en paralelo», «carrera entre Claude y Gemini», «planifica en sprints» |
+| `speckit-orca-implement` | Hook de spec-kit: decide si `/speckit.implement` se reparte | **Automática** al escribir `/speckit.implement` |
+| `csr-stack` · `csr-gate` · `csr-audit` | Ficha del stack, puerta de validez, auditoría de seguridad | Automáticas al cerrar tareas, o «pasa los gates» / «audita» |
+
+**Autonomía** (en `ORCHESTRATION.md`): `semi` por defecto. Confirmas el plan de rondas y el merge final, y nada más salvo decisiones de producto. `manual` pide confirmación en cada ronda; `auto`, solo el merge final. En ningún nivel se mergea a la rama por defecto ni se hace push sin tu confirmación.
+
+Convive con skills externas como **impeccable**, **supabase**, **spec-kit** y las de la app **Orca**: cada una manda en su terreno, y la puerta de validez y las prohibiciones se aplican siempre.
 
 <a id="flujo"></a>
 ## <img src="assets/icons/flow.svg" width="22" height="22" alt=""> Flujo de trabajo
 
+**Con spec-kit** haces tus specs como siempre. Al implementar, el kit reparte el trabajo solo:
+
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"primaryColor":"#0b0e0a","primaryTextColor":"#e8f0e2","primaryBorderColor":"#c6ff3d","lineColor":"#9be22d","secondaryColor":"#22330a","tertiaryColor":"#050605","fontFamily":"monospace"}}}%%
 flowchart LR
-    IN["Entrada<br/>chat · plan · spec-kit · diseño"] --> R{"maw-route"}
-    R -- "cambio pequeño" --> D["Directo<br/>+ csr-gate"]
-    R -- "varias unidades" --> B["maw-brief<br/>unidades"]
-    B --> U0["U0 · coordinador<br/>base común + commit"]
-    U0 --> W1["U1 · Claude Code<br/>worktree propio"]
-    U0 --> W2["U2 · Antigravity<br/>worktree propio"]
-    U0 --> W3["U3 · Codex<br/>worktree propio"]
-    W1 & W2 & W3 --> I["maw-integrate<br/>revisión · tu «sí» · gates"]
+    S["/speckit.specify → plan → tasks"] --> IMP["/speckit.implement"]
+    IMP --> H{"hook orca<br/>¿compensa?"}
+    H -- "no" --> SEQ["implement normal<br/>un agente"]
+    H -- "sí" --> OK1(["tú: plan de rondas"])
+    OK1 --> U0["U0 · base común"]
+    U0 --> W1["US1 · Claude Code"] & W2["US2 · Antigravity"] & W3["US3 · Codex"]
+    W1 & W2 & W3 --> INT["integración<br/>revisión · gates · [x] en tasks.md"]
+    INT --> OK2(["tú: merge final"])
 ```
+
+**Sin spec-kit** es lo mismo: pide la tarea con normalidad («añade el módulo de notificaciones») y, si tiene partes independientes, el agente propone el reparto. Un plan por sprints, un plan del modo plan de Claude o de Antigravity, o un mockup sirven igual de entrada.
 
 **Las reglas que nunca se rompen:**
 - Una unidad = un worktree = una rama.
@@ -169,8 +169,6 @@ flowchart LR
 - Nunca `PASS` de algo no ejecutado.
 - Lo pequeño no se orquesta.
 
-Con **spec-kit**, las decisiones son tuyas (`specify → clarify → plan → tasks → analyze`). Setup + Foundational es la U0, cada user story es una unidad y el coordinador marca `[x]` al integrar.
-
 <a id="estructura"></a>
 ## <img src="assets/icons/folder.svg" width="22" height="22" alt=""> Estructura del repositorio
 
@@ -179,7 +177,8 @@ orca-multiagent-kit/
 ├── bin/omk.js              CLI omk (npm / npx), sin dependencias
 ├── core/AGENTS.md          núcleo siempre cargado (~80 líneas)
 ├── rules/                  00-router … 95-multi-agent  +  lang/ (17 lenguajes)
-├── skills/                 kit-init · csr-* · maw-*
+├── skills/                 kit-init · orca · speckit-orca-implement · csr-*
+├── speckit-extension/      extensión de spec-kit (hook before_implement)
 ├── templates/              AGENTS.md · CLAUDE.md · STACK.md · ORCHESTRATION.md · orca.yaml · .worktreeinclude
 ├── output-styles/          csr-minimal (Claude Code)
 ├── install.sh              instala · migra · verifica · restaura · adopta
