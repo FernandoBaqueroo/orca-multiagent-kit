@@ -5,6 +5,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-07
+
+### Corregido
+- `omk init` en un proyecto con spec-kit fallaba con «Directory not found: ~/.agents/speckit-ext/orca» si aún no se había ejecutado `omk install` con esta versión. Ahora usa la extensión del propio kit y avisa de que falta `omk install`.
+- Al usar `omk`, el mensaje final sugiere `omk verify` y `omk restore` en vez de `./install.sh`.
+- Banner: la barra de carga del pie, que no representaba nada, se sustituye por las skills que instala el kit.
+
 ### Cambiado
 - Publicado en npm: `npx orca-multiagent-kit install` y `npm i -g orca-multiagent-kit`, sin el prefijo `github:`.
 - Las releases publican en npm con Trusted Publishing (OIDC), sin tokens guardados en el repo.
@@ -55,6 +62,7 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/tag/v1.0.0

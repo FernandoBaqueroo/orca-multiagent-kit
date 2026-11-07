@@ -252,6 +252,11 @@ fi
 if [ -n "$PROJECT" ]; then
   [ -d "$PROJECT" ] || { echo "No existe la ruta de proyecto: $PROJECT" >&2; exit 1; }
   step "Proyecto: $PROJECT"
+  INSTALLED="$(cat "$AG/AGENT_KIT_VERSION" 2>/dev/null || true)"
+  if [ "$PROJECT_ONLY" -eq 1 ] && [ "$INSTALLED" != "$VERSION" ]; then
+    if [ -n "${OMK_CLI:-}" ]; then FIX="omk install"; else FIX="./install.sh"; fi
+    warn "Global: en ~/.agents hay ${INSTALLED:-una version sin instalar} y este kit es v$VERSION. Ejecuta «$FIX» para que las skills del proyecto (orca, hook de spec-kit) esten disponibles."
+  fi
   OV=""
   for f in "$PROJECT/CLAUDE.md" "$PROJECT/AGENTS.md"; do [ -f "$f" ] && OV="$OV$(extract_overrides "$f")
 "; done
@@ -274,7 +279,8 @@ if [ -n "$PROJECT" ]; then
     EXT="$PROJECT/.specify/extensions.yml"
     if grep -q 'speckit.orca.implement' "$EXT" 2>/dev/null; then step "  spec-kit: hook orca ya activo"
     elif command -v specify >/dev/null 2>&1; then
-      (cd "$PROJECT" && run specify extension add --dev "$AG/speckit-ext/orca") && step "  spec-kit: extension orca instalada (hook before_implement)" \
+      SKX="$AG/speckit-ext/orca"; [ -f "$SKX/extension.yml" ] || SKX="$SRC/speckit-extension/orca"
+      (cd "$PROJECT" && run specify extension add --dev "$SKX") && step "  spec-kit: extension orca instalada (hook before_implement)" \
         || warn "Proyecto: 'specify extension add' fallo; en el agente, «inicializa el proyecto» añadira el hook."
     elif [ ! -e "$EXT" ]; then
       # mismo formato que escribe 'specify extension add'
@@ -294,4 +300,5 @@ if [ -n "$PROJECT" ]; then
 fi
 
 [ -n "$WARN" ] && { step "Avisos:"; printf '%s' "$WARN"; }
-step "Hecho. Comprueba con: ./install.sh --verify   ·   deshacer: ./install.sh --restore $STAMP"
+if [ -n "${OMK_CLI:-}" ]; then step "Hecho. Comprueba con: omk verify   ·   deshacer: omk restore $STAMP"
+else step "Hecho. Comprueba con: ./install.sh --verify   ·   deshacer: ./install.sh --restore $STAMP"; fi

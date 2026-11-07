@@ -63,7 +63,7 @@ function findBash() {
 }
 
 function runInstaller(args) {
-  const r = spawnSync(findBash(), [path.join(KIT, 'install.sh'), ...args], { stdio: 'inherit', env: process.env });
+  const r = spawnSync(findBash(), [path.join(KIT, 'install.sh'), ...args], { stdio: 'inherit', env: { ...process.env, OMK_CLI: '1' } });
   if (r.error) die(r.error.message);
   process.exit(r.status === null ? 1 : r.status);
 }
