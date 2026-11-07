@@ -1,4 +1,4 @@
-name: 🐛 Bug
+name: Bug
 description: Algo del instalador, una regla o una skill no funciona como dice la documentación
 labels: ["bug"]
 body:
@@ -7,7 +7,7 @@ body:
     attributes:
       label: Versión
       description: Salida de `cat VERSION` en tu copia del kit
-      placeholder: "2.0.0"
+      placeholder: "1.0.0"
     validations:
       required: true
   - type: dropdown

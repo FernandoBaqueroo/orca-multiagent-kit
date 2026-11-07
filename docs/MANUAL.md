@@ -1,4 +1,4 @@
-# Orca Multiagent Kit v2.0.0 — Una sola fuente de reglas y skills para todos tus agentes
+# Orca Multiagent Kit v1.0.0 — Una sola fuente de reglas y skills para todos tus agentes
 
 Une **CSR** (claude_session_rules: calidad, seguridad, tests, hablar poco) y **MAW** (trabajo multiagente sin pisarse) en **un único sitio**, `~/.agents/`, que leen a la vez Claude Code, Antigravity, Codex, Copilot CLI, Cursor y Devin.
 
@@ -8,7 +8,7 @@ Une **CSR** (claude_session_rules: calidad, seguridad, tests, hablar poco) y **M
 
 ## 1. Qué problemas arregla
 
-| Problema en CSR v1 + MAW v1 | Qué hace v2 |
+| Problema con CSR + MAW sueltos | Qué hace el kit |
 |---|---|
 | CSR copiado dos veces (`~/.claude` y `~/.gemini`) y ya distinto: la versión de Antigravity tenía reglas que la de Claude no tenía (idioma, comunicación densa, sin tablas decorativas) | Un solo núcleo, `~/.agents/AGENTS.md`, que une lo mejor de las dos versiones |
 | **Claude Code carga en cada sesión todos los `.md` de `~/.claude/rules/`**. Las 12 reglas y los 17 lenguajes de CSR estaban ahí, así que la "carga progresiva" no funcionaba en Claude: pagabas todos esos tokens en cada mensaje | Las reglas viven en `~/.agents/rules/`, que ningún agente carga solo; se leen bajo demanda, como CSR pretendía |
@@ -67,7 +67,9 @@ orca-multiagent-kit/
 
 ---
 
-## 4. Instalación (y migración desde CSR v1 / MAW v1)
+## 4. Instalación (y migración desde CSR / MAW sueltos)
+
+Con Node ≥ 18 lo más cómodo es el CLI: `npx github:FernandoBaqueroo/orca-multiagent-kit install`, o `npm install -g github:FernandoBaqueroo/orca-multiagent-kit` para tener `omk` siempre (`omk install`, `omk init`, `omk verify`, `omk adopt`, `omk restore`, `omk update`). Sin Node, con el zip o un clon:
 
 ```bash
 cd ~/Documents/orca-multiagent-kit
@@ -94,7 +96,7 @@ Más opciones:
 4. **Antigravity**: `GEMINI.md` pasa a ser un enlace al núcleo. Retira las reglas copiadas de `~/.gemini/rules/`, las plantillas y el plugin `claude-session-rules` (todo va al backup) y enlaza las skills en `~/.gemini/config/skills/`.
 5. **Codex / Copilot / Devin**: enlazan su fichero global de instrucciones al núcleo. Sus skills ya las leen desde `~/.agents/skills/`.
 6. **Cursor**: no guarda las reglas de usuario en ficheros. El instalador te da la línea para pegar en **Settings → Rules → User Rules**.
-7. **Proyecto** (`--project`): reescribe `AGENTS.md` y `CLAUDE.md` con el formato v2 y **migra tus "Overrides de este proyecto"** del bloque CSR antiguo. Crea `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude` y `.claude/settings.json` si faltan, y añade `.work/` al `.gitignore`.
+7. **Proyecto** (`--project`): reescribe `AGENTS.md` y `CLAUDE.md` con el formato del kit y **migra tus "Overrides de este proyecto"** del bloque CSR antiguo. Crea `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude` y `.claude/settings.json` si faltan, y añade `.work/` al `.gitignore`.
 
 Reinstalar es idempotente: sirve también para actualizar después de editar el kit.
 

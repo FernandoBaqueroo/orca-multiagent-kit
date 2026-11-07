@@ -7,6 +7,7 @@ err(){ printf '  FAIL  %s\n' "$1"; FAIL=1; }
 ok(){ printf '  ok    %s\n' "$1"; }
 
 echo "== sintaxis bash"
+node --check bin/omk.js 2>/dev/null && ok "bin/omk.js" || { command -v node >/dev/null && err "bin/omk.js"; }
 for f in install.sh scripts/*.sh tests/*.sh; do bash -n "$f" && ok "$f" || err "$f"; done
 
 echo "== skills (frontmatter estándar SKILL.md)"
@@ -39,6 +40,8 @@ import sys,subprocess,tempfile,pathlib
 d=tempfile.mkdtemp(); subprocess.run([sys.executable,'scripts/banner.py',d],check=True)
 sys.exit(0 if pathlib.Path(d,'banner.svg').read_text()==pathlib.Path('assets/banner.svg').read_text() else 1)
 EOF
+PV="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' package.json)"
+[ "$PV" = "$V" ] || err "package.json ($PV) no coincide con VERSION ($V)"
 ok "versión $V"
 
 echo "== rutas neutrales (sin ~/.claude/rules ni ~/.gemini/rules en reglas y skills)"

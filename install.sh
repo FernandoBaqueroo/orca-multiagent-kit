@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Orca Multiagent Kit v2 — fuente única de reglas y skills para todos tus agentes (CSR + MAW).
+# Orca Multiagent Kit — fuente única de reglas y skills para todos tus agentes (CSR + MAW).
 #   ./install.sh --dry-run                 muestra lo que haria, sin escribir
 #   ./install.sh                           instala/migra para los agentes detectados
 #   ./install.sh --agents claude,codex     solo esos (claude antigravity codex copilot cursor devin)

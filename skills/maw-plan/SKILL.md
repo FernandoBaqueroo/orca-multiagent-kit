@@ -42,7 +42,7 @@ Disparador: "comienza el Sprint N de planes/<feature>.md".
 1. Lee el plan y el sprint. No toques código todavía.
 2. Presenta el plan de implementación del sprint: arquitectura, funciones, y los fragmentos de código finales (o el diff propuesto si es largo, por fichero).
 3. Pregunta: «¿Me das tu visto bueno para aplicar este sprint?». Solo con un sí:
-4. Aplica, pasa `csr-gate`, y marca el sprint `✅ completado` en el plan con fecha.
+4. Aplica, pasa `csr-gate`, y marca el sprint `[completado]` en el plan con fecha.
 
 ## MODO 3 — Ejecutar en paralelo
 Disparador: el usuario elige paralelo, o "lanza los sprints N y M".

@@ -33,7 +33,7 @@ Si la ronda tocó UI y existe `impeccable`: `impeccable audit` sobre las vistas 
 
 ## 5. Actualizar estado (el coordinador es el único que escribe aquí)
 - spec-kit: marcar `[x]` las tareas de las unidades integradas en `tasks.md`.
-- plan: `✅ completado (merge <sha>)` en el sprint de `planes/*.md`.
+- plan: `[completado] (merge <sha>)` en el sprint de `planes/*.md`.
 - Orca: `worker-release` de cada dispatch aceptado; comentario del worktree principal con el estado del run.
 - `.work/runs/<run>/run.md`: ronda cerrada, sha resultante.
 

@@ -4,8 +4,8 @@
 
 | Versión | Soporte |
 |---|---|
-| 2.x | ✅ |
-| < 2.0 (CSR v1, MAW v1) | ❌ Migra con `./install.sh` |
+| 1.x | Sí |
+| CSR y MAW sueltos (anteriores al kit) | No: migra con `./install.sh` |
 
 ## Qué cuenta como vulnerabilidad aquí
 

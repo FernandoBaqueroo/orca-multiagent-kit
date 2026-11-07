@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 🔒 Vulnerabilidad de seguridad
+  - name: Vulnerabilidad de seguridad
     url: https://github.com/FernandoBaqueroo/orca-multiagent-kit/security/advisories/new
     about: Infórmala en privado, nunca en un issue público.
-  - name: 📖 Guía visual y manual
+  - name: Guía visual y manual
     url: https://github.com/FernandoBaqueroo/orca-multiagent-kit/blob/main/docs/MANUAL.md
     about: Instalación, uso diario y problemas frecuentes.

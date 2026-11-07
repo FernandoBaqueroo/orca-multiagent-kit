@@ -10,7 +10,7 @@ STAGE="$(mktemp -d)/$NAME"
 rm -rf dist && mkdir -p dist "$STAGE"
 
 # Lo que necesita quien descarga el kit (sin CI, tests ni herramientas de mantenimiento)
-for p in README.md LICENSE CHANGELOG.md AI_INSTALL.md GUIA.html VERSION install.sh core rules skills templates output-styles docs assets; do
+for p in README.md LICENSE CHANGELOG.md AI_INSTALL.md GUIA.html VERSION install.sh package.json bin core rules skills templates output-styles docs assets; do
   cp -R "$p" "$STAGE/"
 done
 chmod +x "$STAGE/install.sh"

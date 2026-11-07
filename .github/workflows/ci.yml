@@ -19,10 +19,15 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Comprobaciones estáticas
         run: bash scripts/check.sh
       - name: Pruebas del instalador
         run: bash tests/test_install.sh
+      - name: Pruebas del CLI (npm pack + omk)
+        run: bash tests/test_cli.sh
       - name: Empaquetado
         run: bash scripts/build-release.sh
 

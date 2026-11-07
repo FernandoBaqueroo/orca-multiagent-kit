@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orca Multiagent Kit</title>
+<meta name="description" content="Una sola fuente de reglas y skills para Claude Code, Antigravity, Codex, Copilot y Cursor, con orquestación multiagente.">
+<meta property="og:title" content="Orca Multiagent Kit">
+<meta property="og:description" content="Una fuente de reglas y skills para todos tus agentes. Varios agentes en paralelo, sin pisarse.">
+<link rel="icon" href="assets/icons/agents.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Una columna de 1080px; pixel art neón lima sobre negro; violeta solo como acento de glitch */
+:root{
+  --bg:#050605; --panel:#0b0e0a; --grid:#10140e; --line:#1f2a12; --fg:#e8f0e2; --muted:#8b9384; --dim:#3a4135;
+  --lime:#c6ff3d; --lime-hi:#e4ff8f; --lime-mid:#9be22d; --lime-dk:#5c8a12; --lime-deep:#22330a; --violet:#b48cff;
+  --pixel:"Press Start 2P",ui-monospace,Menlo,monospace; --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--mono);-webkit-font-smoothing:antialiased;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 2px,transparent 2px 4px);z-index:50}
+.beam{position:fixed;left:0;right:0;height:90px;top:-90px;pointer-events:none;z-index:49;background:linear-gradient(transparent,rgba(198,255,61,.06),transparent);animation:beam 7s linear infinite}
+@keyframes beam{to{transform:translateY(calc(100vh + 90px))}}
+main{max-width:1080px;margin:0 auto;padding-block:28px 80px}
+a{color:var(--lime)} a:hover{color:var(--lime-hi)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+.px{font-family:var(--pixel);letter-spacing:.02em;line-height:1.5}
+.muted{color:var(--muted)}
+nav{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px}
+nav .brand{display:flex;align-items:center;gap:10px;color:var(--lime);text-decoration:none;font-family:var(--pixel);font-size:11px}
+nav .links{display:flex;gap:16px;flex-wrap:wrap}
+nav .links a{color:var(--muted);text-decoration:none} nav .links a:hover{color:var(--lime)}
+
+/* HERO interactivo */
+.hero{position:relative;margin-top:28px;border:3px solid var(--line);background:rgba(5,6,5,.86);padding:28px 24px 22px;overflow:hidden}
+.hero .corner{position:absolute;width:14px;height:14px;background:var(--lime)}
+.c1{top:-3px;left:-3px}.c2{top:-3px;right:-3px}.c3{bottom:-3px;left:-3px}.c4{bottom:-3px;right:-3px}
+.prompt{font-size:12px;color:var(--lime-mid);min-height:20px}
+.cursor{display:inline-block;width:.6em;height:1em;background:var(--lime);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+h1{position:relative;margin:22px 0 10px;text-align:center;font-size:clamp(20px,5.2vw,52px);color:var(--lime);text-shadow:0 0 18px rgba(198,255,61,.55),4px 4px 0 var(--lime-deep)}
+h1 .g{position:absolute;inset:0;color:var(--violet);text-shadow:none;opacity:0;pointer-events:none}
+h1.glitch .g{animation:glitch .35s steps(2) 1}
+@keyframes glitch{0%{opacity:.9;transform:translate(-6px,2px);clip-path:inset(10% 0 55% 0)}50%{opacity:.9;transform:translate(6px,-2px);clip-path:inset(55% 0 10% 0)}100%{opacity:0}}
+.tag{text-align:center;color:var(--fg);font-size:clamp(13px,1.8vw,16px);max-width:62ch;margin:0 auto}
+.stage{position:relative;margin:30px auto 0;max-width:900px}
+.stage svg{display:block;width:100%;height:auto}
+.agent{cursor:pointer}
+.agent .body{transition:filter .2s}
+.agent:hover .body,.agent:focus .body,.agent.on .body{filter:drop-shadow(0 0 8px currentColor)}
+.agent.on .lbl{fill:var(--lime-hi)}
+.wire{stroke:var(--lime-dk);stroke-width:2;fill:none;stroke-dasharray:4 6;animation:wire 1.2s linear infinite}
+.wire.hot{stroke:var(--lime);stroke-width:3}
+@keyframes wire{to{stroke-dashoffset:-20}}
+.bob{animation:bob 1.4s steps(2) infinite}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.coreglow{animation:core 1.6s ease-in-out infinite}
+@keyframes core{0%,100%{opacity:.2}50%{opacity:.7}}
+.core.flash .coreglow{animation:none;opacity:1}
+.info{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;margin-top:16px;border:2px dashed var(--line);padding:14px 16px;min-height:86px}
+.info h3{margin:0 0 4px;font-family:var(--pixel);font-size:11px;color:var(--lime)}
+.info p{margin:0;color:var(--muted);font-size:13px}
+.info code{color:var(--fg)}
+.sync{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:11px;color:var(--muted)}
+.bar{display:flex;gap:3px}
+.bar i{width:12px;height:12px;background:var(--dim)} .bar i.on{background:var(--lime);box-shadow:0 0 8px rgba(198,255,61,.6)}
+.hint{margin-top:10px;text-align:center;font-size:12px;color:var(--muted)}
+kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:3px;padding:1px 6px;color:var(--lime-hi)}
+.win{position:absolute;inset:0;display:grid;place-items:center;background:rgba(5,6,5,.82);opacity:0;pointer-events:none;transition:opacity .3s}
+.win.show{opacity:1}
+.win p{font-family:var(--pixel);color:var(--lime);font-size:clamp(12px,2.4vw,20px);text-align:center;text-shadow:0 0 16px rgba(198,255,61,.7);line-height:2}
+
+/* secciones */
+section{margin-top:72px;scroll-margin-top:24px}
+h2{display:flex;align-items:center;gap:12px;font-family:var(--pixel);font-size:clamp(13px,2vw,17px);color:var(--lime);margin:0 0 18px}
+h2 img{width:24px;height:24px;image-rendering:pixelated}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.grid>*{min-width:0}
+.card{border:2px solid var(--line);background:var(--panel);padding:18px}
+.card h3{margin:0 0 6px;color:var(--lime-hi);font-size:15px}
+.card p{margin:0;color:var(--muted);font-size:14px}
+
+/* terminal */
+.term{border:2px solid var(--line);background:#020302}
+.tabs{display:flex;flex-wrap:wrap;border-bottom:2px solid var(--line)}
+.tabs button{font:600 12px var(--mono);background:none;color:var(--muted);border:0;border-right:2px solid var(--line);padding:10px 14px;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--bg);background:var(--lime)}
+.screen{position:relative;padding:16px 18px;min-height:220px;font-size:13.5px;white-space:pre-wrap;word-break:break-word}
+.screen .c{color:var(--lime)} .screen .o{color:var(--muted)} .screen .k{color:var(--lime-hi)}
+.copy{position:absolute;top:10px;right:10px;font:600 11px var(--mono);color:var(--lime);background:var(--bg);border:2px solid var(--lime-dk);padding:5px 10px;cursor:pointer}
+.copy:hover{border-color:var(--lime)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+.tw{overflow-x:auto;border:2px solid var(--line);background:var(--panel)}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--pixel);font-size:9px;color:var(--lime-mid);letter-spacing:.06em}
+td code{color:var(--lime-hi)}
+tr:last-child td{border-bottom:0}
+.dl{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:10px;font-family:var(--pixel);font-size:11px;text-decoration:none;color:var(--bg);background:var(--lime);padding:14px 18px;box-shadow:4px 4px 0 var(--lime-deep)}
+.btn:hover{background:var(--lime-hi);color:var(--bg)}
+.btn.ghost{background:transparent;color:var(--lime);border:2px solid var(--lime-dk);box-shadow:none}
+.authors{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.author{display:flex;gap:14px;align-items:flex-start}
+.author img{width:64px;height:64px;image-rendering:auto;border:2px solid var(--lime-dk)}
+.author h3{margin:0;font-size:15px} .author h3 a{text-decoration:none}
+.author p{margin:4px 0 0;color:var(--muted);font-size:13px}
+footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media (max-width:640px){.info{grid-template-columns:1fr}.sync{align-items:flex-start}.bar i{width:9px;height:9px}nav .links{gap:12px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.beam{display:none}}
+</style>
+</head>
+<body>
+<div class="beam" aria-hidden="true"></div>
+<main>
+<nav>
+  <a class="brand" href="#"><img src="assets/icons/agents.svg" width="20" height="20" alt="">ORCA·MAK</a>
+  <div class="links"><a href="#instalar">Instalar</a><a href="#comandos">Comandos</a><a href="guia.html">Guía</a><a href="#descargar">Descargar</a><a href="https://github.com/FernandoBaqueroo/orca-multiagent-kit">GitHub</a></div>
+</nav>
+
+<header class="hero" aria-label="Presentación interactiva">
+  <i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+  <div class="prompt"><span id="typed"></span><span class="cursor"></span></div>
+  <h1 class="px" id="title">MULTIAGENT_KIT<span class="g" aria-hidden="true">MULTIAGENT_KIT</span></h1>
+  <p class="tag">Una sola fuente de reglas y skills para todos tus agentes. Varios trabajando en paralelo, cada uno en su worktree, y nada se mergea sin tu «sí».</p>
+
+  <div class="stage">
+    <svg id="stage" viewBox="0 0 900 300" role="group" aria-label="Agentes conectados a la fuente única ~/.agents. Pulsa un agente para sincronizarlo."></svg>
+    <div class="win" id="win" aria-live="polite"><p>SYNC OK<br>5/5 AGENTES</p></div>
+  </div>
+  <div class="info" aria-live="polite">
+    <div id="info"><h3>PULSA UN AGENTE</h3><p>Cada agente lee las mismas reglas desde <code>~/.agents</code>. Tócalos para ver cómo se conectan.</p></div>
+    <div class="sync"><span id="count">0/5 sincronizados</span><div class="bar" id="bar"></div></div>
+  </div>
+  <p class="hint">Teclado: <kbd>1</kbd>–<kbd>5</kbd> elige agente · <kbd>Enter</kbd> sincroniza todos · <kbd>R</kbd> reinicia</p>
+</header>
+
+<section id="que">
+  <h2><img src="assets/icons/about.svg" alt="">Qué hace</h2>
+  <div class="grid">
+    <div class="card"><h3>Fuente única</h3><p>Reglas y skills en <code>~/.agents</code>. Claude Code lo importa, Antigravity, Codex y Copilot lo enlazan y Cursor lo lee de serie. Editas una vez y lo ven todos.</p></div>
+    <div class="card"><h3>Calidad CSR</h3><p>Puerta de validez en 8 fases, seguridad OWASP/ASVS/CWE, tests y tabla de gates. Las respuestas son cortas: el agente gasta tokens en pensar, no en hablar.</p></div>
+    <div class="card"><h3>Multiagente MAW</h3><p>Chat, plan, spec-kit o diseño se convierten en unidades de trabajo. Cada unidad va a su worktree, con Orca o sin él, y la integración espera tu confirmación.</p></div>
+  </div>
+</section>
+
+<section id="instalar">
+  <h2><img src="assets/icons/terminal.svg" alt="">Instalar</h2>
+  <div class="term">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="screen" id="screen" role="tabpanel"><button class="copy" id="copy" type="button">COPIAR</button><span id="out"></span></div>
+  </div>
+  <p class="muted" style="font-size:13px">Requisitos: macOS, Linux, WSL o Git Bash. Para <code>npx</code> y <code>omk</code>, Node 18 o superior. El instalador hace backup de todo lo que toca y se deshace con <code>omk restore</code>.</p>
+</section>
+
+<section id="comandos">
+  <h2><img src="assets/icons/cli.svg" alt="">Comandos</h2>
+  <div class="tw"><table>
+    <thead><tr><th>COMANDO</th><th>QUÉ HACE</th></tr></thead>
+    <tbody>
+      <tr><td><code>omk install</code></td><td>Instala o migra la fuente única para los agentes detectados. Admite <code>--dry-run</code> y <code>--agents claude,codex</code></td></tr>
+      <tr><td><code>omk init [ruta]</code></td><td>Prepara un proyecto: <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>STACK.md</code>, <code>ORCHESTRATION.md</code></td></tr>
+      <tr><td><code>omk verify</code></td><td>Comprueba enlaces, imports y que no queden copias divergentes</td></tr>
+      <tr><td><code>omk adopt &lt;skill&gt;</code></td><td>Comparte una skill externa (por ejemplo, impeccable) con todos los agentes</td></tr>
+      <tr><td><code>omk backups</code> · <code>omk restore &lt;fecha&gt;</code></td><td>Lista las copias de seguridad y deshace una instalación</td></tr>
+      <tr><td><code>omk update</code></td><td>Actualiza a la última versión y reinstala</td></tr>
+      <tr><td><code>omk where</code> · <code>omk version</code></td><td>Rutas y versión</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted" style="font-size:13px">Dentro de cada agente: «inicializa el proyecto», «planifica en sprints», «reparte las user stories», «carrera entre Claude y Gemini», «integra la ronda». Todo el flujo, en la <a href="guia.html">guía visual</a>.</p>
+</section>
+
+<section id="descargar">
+  <h2><img src="assets/icons/download.svg" alt="">Descargar</h2>
+  <div class="dl">
+    <a class="btn" href="https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest/download/orca-multiagent-kit.zip"><img src="assets/icons/download.svg" width="16" height="16" alt="" style="filter:brightness(0)">ZIP ÚLTIMA VERSIÓN</a>
+    <a class="btn ghost" href="https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases">TODAS LAS RELEASES</a>
+    <a class="btn ghost" href="https://github.com/FernandoBaqueroo/orca-multiagent-kit">CÓDIGO</a>
+  </div>
+</section>
+
+<section id="autores">
+  <h2><img src="assets/icons/authors.svg" alt="">Autores</h2>
+  <div class="authors">
+    <div class="card author"><img src="https://github.com/Necro-Coder.png?size=128" alt="Necro-Coder" loading="lazy"><div><h3><a href="https://github.com/Necro-Coder">Necro-Coder</a></h3><p>Autor de CSR (Claude Session Rules): protocolo de respuesta, carga progresiva, puerta de validez, módulos de calidad y seguridad, guías por lenguaje y skills <code>csr-*</code>.</p></div></div>
+    <div class="card author"><img src="https://github.com/FernandoBaqueroo.png?size=128" alt="Fernando Baquero" loading="lazy"><div><h3><a href="https://github.com/FernandoBaqueroo">Fernando Baquero</a></h3><p>Autor de Orca Multiagent Kit y MAW: fuente única multiproveedor, orquestación multiagente, <code>kit-init</code>, CLI <code>omk</code>, instalador y guía.</p></div></div>
+  </div>
+</section>
+
+<footer>
+  <span>Orca Multiagent Kit · <span id="ver">v1.0.0</span> · Licencia MIT</span>
+  <span>Las marcas citadas pertenecen a sus propietarios; se mencionan solo para indicar compatibilidad.</span>
+</footer>
+</main>
+
+<script>
+(function(){
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var NS='http://www.w3.org/2000/svg';
+  var BOT=["00111100","01111110","11211211","11111111","11111111","01100110","01111110","00100100"];
+  var AG=[
+    {n:'CLAUDE',full:'Claude Code',c:'#c6ff3d',how:'Importa <code>@~/.agents/AGENTS.md</code> desde <code>~/.claude/CLAUDE.md</code>. Skills enlazadas en <code>~/.claude/skills</code>.'},
+    {n:'GEMINI',full:'Antigravity',c:'#e4ff8f',how:'<code>~/.gemini/GEMINI.md</code> es un enlace al núcleo. Skills enlazadas en <code>~/.gemini/config/skills</code>.'},
+    {n:'CODEX',full:'Codex',c:'#9be22d',how:'<code>~/.codex/AGENTS.md</code> enlaza al núcleo. Lee <code>~/.agents/skills</code> de serie.'},
+    {n:'COPILOT',full:'Copilot CLI',c:'#d6dccf',how:'<code>copilot-instructions.md</code> enlaza al núcleo. Lee <code>~/.agents/skills</code> de serie.'},
+    {n:'CURSOR',full:'Cursor',c:'#8b9384',how:'Lee <code>~/.agents/skills</code> de serie. Las reglas, con una línea en <em>Settings → Rules</em>.'}
+  ];
+  var svg=document.getElementById('stage'), info=document.getElementById('info'), bar=document.getElementById('bar'), count=document.getElementById('count'), win=document.getElementById('win');
+  function el(t,a,p){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e}
+  var W=900, px=6, gap=180, x0=(W-(4*gap+48))/2, bus=212, coreY=232, synced={};
+  // núcleo
+  var core=el('g',{class:'core'});
+  el('rect',{class:'coreglow',x:350,y:coreY-8,width:200,height:56,fill:'#c6ff3d',style:'filter:blur(14px)'},core);
+  el('rect',{x:360,y:coreY,width:180,height:42,fill:'#050605',stroke:'#c6ff3d','stroke-width':3},core);
+  var ct=el('text',{x:450,y:coreY+27,'text-anchor':'middle',fill:'#c6ff3d','font-family':'"Press Start 2P",monospace','font-size':13},core); ct.textContent='~/.agents';
+  el('path',{class:'wire',d:'M450 '+bus+' V'+coreY});
+  var wires=[], nodes=[];
+  AG.forEach(function(a,i){
+    var x=x0+i*gap, cx=x+24;
+    var w=el('path',{class:'wire',d:'M'+cx+' 120 V'+bus+' H450'}); wires.push(w);
+    var g=el('g',{class:'agent',tabindex:0,role:'button','aria-label':a.full+': sincronizar',style:'color:'+a.c});
+    var bob=el('g',{class:'bob body',style:'animation-delay:'+(i*0.18)+'s'},g);
+    BOT.forEach(function(row,r){row.split('').forEach(function(b,c){ if(b!=='0') el('rect',{x:x+c*px,y:40+r*px,width:px,height:px,fill:b==='1'?a.c:'#050605'},bob); });});
+    var t=el('text',{class:'lbl',x:cx,y:112,'text-anchor':'middle',fill:a.c,'font-family':'"Press Start 2P",monospace','font-size':10},g); t.textContent=a.n;
+    g.addEventListener('mouseenter',function(){show(i)}); g.addEventListener('focus',function(){show(i)});
+    g.addEventListener('click',function(){sync(i)});
+    g.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();sync(i)}});
+    nodes.push(g);
+  });
+  for(var b=0;b<15;b++){bar.appendChild(document.createElement('i'))}
+  function show(i){
+    wires.forEach(function(w,j){w.classList.toggle('hot',j===i)});
+    var a=AG[i]; info.innerHTML='<h3>'+a.full.toUpperCase()+(synced[i]?' · SINCRONIZADO':'')+'</h3><p>'+a.how+'</p>';
+  }
+  function packet(i,delay){
+    var x=x0+i*gap+24, pts=[[x,120],[x,bus],[450,bus],[450,coreY]];
+    var r=el('rect',{x:-5,y:-5,width:10,height:10,fill:AG[i].c});
+    var segs=[],total=0; for(var k=1;k<pts.length;k++){var d=Math.abs(pts[k][0]-pts[k-1][0])+Math.abs(pts[k][1]-pts[k-1][1]);segs.push(d);total+=d}
+    var dur=reduce?1:900, start=null;
+    function step(ts){ if(start===null)start=ts+(delay||0); var t=Math.max(0,Math.min(1,(ts-start)/dur)), dist=t*total, k=0;
+      while(k<segs.length-1&&dist>segs[k]){dist-=segs[k];k++}
+      var a=pts[k],bb=pts[k+1],f=segs[k]?dist/segs[k]:1;
+      r.setAttribute('transform','translate('+(a[0]+(bb[0]-a[0])*f)+','+(a[1]+(bb[1]-a[1])*f)+')');
+      if(t<1)requestAnimationFrame(step); else { r.remove(); core.classList.add('flash'); setTimeout(function(){core.classList.remove('flash')},180); } }
+    requestAnimationFrame(step);
+  }
+  function update(){
+    var n=Object.keys(synced).length; count.textContent=n+'/5 sincronizados';
+    var lit=Math.round(n/5*15); [].forEach.call(bar.children,function(c,k){c.classList.toggle('on',k<lit)});
+    nodes.forEach(function(g,k){g.classList.toggle('on',!!synced[k])});
+    if(n===5){ win.classList.add('show'); glitch(); setTimeout(function(){win.classList.remove('show')},2200); }
+  }
+  function sync(i){ show(i); for(var k=0;k<3;k++)packet(i,k*160); synced[i]=true; setTimeout(function(){show(i);update()},900); }
+  function syncAll(){ AG.forEach(function(_,i){ setTimeout(function(){sync(i)},i*260) }) }
+  function reset(){ synced={}; update(); info.innerHTML='<h3>PULSA UN AGENTE</h3><p>Cada agente lee las mismas reglas desde <code>~/.agents</code>. Tócalos para ver cómo se conectan.</p>'; wires.forEach(function(w){w.classList.remove('hot')}); }
+  document.addEventListener('keydown',function(e){
+    if(e.target.closest&&e.target.closest('input,textarea'))return;
+    if(/^[1-5]$/.test(e.key)){nodes[+e.key-1].focus();sync(+e.key-1)}
+    else if(e.key==='Enter'&&!(e.target.closest&&e.target.closest('button,a,.agent'))){syncAll()}
+    else if(e.key==='r'||e.key==='R'){reset()}
+  });
+  // paquetes de ambiente
+  if(!reduce) setInterval(function(){ packet(Math.floor(Math.random()*5),0) },1400);
+
+  // tecleo del comando y glitch del título
+  var title=document.getElementById('title');
+  function glitch(){ title.classList.remove('glitch'); void title.offsetWidth; title.classList.add('glitch'); }
+  setInterval(glitch,5200);
+  var cmd='npx github:FernandoBaqueroo/orca-multiagent-kit install', typed=document.getElementById('typed');
+  if(reduce){typed.textContent='> '+cmd} else { var i=0; (function tick(){ typed.textContent='> '+cmd.slice(0,i++); if(i<=cmd.length)setTimeout(tick,28); })(); }
+
+  // terminal de instalación con pestañas
+  var TABS=[
+    {id:'npx',label:'npx',cmd:'npx github:FernandoBaqueroo/orca-multiagent-kit install',out:'[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,antigravity,cursor\n[kit] Fuente unica: ~/.agents · backup: ~/.agents/backups/20261107-091500\n[kit] Claude Code\n[kit] Antigravity\n[kit] Cursor (skills: nativo en ~/.agents/skills)\n[kit] Hecho. Comprueba con: ./install.sh --verify'},
+    {id:'npm',label:'npm -g',cmd:'npm install -g github:FernandoBaqueroo/orca-multiagent-kit\nomk install\nomk init ~/Dev/mi-app',out:'added 1 package\n[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,antigravity\n[kit] Proyecto: ~/Dev/mi-app\n[kit]   STACK.md creado\n[kit]   ORCHESTRATION.md creado\n[kit]   Siguiente: en el agente, «ejecuta kit-init»'},
+    {id:'curl',label:'curl',cmd:'curl -fsSL https://raw.githubusercontent.com/FernandoBaqueroo/orca-multiagent-kit/main/scripts/get.sh | bash',out:'[omk] Descargando la última versión de FernandoBaqueroo/orca-multiagent-kit\n[omk] Kit v1.0.0 en ~/.local/share/orca-multiagent-kit\n[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,codex\n[kit] Hecho.'},
+    {id:'zip',label:'zip',cmd:'curl -LO https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest/download/orca-multiagent-kit.zip\nunzip orca-multiagent-kit.zip && cd orca-multiagent-kit\n./install.sh --dry-run && ./install.sh',out:'  (dry) cp core/AGENTS.md ~/.agents/AGENTS.md\n  (dry) ln -s ~/.agents/AGENTS.md ~/.gemini/GEMINI.md\n[kit] Hecho.'}
+  ];
+  var tabs=document.getElementById('tabs'), out=document.getElementById('out'), copyBtn=document.getElementById('copy'), cur=0, typing=null;
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+  function render(k){
+    cur=k; [].forEach.call(tabs.children,function(b,j){b.setAttribute('aria-selected',j===k?'true':'false')});
+    clearTimeout(typing); var t=TABS[k], lines=t.cmd.split('\n'), html='', li=0, ci=0;
+    if(reduce){ out.innerHTML=lines.map(function(l){return '<span class="c">$</span> <span class="k">'+esc(l)+'</span>'}).join('\n')+'\n<span class="o">'+esc(t.out)+'</span>'; return; }
+    (function tick(){
+      if(li<lines.length){ ci++; var done=lines.slice(0,li).map(function(l){return '<span class="c">$</span> <span class="k">'+esc(l)+'</span>'}).join('\n');
+        out.innerHTML=(done?done+'\n':'')+'<span class="c">$</span> <span class="k">'+esc(lines[li].slice(0,ci))+'</span><span class="cursor"></span>';
+        if(ci>=lines[li].length){li++;ci=0;typing=setTimeout(tick,260)} else typing=setTimeout(tick,18); }
+      else { out.innerHTML=lines.map(function(l){return '<span class="c">$</span> <span class="k">'+esc(l)+'</span>'}).join('\n')+'\n<span class="o">'+esc(t.out)+'</span>'; }
+    })();
+  }
+  TABS.forEach(function(t,k){var b=document.createElement('button');b.type='button';b.setAttribute('role','tab');b.textContent=t.label;b.addEventListener('click',function(){render(k)});tabs.appendChild(b)});
+  render(0);
+  copyBtn.addEventListener('click',function(){ var txt=TABS[cur].cmd;
+    function done(){copyBtn.textContent='COPIADO';setTimeout(function(){copyBtn.textContent='COPIAR'},1200)}
+    if(navigator.clipboard)navigator.clipboard.writeText(txt).then(done,function(){}); });
+})();
+</script>
+</body>
+</html>

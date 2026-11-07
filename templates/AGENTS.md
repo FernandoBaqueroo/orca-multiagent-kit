@@ -1,4 +1,4 @@
-<!-- AGENTS:BEGIN project v2.0.0 -->
+<!-- AGENTS:BEGIN project v1.0.0 -->
 # Reglas del proyecto
 
 1. Lee `./STACK.md` antes de la primera edición de cada sesión: versiones, comandos y límites. Comandos: solo los de `STACK.md` §3; si falta uno, dilo, no lo inventes.

@@ -1,49 +1,82 @@
 name: Release
 
+# Se lanza al publicar una release (desde GitHub o con la API) o al subir un tag vX.Y.Z.
+# Construye el zip, lo adjunta a la release con SHA256SUMS y, si existe el secreto NPM_TOKEN, publica en npm.
 on:
+  release:
+    types: [published]
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de la release (por ejemplo v1.0.0)"
+        required: true
 
 permissions:
   contents: write
+  id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Tag
+        run: |
+          T="${{ github.event.release.tag_name || inputs.tag || github.ref_name }}"
+          echo "TAG=$T" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
 
-      - name: El tag coincide con VERSION
+      - name: El tag coincide con VERSION y package.json
         run: |
           V="$(tr -d '[:space:]' < VERSION)"
-          [ "v$V" = "$GITHUB_REF_NAME" ] || { echo "::error::El tag $GITHUB_REF_NAME no coincide con VERSION ($V)"; exit 1; }
+          [ "v$V" = "$TAG" ] || { echo "::error::El tag $TAG no coincide con VERSION ($V)"; exit 1; }
           echo "VERSION=$V" >> "$GITHUB_ENV"
 
       - name: Comprobaciones y pruebas
         run: |
           bash scripts/check.sh
           bash tests/test_install.sh
+          bash tests/test_cli.sh
 
       - name: Empaquetar
         run: bash scripts/build-release.sh
 
       - name: Notas desde CHANGELOG.md
         run: |
-          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} f && /^## \[/ {exit} f' CHANGELOG.md > notes.md
-          {
-            echo
-            echo "### Descarga"
-            echo "- \`orca-multiagent-kit-v$VERSION.zip\` (o \`orca-multiagent-kit.zip\`, que siempre apunta a la última versión)"
-            echo "- Descomprime, \`cd orca-multiagent-kit && ./install.sh --dry-run\` y después \`./install.sh\`."
-            echo "- Comprueba la integridad con \`SHA256SUMS\`."
-          } >> notes.md
+          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} f && /^## \[/ {exit} f' CHANGELOG.md | sed '/^\[.*\]: http/d' > notes.md
+          cat >> notes.md <<NOTES
 
-      - name: Publicar release
+          ### Instalar
+          \`\`\`bash
+          npx github:FernandoBaqueroo/orca-multiagent-kit#$TAG install
+          \`\`\`
+          O descarga \`orca-multiagent-kit-v$VERSION.zip\`, descomprime y ejecuta \`./install.sh\`. Integridad: \`SHA256SUMS\`.
+          NOTES
+
+      - name: Crear o actualizar la release y adjuntar el zip
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "Orca Multiagent Kit $GITHUB_REF_NAME" \
-            --notes-file notes.md \
-            --latest \
-            dist/orca-multiagent-kit-v$VERSION.zip dist/orca-multiagent-kit.zip dist/SHA256SUMS
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "Orca Multiagent Kit $TAG" --notes-file notes.md --latest
+          else
+            gh release create "$TAG" --title "Orca Multiagent Kit $TAG" --notes-file notes.md --latest
+          fi
+          gh release upload "$TAG" --clobber dist/orca-multiagent-kit-v$VERSION.zip dist/orca-multiagent-kit.zip dist/SHA256SUMS
+
+      - name: Publicar en npm (solo si existe NPM_TOKEN)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: env.NODE_AUTH_TOKEN != ''
+        run: npm view "orca-multiagent-kit@$VERSION" version >/dev/null 2>&1 && echo "Ya publicado en npm" || npm publish --provenance --access public

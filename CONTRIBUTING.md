@@ -52,10 +52,11 @@ Un fichero nuevo en `rules/`, una fila en `rules/00-router.md` (disparador y cos
 
 ## Publicar una versión (mantenedores)
 
-1. Actualiza `VERSION`, la cabecera de `core/AGENTS.md` y mueve `[Unreleased]` a `[X.Y.Z] - AAAA-MM-DD` en `CHANGELOG.md`.
+1. Actualiza `VERSION`, `package.json`, la cabecera de `core/AGENTS.md` y mueve `[Unreleased]` a `[X.Y.Z] - AAAA-MM-DD` en `CHANGELOG.md`.
 2. `python3 scripts/banner.py assets && bash scripts/check.sh`.
-3. Commit `chore(release): vX.Y.Z`, tag `vX.Y.Z` y push del tag.
-4. El workflow **Release** comprueba que el tag coincide con `VERSION`, ejecuta las pruebas y publica la release con el zip y `SHA256SUMS`.
+3. Commit `chore(release): vX.Y.Z`.
+4. Publica la release: en GitHub, *Releases → Draft a new release* con el tag `vX.Y.Z` (o sube el tag).
+5. El workflow **Release** comprueba que el tag coincide con `VERSION` y `package.json`, ejecuta las pruebas, adjunta el zip y `SHA256SUMS` y, si existe el secreto `NPM_TOKEN`, publica en npm.
 
 ## Conducta
 
