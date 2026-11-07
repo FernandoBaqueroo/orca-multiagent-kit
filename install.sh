@@ -12,10 +12,33 @@
 set -Eeuo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AG="${AGENT_KIT_HOME:-$HOME/.agents}"
-CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-GEMINI_DIR="${GEMINI_DIR:-$HOME/.gemini}"
-CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
+
+# Ruta en formato Windows (C:\..., la que inyectan Orca o PowerShell) -> formato POSIX de este bash.
+to_posix() { # $1 ruta -> stdout
+  case "$1" in
+    [A-Za-z]:[\\/]*|[A-Za-z]:|*\\*) ;;
+    *) printf '%s' "$1"; return 0 ;;
+  esac
+  if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"; return 0; fi
+  if command -v wslpath >/dev/null 2>&1; then wslpath -u "$1"; return 0; fi
+  local p d
+  p="$(printf '%s' "$1" | tr '\\' '/')"
+  case "$p" in [A-Za-z]:*) d="$(printf '%s' "${p%%:*}" | tr '[:upper:]' '[:lower:]')"; p="/$d/${p#?:}"; p="$(printf '%s' "$p" | tr -s '/')" ;; esac
+  printf '%s' "${p%/}"
+}
+
+# En Git Bash/MSYS/Cygwin, ln -s COPIA por defecto: una copia rompe la fuente única sin avisar.
+# nativestrict crea un enlace nativo de Windows o falla (y entonces lo decimos).
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*) export MSYS="${MSYS:+$MSYS }winsymlinks:nativestrict"; WINLINKS=1 ;;
+  CYGWIN*)      export CYGWIN="${CYGWIN:+$CYGWIN }winsymlinks:nativestrict"; WINLINKS=1 ;;
+  *)            WINLINKS=0 ;;
+esac
+
+AG="$(to_posix "${AGENT_KIT_HOME:-$HOME/.agents}")"
+CLAUDE_DIR="$(to_posix "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")"
+GEMINI_DIR="$(to_posix "${GEMINI_DIR:-$HOME/.gemini}")"
+CODEX_DIR="$(to_posix "${CODEX_HOME:-$HOME/.codex}")"
 COPILOT_DIR="$HOME/.copilot"
 CURSOR_DIR="$HOME/.cursor"
 DEVIN_DIR="$HOME/.config/devin"
@@ -32,13 +55,13 @@ OLD_LANGS="cpp csharp dart-flutter go infra java kotlin php python react ruby ru
 PROJECT=""; PROJECT_ONLY=0; VERIFY=0; DRY=0; AGENTS=""; RESTORE=""; ADOPT=""; WARN=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --project)      PROJECT="${2:-}"; shift 2 ;;
-    --project-only) PROJECT="${2:-}"; PROJECT_ONLY=1; shift 2 ;;
+    --project)      PROJECT="$(to_posix "${2:-}")"; shift 2 ;;
+    --project-only) PROJECT="$(to_posix "${2:-}")"; PROJECT_ONLY=1; shift 2 ;;
     --agents)       AGENTS="${2:-}"; shift 2 ;;
     --verify)       VERIFY=1; shift ;;
     --dry-run)      DRY=1; shift ;;
     --restore)      RESTORE="${2:-}"; shift 2 ;;
-    --adopt)        ADOPT="${2:-}"; shift 2 ;;
+    --adopt)        ADOPT="$(to_posix "${2:-}")"; shift 2 ;;
     -h|--help)      sed -n '2,12p' "$0"; exit 0 ;;
     *) echo "Opcion desconocida: $1" >&2; exit 2 ;;
   esac
@@ -50,11 +73,19 @@ warn() { WARN="${WARN}  - $1
 run()  { if [ "$DRY" -eq 1 ]; then printf '  (dry) %s\n' "$*"; else "$@"; fi; }
 has_agent() { case ",$AGENTS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 
-# Mueve una ruta al backup conservando su ruta relativa a $HOME.
+# Ruta dentro del backup: relativa a $HOME si cuelga de el; si no, bajo _abs/ con su ruta absoluta (--restore la deshace).
+backup_rel() { # $1 ruta absoluta -> stdout
+  case "$1" in
+    "$HOME"/*) printf '%s' "${1#"$HOME"/}" ;;
+    /*)        printf '_abs%s' "$1" ;;
+    *)         echo "Ruta no absoluta, no se puede respaldar: $1" >&2; return 1 ;;
+  esac
+}
+# Mueve una ruta al backup.
 stash() {
   local p="$1" rel
   [ -e "$p" ] || [ -L "$p" ] || return 0
-  rel="${p#$HOME/}"
+  rel="$(backup_rel "$p")"
   run mkdir -p "$BK/$(dirname "$rel")"
   run mv "$p" "$BK/$rel"
 }
@@ -62,17 +93,28 @@ stash() {
 snapshot() {
   local p="$1" rel
   [ -e "$p" ] || return 0
-  rel="${p#$HOME/}"
+  rel="$(backup_rel "$p")"
   run mkdir -p "$BK/$(dirname "$rel")"
   run cp -a "$p" "$BK/$rel"
 }
+LINK_HELP="En Windows, activa el Modo de desarrollador (Configuracion > Sistema > Para programadores) o abre Git Bash como administrador, y repite. Lo ya movido esta en el backup: ./install.sh --restore $STAMP"
 # Deja $2 como enlace simbolico a $1. Si habia otra cosa, va al backup.
 link() {
   local target="$1" l="$2"
   if [ -L "$l" ] && [ "$(readlink "$l")" = "$target" ]; then return 0; fi
   stash "$l"
   run mkdir -p "$(dirname "$l")"
-  run ln -s "$target" "$l"
+  run ln -s "$target" "$l" || { echo "No se pudo crear el enlace $l -> $target. $LINK_HELP" >&2; exit 1; }
+}
+# Antes de tocar nada: en Windows, comprueba que se pueden crear enlaces nativos.
+check_links() {
+  [ "$WINLINKS" -eq 1 ] || return 0
+  local t; t="$(mktemp -d)"
+  mkdir "$t/destino"
+  if ln -s "$t/destino" "$t/enlace" 2>/dev/null && [ -L "$t/enlace" ]; then rm -rf "$t"; return 0; fi
+  rm -rf "$t"
+  echo "Este Windows no deja crear enlaces simbolicos, y el kit no instala copias (acabarian divergiendo). ${LINK_HELP%% Lo ya movido*}" >&2
+  exit 1
 }
 # Quita los bloques gestionados (CSR, MAW, AGENTS) de un fichero, conservando el resto.
 strip_blocks() { # $1 fichero -> stdout
@@ -95,15 +137,38 @@ write_file() { # $1 destino, stdin contenido
 
 [ -f "$SRC/core/AGENTS.md" ] || { echo "No encuentro core/AGENTS.md en $SRC" >&2; exit 1; }
 
+# ------------------------------------------------------------------ perfil de Claude de Orca
+# Orca lanza Claude con CLAUDE_CONFIG_DIR apuntando a un perfil propio (orca/claude-profiles/<id>/home) que
+# importa @~/.claude/CLAUDE.md y enlaza skills/, rules/... a ~/.claude. Ese perfil es de Orca: el kit instala en
+# ~/.claude y el perfil lo hereda. Si el perfil no importa ~/.claude, no se toca Claude (escribir ahi no duraria).
+ORCA_PROFILE=""; CLAUDE_SKIP=0
+is_orca_profile() { # $1 ruta POSIX
+  case "$1" in */[Oo]rca/claude-profiles/*) return 0 ;; esac
+  [ -n "${ORCA_CLAUDE_INJECTED_CONFIG_DIR:-}" ] && [ "$(to_posix "$ORCA_CLAUDE_INJECTED_CONFIG_DIR")" = "$1" ]
+}
+if [ "$CLAUDE_DIR" != "$HOME/.claude" ] && is_orca_profile "$CLAUDE_DIR"; then
+  ORCA_PROFILE="$CLAUDE_DIR"
+  if grep -q '^@~/\.claude/CLAUDE\.md' "$ORCA_PROFILE/CLAUDE.md" 2>/dev/null; then
+    CLAUDE_DIR="$HOME/.claude"
+  else
+    CLAUDE_SKIP=1
+    warn "Claude Code: el perfil de Orca $ORCA_PROFILE no importa @~/.claude/CLAUDE.md; no lo toco (es de Orca). Claude dentro de Orca no vera el kit hasta que ese perfil importe ~/.claude."
+  fi
+fi
+
 # ------------------------------------------------------------------ restore
 if [ -n "$RESTORE" ]; then
   R="$AG/backups/$RESTORE"; [ -d "$R" ] || { echo "No existe $R" >&2; exit 1; }
   step "Restaurando desde $R"
   (cd "$R" && find . \( -type f -o -type l \) | sed 's#^\./##') | while IFS= read -r rel; do
-    dest="$HOME/$rel"
-    # si algun directorio padre es ahora un enlace (p. ej. una skill enlazada), quita el enlace: no escribir a traves de el
+    case "$rel" in _abs/*) dest="/${rel#_abs/}" ;; *) dest="$HOME/$rel" ;; esac
+    # si algun directorio padre es ahora un enlace del kit (p. ej. una skill enlazada a ~/.agents), quitalo:
+    # no escribir a traves de el. Los enlaces ajenos (dotfiles, perfiles de Orca) se respetan.
     p="$(dirname "$dest")"
-    while [ "$p" != "$HOME" ] && [ "$p" != "/" ]; do [ -L "$p" ] && run rm -f "$p"; p="$(dirname "$p")"; done
+    while [ "$p" != "$HOME" ] && [ "$p" != "/" ] && [ "$p" != "." ]; do
+      if [ -L "$p" ]; then case "$(readlink "$p")" in "$AG"/*) run rm -f "$p" ;; esac; fi
+      p="$(dirname "$p")"
+    done
     if [ -L "$dest" ] || [ -f "$dest" ]; then run rm -f "$dest"; fi
     run mkdir -p "$(dirname "$dest")"; run cp -a "$R/$rel" "$dest"
   done
@@ -120,6 +185,11 @@ if [ -z "$AGENTS" ]; then
   [ -d "$CURSOR_DIR" ]  && AGENTS="$AGENTS,cursor"
   AGENTS="${AGENTS#,}"   # devin solo con --agents (opt-in)
 fi
+if [ "$CLAUDE_SKIP" -eq 1 ]; then
+  AGENTS="$(printf ',%s,' "$AGENTS" | sed 's/,claude,/,/; s/^,//; s/,$//')"
+fi
+[ -n "$ORCA_PROFILE" ] && [ "$CLAUDE_SKIP" -eq 0 ] && has_agent claude && \
+  step "Claude Code: perfil de Orca detectado ($ORCA_PROFILE); instalo en $CLAUDE_DIR, que el perfil importa. El perfil no se toca."
 
 # ------------------------------------------------------------------ adopt
 if [ -n "$ADOPT" ]; then
@@ -129,10 +199,11 @@ if [ -n "$ADOPT" ]; then
   NAME="$(basename "$SKD")"; DEST="$AG/skills/$NAME"
   [ -e "$DEST" ] && { echo "Ya existe $DEST. Si es la misma skill, borra una de las dos copias antes." >&2; exit 1; }
   step "Adoptando $NAME: $SKD -> $DEST (en su sitio original queda un enlace)"
+  check_links
   run mkdir -p "$BK" "$AG/skills"
   run cp -a "$SKD" "$BK/$NAME.orig"
   run mv "$SKD" "$DEST"
-  run ln -s "$DEST" "$SKD"
+  run ln -s "$DEST" "$SKD" || { echo "No se pudo crear el enlace $SKD -> $DEST. $LINK_HELP" >&2; exit 1; }
   case "$SKD" in "$CLAUDE_DIR"/skills/*) ;; *) has_agent claude && link "$DEST" "$CLAUDE_DIR/skills/$NAME" ;; esac
   case "$SKD" in "$GEMINI_DIR"/*) ;; *) has_agent antigravity && link "$DEST" "$GEMINI_DIR/config/skills/$NAME" ;; esac
   step "Hecho. Codex, Copilot y Cursor la leen desde $AG/skills. Si la skill se actualiza con su propio instalador, vuelve a adoptarla."
@@ -144,7 +215,12 @@ if [ "$VERIFY" -eq 1 ]; then
   bad=0
   ok()   { echo "  OK    $1"; }
   fail() { echo "  MAL   $1"; bad=1; }
-  chk_link() { if [ -L "$2" ] && [ "$(readlink "$2")" = "$1" ]; then ok "$2 -> $1"; else fail "$2 no enlaza a $1"; fi; }
+  chk_link() {
+    if [ -L "$2" ] && [ "$(readlink "$2")" = "$1" ]; then ok "$2 -> $1"
+    elif [ -e "$2" ] && [ ! -L "$2" ]; then fail "$2 es una copia, no un enlace a $1 (acabara divergiendo; reinstala)"
+    else fail "$2 no enlaza a $1"; fi
+  }
+  [ "$CLAUDE_SKIP" -eq 1 ] && fail "perfil de Orca $ORCA_PROFILE sin @~/.claude/CLAUDE.md: Claude en Orca no ve el kit"
   [ -f "$AG/AGENTS.md" ] && ok "$AG/AGENTS.md" || fail "$AG/AGENTS.md"
   n=$(ls -1 "$AG/rules/lang"/*.md 2>/dev/null | wc -l | tr -d ' '); [ "$n" -ge 17 ] && ok "rules/lang: $n" || fail "rules/lang: $n (esperado 17)"
   for s in $KIT_SKILLS; do [ -f "$AG/skills/$s/SKILL.md" ] || fail "skill $s"; done
@@ -175,6 +251,7 @@ if [ "$PROJECT_ONLY" -eq 0 ]; then
   [ -n "$AGENTS" ] || { echo "No detecto ningun agente. Usa --agents." >&2; exit 1; }
   step "Orca Multiagent Kit v$VERSION · agentes: $AGENTS"
   step "Fuente unica: $AG · backup: $BK"
+  check_links
   run mkdir -p "$BK"
 
   # 1. Fuente canonica
