@@ -1,11 +1,11 @@
 # 75 — Fiabilidad, errores y observabilidad
 
 ## Errores
-- Distingue **error esperado** (devuélvelo tipado: `Result`, unión, excepción de dominio) de **bug** (falla ruidoso y rápido).
-- Nunca `catch` genérico sin volver a lanzar o tratar. Nunca fallback silencioso que devuelve datos falsos.
-- Conserva la causa (`cause`, `%w`, `raise ... from e`, `source()`).
+Tipado, causa y `catch`: `20-clean-code.md` §Errores. Aquí, lo operativo:
+- Nunca fallback silencioso que devuelve datos falsos (caché caducada, valor por defecto) sin marcarlo como degradado.
 - Fail-closed en seguridad (si no se puede verificar, deniega). Fail-open solo en funciones no críticas y declarado.
 - Libera recursos siempre, también en el camino de error.
+- Fallo parcial: deja el sistema en un estado conocido (compensa, revierte o marca para reintento), nunca a medias.
 
 ## Llamadas externas (red, BD, cola, disco remoto)
 - **Timeout siempre** (conexión y lectura). Sin timeout = fuga garantizada.

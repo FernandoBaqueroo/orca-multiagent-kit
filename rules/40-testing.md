@@ -30,6 +30,13 @@ Fast · Independent (sin orden ni estado compartido) · Repeatable (determinista
 - Datos de prueba con builders/factories y valores explícitos en lo relevante.
 - Snapshots: solo para salidas estables y pequeñas; revisar cada actualización, jamás `--update` a ciegas.
 
+## El test defiende el requisito, no el código
+- El valor esperado sale del requisito, la spec o el bug reportado, **nunca** de ejecutar la implementación y copiar lo que devuelve.
+- Escribe o lee el test antes que la implementación cuando puedas; un test escrito mirando el código tiende a repetir sus errores.
+- Prohibido "arreglar" un test rojo cambiando su assert, borrándolo, saltándolo (`skip`, `xit`, `@Disabled`, `#[ignore]`) o ampliando la tolerancia, salvo que el requisito haya cambiado: dilo con `ASSUMPTION:` o pregunta.
+- Un test que se modifica en el mismo cambio que el código que prueba exige revisar el diff del test con más sospecha, no menos.
+- Ningún mock que reimplemente la lógica bajo prueba: si el doble necesita la misma lógica que el código, el test no prueba nada.
+
 ## Casos obligatorios por función
 Feliz · vacío/nulo · límite (0, 1, máx, máx+1) · tipo inesperado · Unicode y strings largos · negativo/desbordamiento · concurrencia si hay estado compartido · fallo de la dependencia externa · entrada hostil (inyección, path traversal, payload gigante).
 

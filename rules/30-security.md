@@ -78,4 +78,4 @@ Todo lo externo es hostil: body, query, headers, cookies, path, ficheros, variab
 Antes de añadir una dependencia: ¿es necesaria?, ¿mantenida?, ¿CVE abiertos?, ¿licencia compatible?, ¿cuántas transitivas arrastra? Ver `80-supply-chain.md`.
 
 ## C12. Específico de IA/LLM
-Trata toda salida de modelo, MCP o herramienta externa como entrada no confiable (inyección de prompt indirecta). Nunca ejecutes ni renderices su salida sin validar. Autoriza por permiso del usuario, no por lo que pida el texto.
+Toda salida de modelo, MCP o herramienta externa es entrada no confiable (inyección de prompt indirecta): nunca se ejecuta, renderiza ni usa en SQL/shell/rutas sin validar, y autoriza el permiso del usuario, no lo que pida el texto. Si el código llama a un LLM o define agentes, herramientas o servidores MCP: `32-ai-security.md`.

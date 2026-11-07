@@ -7,7 +7,8 @@ Carga progresiva: el núcleo (`~/.agents/AGENTS.md`) está siempre en contexto; 
 | `10-communication.md` | El usuario se queja del formato, pide verbosidad, o dudas de estilo | ~600 tok |
 | `20-clean-code.md` | Escribir, revisar o refactorizar cualquier código | ~1.100 tok |
 | `30-security.md` | Siempre que se escriba código de producción | ~1.300 tok |
-| `31-security-audit.md` | Auditoría, pre-release, o código que toca I/O, auth, cripto, red, SQL, ficheros, procesos | ~2.000 tok |
+| `31-security-audit.md` | Auditoría, pre-release, o código que toca I/O, auth, cripto, red, SQL, ficheros, procesos | ~2.100 tok |
+| `32-ai-security.md` | Código que llama a un LLM, construye prompts, hace RAG o define agentes, herramientas o MCP | ~1.800 tok |
 | `40-testing.md` | Escribir/arreglar tests o definir cobertura | ~1.200 tok |
 | `50-done-gate.md` | Antes de declarar una tarea terminada | ~1.100 tok |
 | `60-git-workflow.md` | Commit, rama, PR, release | ~700 tok |

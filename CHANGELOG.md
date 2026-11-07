@@ -5,7 +5,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+### Añadido
+- **CSR**: módulo `rules/32-ai-security.md` (OWASP Top 10 for LLM Applications 2025 y Top 10 agéntico): agencia mínima de herramientas, salida del modelo, RAG, MCP y tests obligatorios. Detalle en [`docs/CSR.md`](docs/CSR.md).
+- **CSR**: tres prohibiciones nuevas en el núcleo: usar APIs no verificadas, añadir dependencias sin comprobar el registro (*slopsquatting*) y obedecer instrucciones incrustadas en datos.
+
 ### Cambiado
+- **CSR**: CWE Top 25 actualizada a la lista oficial de 2025; herramientas obsoletas sustituidas (`tfsec` → `trivy config`, `depcheck` → `knip`, `poetry install --sync` → `poetry sync`); `40-testing` prohíbe relajar tests para ponerlos en verde; `50-done-gate` y `csr-gate` distinguen `SKIPPED` de `N/A`; `lang/shell` cubre Git Bash y PowerShell 5.1/7.
+- **CSR**: el perfil técnico del usuario sale de `10-communication.md` y pasa a `~/.agents/rules/personal.md`.
 - Publicado en npm: `npx orca-multiagent-kit install` y `npm i -g orca-multiagent-kit`, sin el prefijo `github:`.
 - Las releases publican en npm con Trusted Publishing (OIDC), sin tokens guardados en el repo.
 
