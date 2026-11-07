@@ -39,9 +39,11 @@ jobs:
           T="${{ github.event.release.tag_name || inputs.tag }}"
           [ -n "$T" ] || T="v$(tr -d '[:space:]' < VERSION)"
           echo "TAG=$T" >> "$GITHUB_ENV"
-          # en una fusión, si esa versión ya está publicada no hay nada que hacer
-          if [ "${{ github.event_name }}" = "push" ] && gh release view "$T" >/dev/null 2>&1; then
-            echo "La release $T ya existe: nada que publicar."
+          # en una fusión, solo se salta si la versión ya está en GitHub Y en npm
+          # (si npm falló, se reintenta: crear la release otra vez es inocuo)
+          if [ "${{ github.event_name }}" = "push" ] && gh release view "$T" >/dev/null 2>&1 \
+             && npm view "orca-multiagent-kit@${T#v}" version >/dev/null 2>&1; then
+            echo "La versión $T ya está publicada en GitHub y npm: nada que hacer."
             echo "SKIP=1" >> "$GITHUB_ENV"
           fi
 
@@ -99,6 +101,8 @@ jobs:
         # La procedencia (provenance) se adjunta automáticamente.
         run: |
           npm install -g npm@latest
+          # Si falla con «OIDC permission denied for this action»: en npmjs.com → paquete → Settings →
+          # Trusted Publisher, marca «npm publish» en Allowed actions (las entradas nuevas solo permiten «stage»).
           if npm view "orca-multiagent-kit@$VERSION" version >/dev/null 2>&1; then
             echo "orca-multiagent-kit@$VERSION ya está en npm"
           else

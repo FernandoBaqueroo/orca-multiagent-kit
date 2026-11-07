@@ -5,6 +5,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+### Añadido
+- Orquestador: runs reanudables con el estado en `.work/runs/<run>/run.md` (`skills/orca/references/ledger.md`); la skill y el hook de spec-kit retoman un run a medias en vez de repartir de nuevo. Detalle en [`docs/ORQUESTADOR.md`](docs/ORQUESTADOR.md).
+- Orquestador: revisión cruzada por otro proveedor, presupuestos por talla, límite de reintentos y sección de confianza entre agentes en `95-multi-agent.md`.
+- **Plugin de Orca** (`orca-plugin/`, Orca ≥ 1.4.248): comandos de paleta para verificar, inicializar y actualizar el kit; hook `agent.prompt.before` que añade la referencia al contrato del worker a los despachos de orquestación del kit; resumen de agentes activos en la barra de estado. Ver `docs/PLUGIN-ORCA.md`.
+
+### Cambiado
+- Motor Orca alineado con el CLI 1.4.252: sin polling de `check`, DAG con `task-create --deps`, `--spec-file`, `--base-branch`, decision gates, `--retry-of` y circuit breaker.
+- Integración: alcance comprobado con git, ensayo de merge con `git merge-tree`, orden topológico y revert de una unidad. Campos opcionales nuevos en unidades (`budget`, `review`) e informes (`base`, `time`).
+
 ### Corregido
 - Instalador dentro de la app **Orca**: detecta el perfil de Claude que Orca inyecta en `CLAUDE_CONFIG_DIR`, instala en `~/.claude` (que el perfil importa) y no escribe nunca en el perfil.
 - **Windows**: las rutas `C:\…` de `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `GEMINI_DIR`, `AGENT_KIT_HOME`, `--project` y `--adopt` se normalizan; Git Bash crea enlaces nativos (`winsymlinks:nativestrict`) o el instalador se para antes de tocar nada, en vez de dejar copias.

@@ -13,7 +13,7 @@
     "orca-multiagent-kit": "bin/omk.js"
   },
   "files": [
-    "bin/", "speckit-extension/", "core/", "rules/", "skills/", "templates/", "output-styles/", "docs/",
+    "bin/", "speckit-extension/", "core/", "rules/", "skills/", "templates/", "output-styles/", "docs/", "orca-plugin/",
     "install.sh", "VERSION", "GUIA.html", "AI_INSTALL.md", "CHANGELOG.md", "LICENSE", "README.md"
   ],
   "engines": { "node": ">=18" },
