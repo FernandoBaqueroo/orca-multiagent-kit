@@ -153,3 +153,42 @@ test('la barra parte de los agentes que ya existen y se oculta si se desactiva',
   const hidden = await start({ settings: { statusBar: false } })
   assert.deepEqual(hidden.host.callsOf('statusBar.update').at(-1), { id: 'agents', visible: false })
 })
+
+test('el panel ejecuta las mismas acciones que la paleta', async () => {
+  const w = await start()
+  assert.deepEqual(await w.request('kit.run', { action: 'verify' }), {
+    message: 'Ejecutando `omk verify` en un terminal nuevo del workspace activo.'
+  })
+  await w.request('kit.run', { action: 'init' })
+  assert.equal(w.host.callsOf('terminal.create').length, 1)
+  assert.equal(w.host.callsOf('agent.launch').length, 1)
+})
+
+test('el panel no puede pedir una acción fuera de la lista', async () => {
+  const w = await start()
+  for (const action of ['rm -rf ~', 'verify; omk update', undefined]) {
+    await assert.rejects(
+      // Simula lo que un panel podría enviar sin respetar el tipo declarado.
+      w.request('kit.run', { action } as unknown as { action: 'verify' }),
+      (error: unknown) => (error as { code?: string }).code === 'invalid_params'
+    )
+  }
+  assert.equal(w.host.callsOf('terminal.create').length, 0)
+  assert.equal(w.host.callsOf('agent.launch').length, 0)
+})
+
+test('el panel recibe los agentes y solo los cambios', async () => {
+  const w = await start()
+  assert.deepEqual(await w.request('agents.summary'), {
+    text: 'MAW', tone: 'neutral', tooltip: 'Orca Multiagent Kit: ningún agente activo', agents: []
+  })
+  const working = {
+    workspaceId: 'w1', paneKey: 'p1', terminalId: 't1', title: 'U1 login', state: 'working', receivedAt: 1
+  } as const
+  await w.emit('agent.status.changed', working)
+  await w.emit('agent.status.changed', { ...working, receivedAt: 2 })
+  const changes = w.posts.filter((p) => p.event === 'agents.changed')
+  // El arranque envía el estado vacío; el segundo evento no cambia nada y no se reenvía.
+  assert.equal(changes.length, 2)
+  assert.deepEqual((changes.at(-1)?.payload as { agents: unknown }).agents, [{ title: 'U1 login', state: 'trabajando' }])
+})

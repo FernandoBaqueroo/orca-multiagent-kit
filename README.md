@@ -66,7 +66,9 @@ npx orca-multiagent-kit install
 <a id="instalar"></a>
 ## <img src="assets/icons/download.svg" width="22" height="22" alt=""> Instalar
 
-Cuatro formas. Todas instalan lo mismo, hacen backup de lo que tocan y se deshacen con `omk restore`.
+Cinco formas. Todas instalan lo mismo, hacen backup de lo que tocan y se deshacen con `omk restore`.
+
+**0. Ejecutable, para Orca** (sin Node): descarga el de tu sistema desde la [última release](https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest) (`omk-windows-x64.exe`, `omk-macos-arm64`, `omk-linux-x64`) y ábrelo. Prepara Orca entero: instala el kit, enciende los plugins, instala el plugin del kit (te enseña lo que pide y te pregunta antes de aprobarlo), abre su panel y deja `omk` en el PATH. Con el kit ya instalado por npm, lo mismo es `omk setup`. Detalle: [`docs/EJECUTABLE.md`](docs/EJECUTABLE.md).
 
 **1. npx** (Node ≥ 18, sin instalar nada global)
 ```bash
@@ -102,7 +104,9 @@ Requisitos: macOS, Linux, WSL o Git Bash, con bash ≥ 3.2.
 
 | Comando | Qué hace |
 |:--|:--|
+| `omk setup [--yes] [--dry-run]` | Prepara Orca entero: kit, plugins encendidos, plugin del kit y su panel |
 | `omk install [--agents a,b] [--dry-run]` | Instala o migra la fuente única para los agentes detectados |
+| `omk plugin install\|status\|uninstall` | El plugin de Orca del kit; `install` pide tu aprobación (o `--yes`) |
 | `omk init [ruta]` | Prepara un proyecto (por defecto, la carpeta actual) |
 | `omk verify` | Comprueba enlaces, imports y que no queden copias divergentes |
 | `omk adopt <carpeta-skill>` | Comparte una skill externa (p. ej. impeccable) con todos los agentes |
@@ -147,7 +151,7 @@ Solo tienes que conocer dos frases. El resto lo deciden los agentes.
 
 Convive con skills externas como **impeccable**, **supabase**, **spec-kit** y las de la app **Orca**: cada una manda en su terreno, y la puerta de validez y las prohibiciones se aplican siempre.
 
-**Plugin de Orca** (opcional, Orca ≥ 1.4.248): `omk verify`, «inicializa el proyecto» y `omk update` en la paleta de comandos, el contrato del worker añadido a cada despacho de orquestación del kit y los agentes activos en la barra de estado. Desde un clon o el zip: `orca plugin install ./orca-plugin`. Detalle, permisos que pide y cómo desactivarlo: [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md).
+**Plugin de Orca** (opcional, Orca ≥ 1.4.248): `omk verify`, «inicializa el proyecto» y `omk update` en la paleta de comandos y en un panel lateral, *Multiagent Kit*, que además cambia los ajustes del plugin (los mismos de *Settings → Plugins*); el contrato del worker añadido a cada despacho de orquestación del kit, y los agentes activos en la barra de estado. Se instala con `omk plugin install` (o `omk setup`). Detalle, permisos que pide y cómo desactivarlo: [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md).
 
 <a id="flujo"></a>
 ## <img src="assets/icons/flow.svg" width="22" height="22" alt=""> Flujo de trabajo
@@ -184,22 +188,22 @@ flowchart LR
 
 ```text
 orca-multiagent-kit/
-├── bin/omk.js              CLI omk (npm / npx), sin dependencias
+├── bin/                    CLI omk (npm / npx / ejecutable), sin dependencias: omk · setup · orca · sea
 ├── core/AGENTS.md          núcleo siempre cargado (~80 líneas)
 ├── rules/                  00-router … 95-multi-agent  +  lang/ (17 lenguajes)
 ├── skills/                 kit-init · orca · speckit-orca-implement · csr-*
 ├── speckit-extension/      extensión de spec-kit (hook before_implement)
 ├── templates/              AGENTS.md · CLAUDE.md · STACK.md · ORCHESTRATION.md · orca.yaml · .worktreeinclude · models.md
 ├── output-styles/          csr-minimal (Claude Code)
-├── orca-plugin/            plugin de Orca: comandos del kit, contrato del worker, barra de estado
+├── orca-plugin/            plugin de Orca: comandos y panel del kit, contrato del worker, barra de estado
 ├── install.sh              instala · migra · verifica · restaura · adopta
 ├── GUIA.html               guía visual del flujo
 ├── site/                   web interactiva (GitHub Pages)
 ├── docs/MANUAL.md          manual completo
 ├── AI_INSTALL.md           instrucciones para que una IA lo instale
-├── tests/                  pruebas del instalador y del CLI en un $HOME desechable
-├── scripts/                check.sh · build-release.sh · get.sh · banner.py
-└── .github/                CI (Linux + macOS), releases con zip, web, plantillas de issues y PR
+├── tests/                  pruebas del instalador, del CLI, de omk setup (doble de Orca) y del ejecutable
+├── scripts/                check.sh · build-release.sh · build-exe.js · get.sh · banner.py
+└── .github/                CI (Linux + macOS; ejecutable también en Windows), releases con zip y ejecutables, web, plantillas
 ```
 
 <a id="documentacion"></a>
@@ -213,6 +217,7 @@ orca-multiagent-kit/
 | [`AI_INSTALL.md`](AI_INSTALL.md) | Una IA que tiene que instalar o integrar el kit |
 | [`docs/OLIMPO.md`](docs/OLIMPO.md) | Roles, niveles de modelo, recurso por unidad y ciclo de vida de los worktrees |
 | [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md) | Quien usa Orca y quiere el kit integrado en la app |
+| [`docs/EJECUTABLE.md`](docs/EJECUTABLE.md) | Quien quiere preparar Orca de una vez (`omk setup` o el ejecutable), o construir el ejecutable |
 | [`CHANGELOG.md`](CHANGELOG.md) | Historial de versiones ([SemVer](https://semver.org/lang/es/)) |
 
 <a id="contribuir"></a>

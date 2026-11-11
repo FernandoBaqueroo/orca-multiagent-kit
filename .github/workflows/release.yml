@@ -26,6 +26,9 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      skip: ${{ steps.tag.outputs.skip }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,18 +36,21 @@ jobs:
           ref: ${{ github.event.release.tag_name || (github.event_name == 'workflow_dispatch' && github.ref) || github.sha }}
 
       - name: Tag
+        id: tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           T="${{ github.event.release.tag_name || inputs.tag }}"
           [ -n "$T" ] || T="v$(tr -d '[:space:]' < VERSION)"
           echo "TAG=$T" >> "$GITHUB_ENV"
+          echo "tag=$T" >> "$GITHUB_OUTPUT"
           # en una fusión, solo se salta si la versión ya está en GitHub Y en npm
           # (si npm falló, se reintenta: crear la release otra vez es inocuo)
           if [ "${{ github.event_name }}" = "push" ] && gh release view "$T" >/dev/null 2>&1 \
              && npm view "orca-multiagent-kit@${T#v}" version >/dev/null 2>&1; then
             echo "La versión $T ya está publicada en GitHub y npm: nada que hacer."
             echo "SKIP=1" >> "$GITHUB_ENV"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-node@v4
@@ -81,6 +87,8 @@ jobs:
           npx orca-multiagent-kit@$VERSION install
           \`\`\`
           O descarga \`orca-multiagent-kit-v$VERSION.zip\`, descomprime y ejecuta \`./install.sh\`. Integridad: \`SHA256SUMS\`.
+
+          Sin Node: descarga el ejecutable de tu sistema (\`omk-windows-x64.exe\`, \`omk-macos-arm64\`, \`omk-linux-x64\`) y ábrelo: prepara el kit y Orca entero (\`omk setup\`). Integridad: su \`.sha256\`.
           NOTES
 
       - name: Crear o actualizar la release y adjuntar el zip
@@ -108,3 +116,34 @@ jobs:
           else
             npm publish --access public
           fi
+
+  # El ejecutable autónomo se construye en cada sistema (Node SEA no compila para otro) y se adjunta
+  # a la release que ha creado el job anterior.
+  exe:
+    needs: release
+    if: needs.release.outputs.skip != '1'
+    name: Ejecutable (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || (github.event_name == 'workflow_dispatch' && github.ref) || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Construir y probar
+        run: |
+          node scripts/build-exe.js
+          bash tests/test_exe.sh
+      - name: Adjuntar a la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: gh release upload "$TAG" --clobber dist/omk-*

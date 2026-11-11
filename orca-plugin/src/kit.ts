@@ -69,7 +69,8 @@ export async function pollUntil(
 }
 
 export const INSTALL_HINT =
-  'Instálalo con `npm install -g orca-multiagent-kit` (o `./install.sh` desde el zip) y vuelve a lanzar el comando.'
+  'Instálalo con `npm install -g orca-multiagent-kit` o con el ejecutable de la última release (lo deja en el PATH), ' +
+  'reinicia Orca y vuelve a lanzar el comando.'
 
 export type FocusedWorkspace = { branch: string; displayName: string }
 export type WorkspaceEntry = { id: string; name: string; branch: string | null }
@@ -88,6 +89,15 @@ export function resolveFocusedWorkspaceId(
     (w) => w.name === focused.displayName && (w.branch ?? '') === focused.branch
   )
   return matches.length === 1 ? (matches[0]?.id ?? null) : null
+}
+
+/** Acciones del kit que lanzan la paleta y el panel. */
+export type KitAction = 'verify' | 'update' | 'init'
+
+export const KIT_ACTIONS: readonly KitAction[] = ['verify', 'update', 'init']
+
+export function isKitAction(value: unknown): value is KitAction {
+  return KIT_ACTIONS.some((action) => action === value)
 }
 
 const AGENT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/
@@ -130,12 +140,20 @@ export function summarizeAgents(agents: Iterable<TrackedAgent>): AgentSummary {
   }
 }
 
-/** Una línea por agente activo, para el comando «estado de los agentes». */
-export function describeAgents(agents: Iterable<TrackedAgent>): string {
-  const lines: string[] = []
+export type AgentLine = { title: string; state: string }
+
+/** Los agentes activos con su estado en texto, para el panel y el comando. */
+export function agentLines(agents: Iterable<TrackedAgent>): AgentLine[] {
+  const lines: AgentLine[] = []
   for (const agent of agents) {
     if (agent.state === 'done') continue
-    lines.push(`- ${agent.title ?? 'agente sin título'}: ${STATE_LABEL[agent.state][0]}`)
+    lines.push({ title: agent.title ?? 'agente sin título', state: STATE_LABEL[agent.state][0] })
   }
+  return lines
+}
+
+/** Una línea por agente activo, para el comando «estado de los agentes». */
+export function describeAgents(agents: Iterable<TrackedAgent>): string {
+  const lines = agentLines(agents).map(({ title, state }) => `- ${title}: ${state}`)
   return lines.length > 0 ? lines.join('\n') : 'Ningún agente activo.'
 }
