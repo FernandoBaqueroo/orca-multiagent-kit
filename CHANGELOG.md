@@ -5,6 +5,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-11
+
+### Corregido
+- Proyectos inicializados con una versión anterior: ya no hace falta reinicializarlos para que la 1.4.0 funcione. La skill `orca` deduce en cada run lo que falte en la ficha (proveedores activos, dominios sensibles, setup de worktree, `.env` de desarrollo que no estén en `.worktreeinclude`, rama padre), lo usa, lo anota en el plan de rondas y ofrece guardarlo al cerrar. Con Orca, el despacho lleva el bloque `SETUP` si `orca.yaml` o `.worktreeinclude` no están al día.
+
 ## [1.4.0] - 2026-11-11
 
 Olimpo: reparto por roles y niveles de modelo, y worktrees que nacen de una base fresca, listos para probar y sin residuos. Detalle en [`docs/OLIMPO.md`](docs/OLIMPO.md).
@@ -16,7 +21,6 @@ Olimpo: reparto por roles y niveles de modelo, y worktrees que nacen de una base
 - **Base fresca**: `git fetch` y comparación con `origin/<rama padre>` antes de crear la rama de integración; si la rama local va por detrás se parte de `origin`, y si tiene commits sin subir se pregunta. Se repite antes del merge final.
 - **Entorno de worktree verificado**: setup real en `ORCHESTRATION.md` §3, `scripts.setup` en `orca.yaml`, bloque `SETUP` en los despachos sin Orca y comprobación en el arranque del worker (`BLOCKED: entorno`).
 - **Confirmación 3, limpieza**: tras el merge final el coordinador enseña el inventario (worktrees, ramas, copias de `.env`) y lo borra con permiso. Si se rechaza, queda `cleanup: pending` en `run.md` y se recuerda en el siguiente run.
-- Proyectos inicializados con una versión anterior: no hace falta reinicializarlos. La skill deduce en cada run lo que falte en la ficha (proveedores activos, dominios sensibles, setup de worktree, `.env` de desarrollo, rama padre), lo usa y ofrece guardarlo al cerrar.
 - Modo «limpia el run» en la skill `orca`, también para worktrees de runs antiguos.
 - Instalador: al preparar un proyecto, un `.env` con señales de producción (`NODE_ENV=production`, claves `sk_live_`…) se desactiva en el `.worktreeinclude` nuevo y queda como pendiente; si el fichero ya era tuyo, solo avisa. No se muestra su contenido.
 - `omk verify` comprueba que existen los roles de Olimpo y `~/.agents/models.md`.
@@ -124,7 +128,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.1.0...v1.2.0
