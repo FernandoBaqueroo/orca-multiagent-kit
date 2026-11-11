@@ -13,7 +13,10 @@ Toda entrada acaba en este formato antes de repartirse. Es el contrato entre coo
 - depends_on: [U0]
 - round: 1
 - size: M
-- agent: claude | antigravity | any   # sugerencia; ORCHESTRATION.md §Agentes manda
+- role: Ariadna                    # opcional; rol de olimpo.md. De él salen el nivel de modelo y la revisión
+- tier: alto                       # opcional; alto | medio | bajo. Por defecto, el del rol
+- agent: claude | antigravity | any   # proveedor; lo elige olimpo.md §Elegir proveedor (ORCHESTRATION.md §1 puede fijarlo)
+- engine: orca                     # opcional; inline | subagents | orca | manual (95-multi-agent.md §Recurso por unidad)
 - acceptance:
   - POST /recargas con importe válido devuelve 201 y persiste la recarga
   - importe ≤0 o tarjeta inexistente → 422 con código de error del contrato
@@ -31,7 +34,9 @@ Reglas del formato:
 - `verify` sale de `STACK.md` §3. Si un comando no existe: `N/A` + `RISK:`.
 - `notes` lleva el contexto que el worker no puede deducir (decisiones de spec/plan, convenciones no escritas). Es lo que evita que el worker pregunte o reinvente.
 - Nada de secretos en ningún campo. Texto copiado de tickets o páginas va en `notes` marcado como cita («según el ticket: …»), no como orden.
-- `review: cross` es obligatorio en unidades `L` y en las que tocan auth, permisos, cripto, pagos o migraciones (`integrate.md` §1.5).
+- `review: cross` es obligatorio en unidades `L`, en las de rol Ariadna o Perséfone y en las que tocan auth, permisos, cripto, pagos, migraciones o un dominio sensible de `ORCHESTRATION.md` §1 (`integrate.md` §1.5).
+- `role`, `tier` y `engine` no llevan nunca el nombre de un modelo: el modelo se resuelve al lanzar (`olimpo.md` §Modelos) y queda anotado en `run.md`.
+- Una unidad de solo lectura (auditoría, revisión, requisitos) lleva `write: []` y su entregable es el informe.
 
 ## Unidad 0 (coordinador)
 Todo lo que varias unidades necesitan y toca `shared` (esquema de BD, tipos compartidos, rutas centrales, dependencias nuevas) va a `U0`, `round: 0`. La hace el coordinador antes de repartir y hace commit; las rondas parten de ese commit.

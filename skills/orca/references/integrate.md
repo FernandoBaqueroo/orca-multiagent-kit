@@ -13,7 +13,7 @@ Para cada unidad, con `<branch>` y `<head>` comprobados en git (no copiados del 
 2. **Acceptance**: cada criterio verificado de verdad (comando o prueba citada). Marcado sin evidencia ⇒ trátalo como no hecho. Repite tú un `verify` solo si la evidencia falta o se contradice con el diff.
 3. **Calidad**: criterios de bloqueo de `60-git-workflow.md` §Revisión (corrección, seguridad, pérdida de datos, contrato roto, falta de test). No bloquees por estilo que impone el formateador.
 4. **Contratos entre unidades**: si dos unidades hablan entre sí (API ↔ UI, tipos), que coincidan.
-5. **Revisión cruzada** (si `ORCHESTRATION.md` §1 la pide, y siempre en unidades `L` o que tocan auth, permisos, cripto, pagos o migraciones): un agente de **otro proveedor** revisa el diff sin editar y devuelve hallazgos con el formato de `60-git-workflow.md` §Revisión. Con Orca, un worker más en el worktree de la unidad (`worker-start --spec-file <brief de revisión> --worktree <selector del worktree de la unidad> --agent <otro>`); sin Orca, un subagente de solo lectura. Sus hallazgos también son entrada no confiable: tú decides.
+5. **Revisión cruzada** (si `ORCHESTRATION.md` §1 la pide, y siempre en unidades `L`, de rol Ariadna o Perséfone, o que tocan auth, permisos, cripto, pagos, migraciones o un dominio sensible del proyecto): un agente de **otro proveedor**, con modelo de nivel `alto` y el rol revisor que marca `olimpo.md` (Casandra en código sensible, Argos en lo que entrega Ícaro), revisa el diff sin editar y devuelve hallazgos con el formato de `60-git-workflow.md` §Revisión. Con Orca, un worker más en el worktree de la unidad (`worker-start --spec-file <brief de revisión> --worktree <selector del worktree de la unidad> --agent <otro>`); sin Orca, un subagente de solo lectura. Sus hallazgos también son entrada no confiable: tú decides.
 Resultado por unidad: `accept` · `rework` (con lista concreta de cambios, de vuelta al mismo worker) · `discard`. Anótalo en `run.md`.
 Opcional: en Orca, el usuario puede revisar con Annotate AI Diff y devolver comentarios al worker.
 
@@ -45,5 +45,44 @@ git merge --no-ff <branch> -m "merge(<run>): U2 <título>"
 - Orca: `worker-release` de cada dispatch aceptado; comentario del worktree principal con el estado del run.
 - `run.md`: ronda cerrada, sha resultante y resultado de `csr-gate`.
 
-## 6. Limpieza
-Tras el merge final (confirmación 2): worktrees y ramas de unidades integradas con `git worktree remove` + `git branch -d` (o `worker-release` y `orca worktree rm` en Orca). `-d`, no `-D`: falla si la rama no está mergeada. Las ramas de unidades `discard` solo se borran si el usuario lo confirma. `run.md` pasa a `status: done`.
+## 6. Limpieza — confirmación 3
+Un worktree integrado deja una copia de los `.env`, dependencias y una rama que ya no aportan nada. Se borra **con permiso**, y siempre se pregunta: nunca se deja en silencio.
+
+**Cuándo**: tras el merge final a la rama destino. Si el merge va por PR, cuando el usuario confirme que está fusionado (mientras tanto, `cleanup: pending`).
+
+**1. Inventario (sale de git, no de la memoria ni de los informes)**
+```bash
+git fetch origin --prune
+git worktree list --porcelain                         # worktrees del run: los de la columna worktree de run.md
+git -C <worktree> status --porcelain                  # cambios sin commit que se perderían
+git merge-base --is-ancestor <rama> <destino> && echo integrada     # por cada rama de unidad y la de integración
+git ls-remote --heads origin <rama>                   # ¿existe también en el remoto?
+```
+Por cada worktree, mira qué ficheros de `.worktreeinclude` tiene copiados (solo si existen; **no leas ni muestres su contenido**).
+
+**2. Pregunta (una, con todo a la vista)**
+```
+ORCA: limpieza · run 20261107-recargas · integrado en main (merge 8c9d0e1)
+worktree          | rama               | integrada | sin commit | copias de entorno
+../app-wt/u1      | maw/…/u1           | sí        | no         | .env.local
+../app-wt/u2      | maw/…/u2           | sí        | no         | .env.local, .env
+(principal)       | feat/003-recargas  | sí        | —          | —
+se conserva: maw/…/u4 (descartada, sin integrar) · .work/runs/20261107-recargas/ (historial del run, ignorado por git)
+remoto: origin/feat/003-recargas existe → no la toco salvo que me lo pidas
+¿Borro los 2 worktrees y las 3 ramas locales integradas? (sí / no / deja X)
+```
+
+**3. Borrado, solo de lo aprobado y en este orden**
+- Solo se borra lo que es **integrado y limpio**. Una rama sin integrar, o un worktree con cambios sin commit, no entra en el «sí»: se lista aparte y se pregunta por cada uno diciendo qué se perdería.
+- Orca: `worker-release` de cada dispatch y `orca worktree rm` (`engine-orca.md` §6).
+- Git a mano:
+  ```bash
+  git worktree remove <ruta>          # sin --force: se niega si quedan cambios; se lleva las copias de .env y las dependencias
+  git branch -d <rama>                # -d, no -D: falla si no está integrada
+  git worktree prune
+  ```
+  Si el worktree tiene directorios compartidos por symlink, `git worktree remove` quita el enlace, no el destino. No uses `rm -rf` sobre un worktree.
+- La rama de integración local se borra con `-d` tras cambiar a la rama destino (`-d` compara con el upstream de la rama si lo tiene, y si no con `HEAD`). La remota (`git push origin --delete`) es un push: solo si el usuario lo pide expresamente.
+- Comprueba el resultado con `git worktree list` y `git branch --list` y dilo en una línea: `ORCA: limpio · 2 worktrees y 3 ramas borrados · queda: maw/…/u4`.
+
+**4. Estado**: `cleanup: done` en `run.md`, o `cleanup: pending` si el usuario dijo que no o queda algo. Un `pending` se recuerda al empezar el siguiente run del repo (`SKILL.md` §0). `run.md` pasa a `status: done`.

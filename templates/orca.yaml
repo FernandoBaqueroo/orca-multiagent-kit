@@ -1,5 +1,13 @@
-# Orca: directorios gitignorados que cada worktree comparte (symlink) con el checkout principal.
-# Solo se aplican si existen en el checkout principal Y están en .gitignore. kit-init ajusta esta lista.
+# Orca: cómo queda listo cada worktree nuevo. kit-init ajusta este fichero al proyecto.
 worktree:
+  # Directorios gitignorados que cada worktree comparte (symlink) con el checkout principal.
+  # Solo se aplican si existen en el checkout principal Y están en .gitignore.
   sharedDirectories:
     - node_modules
+
+# Hooks del repo. Los .env de desarrollo no van aquí: los copia Orca desde .worktreeinclude.
+# scripts:
+#   setup: |        # tras crear el worktree (worker-start --setup run): instala dependencias si no se comparten
+#     pnpm install --frozen-lockfile
+#   archive: |      # antes de borrarlo (orca worktree rm --run-hooks): para lo que el worktree levantó
+#     docker compose down

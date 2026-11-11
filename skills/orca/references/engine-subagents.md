@@ -5,6 +5,9 @@ Un solo proveedor, sin Orca. Más barato de montar; menos visibilidad.
 ## Antes de lanzar
 - El worktree de un subagente suele crearse desde el `HEAD` actual del coordinador. Lanza cada ronda **desde la rama de integración**, con el commit base de la ronda en `HEAD` y el árbol limpio; si no, los workers parten de otro sitio.
 - Unidad en `dispatching` en `run.md` antes de lanzar; `dispatched` con el nombre o id del subagente después (`ledger.md`).
+- **Modelo**: pasa al subagente el modelo que le tocó a la unidad (`olimpo.md` §Modelos) con el parámetro de modelo del entorno. Si el entorno no deja elegirlo, dilo en el plan (`por defecto`).
+- **Entorno**: aquí no hay `orca.yaml` que lo prepare. El despacho lleva el bloque `SETUP` (ruta absoluta del checkout principal y setup de `ORCHESTRATION.md` §3) y el worker lo ejecuta en su arranque (`worker-contract.md` §1.4).
+- **Solo lectura** (investigar, auditar, revisar un diff): subagente sin worktree y sin permiso de edición si el entorno lo permite. No lleva `SETUP`; su informe es el entregable.
 
 ## Claude Code
 - Un subagente por unidad con la herramienta de agentes del entorno, con **aislamiento en worktree** (opción de worktree/isolation) y en segundo plano si está disponible: el entorno te avisa al terminar, no hace falta sondear.

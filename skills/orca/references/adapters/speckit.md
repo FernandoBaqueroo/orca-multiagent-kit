@@ -28,7 +28,7 @@ Formato de línea: `- [ ] T014 [P] [US2] Descripción con ruta/al/fichero.ts`
 - `read`: `spec.md` (solo la sección de esa story), `plan.md`, `data-model.md`, `contracts/*` que cite la story, `.specify/memory/constitution.md`.
 - `notes`: decisiones de `plan.md` y de `research.md` que afecten a la story; principios de la constitución que apliquen (por nombre).
 - `source`: `speckit specs/<feature>/tasks.md#USk (T0xx–T0yy)`.
-- `agent`: por capa dominante de la story según `ORCHESTRATION.md` §Agentes.
+- `role`: según `olimpo.md` §Asignar rol (una story que toca un dominio sensible es de Ariadna aunque sea de interfaz). De él salen nivel, proveedor y revisión.
 
 ## Solapes típicos en spec-kit
 Las stories se escriben "independientes", pero suelen compartir: router/rutas, esquema de BD, tipos de dominio, layout, navegación. Si dos stories escriben el mismo fichero:

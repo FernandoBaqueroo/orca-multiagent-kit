@@ -47,6 +47,17 @@ describe('withContractHint', () => {
     assert.equal(isKitDispatch('RUN: x pero sin unidad'), false)
     assert.equal(isKitDispatch('la UNIT: U2 va en mitad de la línea RUN: x'), false)
   })
+
+  test('reconoce el despacho con las líneas ROL y SETUP de Olimpo', () => {
+    const dispatch = [
+      'UNIT: U2 — Recarga con tarjeta     RUN: 20261107-recargas     BASE: 5d6e7f8     PUERTO DEV: 3102',
+      'ROL: Ariadna · código sensible · nivel alto — tests de casos límite antes que el código',
+      '### UNIT: U2 — Recarga con tarjeta',
+      'SETUP: /repo · copiar .env.local · pnpm install'
+    ].join('\n')
+    assert.equal(isKitDispatch(dispatch), true)
+    assert.equal(withContractHint(dispatch, 'orchestration', 'kit'), `${dispatch}\n\n${CONTRACT_HINT}`)
+  })
 })
 
 describe('parseContractHintMode', () => {

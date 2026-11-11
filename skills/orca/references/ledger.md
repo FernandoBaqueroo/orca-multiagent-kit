@@ -11,21 +11,24 @@ Un run dura horas y sobrevive a cosas que el coordinador no controla: compactaci
 - orca_run: run_8f2c…     # solo con Orca
 - autonomy: semi
 - integration: feat/003-recargas
+- base_ref: origin/main @ 1a2b3c4   # de dónde nació la rama de integración (SKILL.md §4)
+- cleanup: —              # — | pending | done (integrate.md §6)
 - status: active          # planned | active | closing | done | cancelled
 - confirm1: 2026-11-07T10:12Z   # cuándo dijo «sí» el usuario al plan
 
-| unit | round | status | ref | branch | base | head | attempts | updated |
-|---|---|---|---|---|---|---|---|---|
-| U0 | 0 | merged | coordinador | feat/003-recargas | 1a2b3c4 | 5d6e7f8 | 1 | 10:31 |
-| U1 | 1 | dispatched | task_91 / disp_4c | (Orca) | 5d6e7f8 | — | 1 | 10:33 |
-| U2 | 1 | reported | agent:u2-recarga | worktree-agent-ab12 | 5d6e7f8 | 9a0b1c2 | 1 | 11:02 |
+| unit | round | status | role | agent · model | ref | branch | worktree | base | head | attempts | updated |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| U0 | 0 | merged | Hefesto | coordinador | coordinador | feat/003-recargas | (principal) | 1a2b3c4 | 5d6e7f8 | 1 | 10:31 |
+| U1 | 1 | dispatched | Proteo | antigravity · <medio> | task_91 / disp_4c | (Orca) | (Orca) | 5d6e7f8 | — | 1 | 10:33 |
+| U2 | 1 | reported | Ariadna | claude · <alto> | agent:u2-recarga | worktree-agent-ab12 | ../app-wt/u2 | 5d6e7f8 | 9a0b1c2 | 1 | 11:02 |
 
 ## Log
 - 10:31 U0 merged 5d6e7f8 · gates PASS
 - 11:02 U2 informe recibido (succeeded)
 ```
 - `ref`: lo que identifica al worker en su motor. Orca: `<taskId> / <dispatchId>`. Subagentes: nombre o id del agente. Manual: ruta del worktree.
-- `branch` y `head`: los que se comprueban con git, no los que dice el informe.
+- `role` y `agent · model`: lo que se lanzó de verdad (`olimpo.md`); `por defecto` si no se indicó modelo.
+- `branch`, `worktree` y `head`: los que se comprueban con git, no los que dice el informe. `worktree` es lo que la limpieza tendrá que borrar.
 - `attempts`: intentos de lanzamiento (reintentos incluidos). Límite en `95-multi-agent.md` §Reintentos.
 
 ## Estados de una unidad
@@ -37,7 +40,7 @@ Salidas laterales: `rework` (vuelve a `dispatched`), `blocked`, `discarded`, `re
 2. **Antes** de lanzar un worker: `dispatching`. Después, con el id que devuelva el motor: `dispatched`. Así una caída entre los dos pasos no acaba en un doble lanzamiento: `dispatching` sin `ref` se comprueba antes de relanzar.
 3. Al recibir el informe: `reported`. Al revisarlo: `accepted`, `rework` o `discarded`.
 4. Tras cada merge: `merged` + sha en el log. Tras cerrar la ronda: línea en el log con el resultado de `csr-gate`.
-5. Al terminar: `status: done` (o `cancelled`) y la rama final.
+5. Al terminar: `status: done` (o `cancelled`) y la rama final. `cleanup: done` si el usuario aprobó la limpieza y se hizo; `cleanup: pending` si dijo que no o si el merge final va por PR y aún no está fusionado.
 
 ## Reanudar
 Al empezar, si existe algún `.work/runs/*/run.md` con `status: active` que encaja con la petición (misma feature, mismo plan), **no** planifiques de nuevo: reanuda. Si hay dudas sobre si es el mismo trabajo, una pregunta.

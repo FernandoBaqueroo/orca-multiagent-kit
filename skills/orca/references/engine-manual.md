@@ -7,7 +7,8 @@ Desde el checkout principal, por cada unidad de la ronda, a partir del commit ba
 ```bash
 git worktree add ../<repo>-wt/<run>-u2 -b maw/<run>/u2 <sha-base>
 ```
-Después, en cada worktree, el setup de `ORCHESTRATION.md` §Entorno (por ejemplo copiar `.env.local` de desarrollo, `pnpm install` o symlink de `node_modules`). Anota la ruta del worktree como `ref` en `run.md` (`ledger.md`).
+`<sha-base>` es el commit de la rama de integración, que nació de una base fresca (`SKILL.md` §4); nunca el de una rama local sin contrastar con `origin`.
+Después, **en cada worktree, ejecuta tú el setup** de `ORCHESTRATION.md` §3: copia los ficheros de `.worktreeinclude` desde el checkout principal (solo `.env` de desarrollo) e instala dependencias o enlaza los directorios compartidos. Comprueba que el comando `install`/`typecheck` de `STACK.md` §3 pasa antes de dejar el brief. Anota la ruta del worktree como `ref` en `run.md` (`ledger.md`).
 
 ## 2. Dejar el brief
 Escribe el mensaje de despacho completo (con `worker-contract.md` entero) en `<worktree>/.work/BRIEF.md` (dentro del worktree, ignorado por git) y en `.work/runs/<run>/briefs/<unit>.md` del principal.
@@ -15,16 +16,13 @@ Escribe el mensaje de despacho completo (con `worker-contract.md` entero) en `<w
 ## 3. Instrucciones al usuario (una sola vez, en bloque)
 ```
 Abre un agente en cada carpeta y pégale: «Lee .work/BRIEF.md y ejecútalo: es una unidad de un run orquestado con su contrato. Entrega el informe en .work/REPORT.md»
-U1 → ../<repo>-wt/<run>-u1  (Claude Code)
-U2 → ../<repo>-wt/<run>-u2  (Antigravity)
+U1 → ../<repo>-wt/<run>-u1  (Claude Code, modelo <medio de models.md>)
+U2 → ../<repo>-wt/<run>-u2  (Antigravity, modelo <alto de models.md>)
 Cuando terminen, dime «ronda lista».
 ```
 
 ## 4. Recoger
 Cada worker escribe su informe en `<worktree>/.work/REPORT.md`. Léelos, cópialos a `.work/runs/<run>/reports/` y pasa a la integración (`integrate.md`). Una unidad sin `REPORT.md` no está terminada, aunque haya cambios en su rama: pregunta al usuario por ella en vez de integrarla.
 
-## 5. Limpieza (tras integrar, con confirmación)
-```bash
-git worktree remove ../<repo>-wt/<run>-u2
-git branch -d maw/<run>/u2          # -d, no -D: falla si no está mergeada
-```
+## 5. Limpieza
+Tras el merge final y con la confirmación 3: `integrate.md` §6.

@@ -32,9 +32,10 @@ orca orchestration worker-start --task <taskId> --worktree new-child --base-bran
      --name <run>-u2 --agent <claude|codex|antigravity|...> --setup run --json
 ```
 - Antes de cada `worker-start`: la unidad en `dispatching` en `run.md`; después, `dispatched` con el `dispatchId` del recibo.
-- `--worktree new-child` crea un worktree hijo del tuyo; `--base-branch` lo fija al commit base de la ronda (la rama de integración tras el último merge). La rama la nombra Orca: léela del recibo o de `orca worktree show`, no supongas `maw/<run>/<unit>`.
-- `--setup run` ejecuta el setup del repo (`orca.yaml`, `.worktreeinclude`).
-- `--model <id> --effort <nivel>`: solo si el usuario lo pidió o `ORCHESTRATION.md` lo fija para unidades `L` o de razonamiento duro.
+- `--worktree new-child` crea un worktree hijo del tuyo; `--base-branch` lo fija al commit base de la ronda (la rama de integración tras el último merge). **Siempre la rama de integración**, que ya nació de una base fresca (`SKILL.md` §4); nunca `main`/`develop` locales. La rama la nombra Orca: léela del recibo o de `orca worktree show`, no supongas `maw/<run>/<unit>`.
+- `--setup run` **siempre**: ejecuta el setup del repo (`orca.yaml`: `scripts.setup` y `sharedDirectories`; `.worktreeinclude`: copia de los `.env` de desarrollo). Sin él, el worker arranca sin dependencias ni entorno. Si el recibo avisa de ficheros de `.worktreeinclude` no copiados, díselo al usuario.
+- `--agent <proveedor> --model <modelo> [--effort <esfuerzo>]`: el proveedor y el modelo que le tocaron a la unidad en el plan (`olimpo.md` §Modelos). Sin modelo para ese nivel en ese proveedor, omite `--model` y `--effort` (el plan ya lo dijo). `--effort` exige `--model`.
+- Unidad de solo lectura en Orca (revisión `cross` por otro proveedor): `--worktree <selector del worktree de la unidad revisada>` en vez de `new-child`; no necesita worktree propio.
 - Si `worker-start` falla, **no** lo repitas: lee `failedStage` en el JSON y sigue la recuperación de la guía de Orca.
 - Lanza todas las unidades de la ronda y **termina tu turno**. Orca te despierta con cada aviso.
 
@@ -68,7 +69,11 @@ orca orchestration worker-start --task <taskId> --worktree new-child --base-bran
 
 ## 6. Limpieza
 - Los workers en `new-child` se quedan abiertos: tras integrar su unidad, `orca orchestration worker-release --dispatch <dispatchId> --json` (conserva la salida para `worker-read`).
-- El worktree y la rama se borran solo tras el merge final y con confirmación (`integrate.md` §6). `worker-keep-open` solo si el usuario quiere seguir usando ese chat.
+- El worktree y la rama se borran solo tras el merge final y con la confirmación 3 (`integrate.md` §6):
+  ```bash
+  orca worktree rm --worktree <selector exacto> --delete-branch --run-hooks --json   # no admite active/current
+  ```
+  `--delete-branch` solo borra ramas que Orca puede probar integradas; `--run-hooks` ejecuta el `scripts.archive` de `orca.yaml`. No uses `--force` salvo que el usuario lo pida tras ver qué cambios sin commit se perderían. `worker-keep-open` solo si el usuario quiere seguir usando ese chat.
 - No uses `orca orchestration reset`: borra el estado de coordinación de todos los runs.
 
 ## Notas

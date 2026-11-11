@@ -24,11 +24,19 @@ check "GEMINI.md es enlace al núcleo"            '[ "$(readlink "$H/.gemini/GEM
 check "Codex AGENTS.md es enlace al núcleo"      '[ "$(readlink "$H/.codex/AGENTS.md")" = "$H/.agents/AGENTS.md" ]'
 check "skill enlazada en Claude"                 '[ -L "$H/.claude/skills/csr-gate" ]'
 check "skill enlazada en Antigravity"            '[ -L "$H/.gemini/config/skills/orca" ]'
+check "roles de Olimpo instalados"               '[ -f "$H/.agents/skills/orca/references/olimpo.md" ]'
+check "models.md creado desde la plantilla"      'cmp -s "$ROOT/templates/models.md" "$H/.agents/models.md"'
 check "--verify pasa"                            'HOME="$H" bash "$INSTALL" --verify >/dev/null 2>&1'
 
 echo "== 2. Idempotencia"
+echo "| alto | modelo-mio | |" >> "$H/.agents/models.md"
 # shellcheck disable=SC2034  # se usa dentro de eval (check)
 before="$(wc -l < "$H/.claude/CLAUDE.md")"; inst; inst
+check "reinstalar no pisa tu models.md"          'grep -q "modelo-mio" "$H/.agents/models.md"'
+rm "$H/.agents/models.md"
+check "--verify avisa si falta models.md"        '! HOME="$H" bash "$INSTALL" --verify >/dev/null 2>&1'
+inst
+check "reinstalar repone models.md si falta"     '[ -f "$H/.agents/models.md" ]'
 check "reinstalar no duplica el bloque"          '[ "$(grep -c "AGENTS:BEGIN" "$H/.claude/CLAUDE.md")" -eq 1 ]'
 check "reinstalar no crece CLAUDE.md"            '[ "$(wc -l < "$H/.claude/CLAUDE.md")" -eq "$before" ]'
 
@@ -160,6 +168,24 @@ rm "$H/.claude/skills/csr-gate"; cp -R "$H/.agents/skills/csr-gate" "$H/.claude/
 check "--verify falla con la copia"              '! HOME="$H" bash "$INSTALL" --verify >/dev/null 2>&1'
 HOME="$H" bash "$INSTALL" --verify > "$H/verify.txt" 2>&1 || true
 check "y dice que es una copia"                  'grep -q "copiadas en vez de enlazadas.* csr-gate" "$H/verify.txt"'
+
+echo "== 14. .worktreeinclude no copia un .env de producción"
+H="$(newhome)"; mkdir -p "$H/.claude" "$H/proj" "$H/proj2" "$H/proj3"
+printf 'NODE_ENV=production\nSECRETO=valor-que-no-debe-salir\n' > "$H/proj/.env"
+printf 'NODE_ENV=development\n' > "$H/proj/.env.local"
+# shellcheck disable=SC2034  # OUT se lee dentro de check (eval)
+OUT="$(HOME="$H" bash "$INSTALL" --project "$H/proj" 2>&1)"
+check ".env de producción desactivado"           'grep -q "^# \.env " "$H/proj/.worktreeinclude" && ! grep -qx "\.env" "$H/proj/.worktreeinclude"'
+check ".env.local de desarrollo sigue activo"    'grep -qx "\.env\.local" "$H/proj/.worktreeinclude"'
+check "lo deja como pendiente"                   'printf "%s" "$OUT" | grep -q "parece(n) de producción"'
+check "no muestra el contenido del .env"         '! printf "%s" "$OUT" | grep -q "valor-que-no-debe-salir"'
+printf 'STRIPE_KEY=sk_live_abc\n' > "$H/proj2/.env"; printf '.env\n' > "$H/proj2/.worktreeinclude"
+OUT="$(HOME="$H" bash "$INSTALL" --project-only "$H/proj2" 2>&1)"
+check ".worktreeinclude propio no se edita"      '[ "$(cat "$H/proj2/.worktreeinclude")" = ".env" ]'
+check "pero avisa"                               'printf "%s" "$OUT" | grep -q "parece(n) de producción"'
+printf 'NODE_ENV=development\nAPI_URL=http://localhost:3000\n' > "$H/proj3/.env"
+OUT="$(HOME="$H" bash "$INSTALL" --project-only "$H/proj3" 2>&1)"
+check ".env de desarrollo se copia sin avisos"   'grep -qx "\.env" "$H/proj3/.worktreeinclude" && ! printf "%s" "$OUT" | grep -q "producción"'
 
 printf '\n%s ok · %s fallos\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

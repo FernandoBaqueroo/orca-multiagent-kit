@@ -5,6 +5,30 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-11
+
+Olimpo: reparto por roles y niveles de modelo, y worktrees que nacen de una base fresca, listos para probar y sin residuos. Detalle en [`docs/OLIMPO.md`](docs/OLIMPO.md).
+
+### Añadido
+- **Olimpo** (`skills/orca/references/olimpo.md`): doce roles de agente (Hefesto, Dédalo, Casandra, Temis, Ariadna, Perséfone, Proteo, Narciso, Ícaro, Argos, Atlas, Clío), cada uno con su tipo de trabajo, nivel de modelo, revisión obligatoria y guardarraíl. Las 24 fichas del equipo de origen están en `docs/OLIMPO.md`.
+- **Modelos por nivel** (`alto`, `medio`, `bajo`), sin nombres de modelo en el kit. La correspondencia por proveedor vive en `~/.agents/models.md`, fichero del usuario que el instalador crea una vez y no sobrescribe. En cada run la skill consulta los modelos del proveedor (por ejemplo `agy models`): una versión nueva de una familia conocida entra sola, y una familia nueva la clasifica el coordinador con evidencia (alias y changelog del proveedor, documentación pública), comprueba que la cuenta puede usarla y lo anota en el plan de rondas, sin preguntar al usuario.
+- **Recurso por unidad** (`rules/95-multi-agent.md`): coordinador, subagente de solo lectura, subagente con worktree, worker de Orca o manual, decidido unidad a unidad. Un run puede mezclar motores.
+- **Base fresca**: `git fetch` y comparación con `origin/<rama padre>` antes de crear la rama de integración; si la rama local va por detrás se parte de `origin`, y si tiene commits sin subir se pregunta. Se repite antes del merge final.
+- **Entorno de worktree verificado**: setup real en `ORCHESTRATION.md` §3, `scripts.setup` en `orca.yaml`, bloque `SETUP` en los despachos sin Orca y comprobación en el arranque del worker (`BLOCKED: entorno`).
+- **Confirmación 3, limpieza**: tras el merge final el coordinador enseña el inventario (worktrees, ramas, copias de `.env`) y lo borra con permiso. Si se rechaza, queda `cleanup: pending` en `run.md` y se recuerda en el siguiente run.
+- Modo «limpia el run» en la skill `orca`, también para worktrees de runs antiguos.
+- Instalador: al preparar un proyecto, un `.env` con señales de producción (`NODE_ENV=production`, claves `sk_live_`…) se desactiva en el `.worktreeinclude` nuevo y queda como pendiente; si el fichero ya era tuyo, solo avisa. No se muestra su contenido.
+- `omk verify` comprueba que existen los roles de Olimpo y `~/.agents/models.md`.
+- Guía visual y web: sección de Olimpo, recurso por unidad, base fresca y limpieza.
+- Campos opcionales nuevos: `role`, `tier` y `engine` en las unidades; `base_ref`, `cleanup`, rol, modelo y worktree en `run.md`; línea `ROL:` en el despacho.
+
+### Cambiado
+- El plan de rondas enseña la base, el rol, el nivel, el modelo y el recurso de cada unidad.
+- Plantilla `ORCHESTRATION.md`: la tabla «Agentes por capa» se sustituye por proveedores activos, dominios sensibles y excepciones. Las fichas existentes siguen valiendo: su tabla se lee como excepciones de proveedor.
+- Motor Orca: `--setup run` y `--base-branch <rama de integración>` siempre; `--model` y `--effort` salen de `models.md` en vez de pasarse solo a petición.
+- `.worktreeinclude` de plantilla incluye `.env`, `.env.local` y `.env.development.local`.
+- Núcleo §6: la limpieza entra en las confirmaciones de `semi`, e invariante nueva sobre base fresca y residuos.
+
 ## [1.3.0] - 2026-11-07
 
 Orquestador más robusto, plugin para la app Orca, instalador para Orca y Windows, y reglas de calidad (CSR) al día. Gracias a [Necro-Coder](https://github.com/Necro-Coder).
@@ -99,7 +123,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.0.0...v1.1.0

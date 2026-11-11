@@ -8,7 +8,7 @@ Una sola fuente: `~/.agents/` (núcleo `AGENTS.md`, `rules/`, `skills/`, `templa
 ## 1. Reglas
 - Solo escribes en: `~/.agents/`, las carpetas de configuración de los agentes detectados y el proyecto indicado.
 - Todo lo que muevas o reemplaces va antes a `~/.agents/backups/<fecha>/` (el instalador ya lo hace).
-- No modifiques skills de terceros (`orca-cli`, `orchestration`, `supabase`, spec-kit…) ni `~/.agents/rules/personal.md`.
+- No modifiques skills de terceros (`orca-cli`, `orchestration`, `supabase`, spec-kit…) ni `~/.agents/rules/personal.md`. `~/.agents/models.md` es del usuario: créalo desde `templates/models.md` solo si falta y no lo sobrescribas nunca.
 - Nunca borres contenido de `CLAUDE.md`, `AGENTS.md` o `GEMINI.md` fuera de los bloques `<!-- CSR|MAW|AGENTS:BEGIN … :END -->`.
 - No pongas rutas de un agente concreto (`~/.claude/rules`, `~/.gemini/rules`) en reglas o skills: usa `~/.agents/…`.
 - Nunca escribas en un perfil de Claude de la app Orca (`…/orca/claude-profiles/<id>/home`, el `CLAUDE_CONFIG_DIR` que Orca inyecta). Es de Orca e importa `~/.claude/CLAUDE.md`: se instala en `~/.claude`. `install.sh` ya lo hace solo.
@@ -21,7 +21,7 @@ Una sola fuente: `~/.agents/` (núcleo `AGENTS.md`, `rules/`, `skills/`, `templa
 3. `./install.sh --verify`. Todo `OK`; cualquier `MAL` se corrige antes de terminar.
 4. Reporta: agentes configurados, ruta del backup, los avisos que imprimió el instalador y el comando `--restore` para deshacerlo.
 
-Sin shell disponible: replica `install.sh` por pasos, en este orden: (a) copia `core/AGENTS.md`, `rules/`, `skills/`, `templates/` y `output-styles/` a `~/.agents/`; (b) en `~/.claude/CLAUDE.md` sustituye los bloques CSR/MAW por `@~/.agents/AGENTS.md` dentro de un bloque `AGENTS`; (c) `~/.gemini/GEMINI.md`, `~/.codex/AGENTS.md` y `~/.copilot/copilot-instructions.md` → enlace a `~/.agents/AGENTS.md`; (d) skills enlazadas en `~/.claude/skills/` y `~/.gemini/config/skills/`; (e) saca de `~/.claude/rules/` y `~/.gemini/rules/` los ficheros de CSR/MAW (**Claude Code carga todo `~/.claude/rules/` en cada sesión**).
+Sin shell disponible: replica `install.sh` por pasos, en este orden: (a) copia `core/AGENTS.md`, `rules/`, `skills/`, `templates/` y `output-styles/` a `~/.agents/`, y `templates/models.md` a `~/.agents/models.md` si no existe; (b) en `~/.claude/CLAUDE.md` sustituye los bloques CSR/MAW por `@~/.agents/AGENTS.md` dentro de un bloque `AGENTS`; (c) `~/.gemini/GEMINI.md`, `~/.codex/AGENTS.md` y `~/.copilot/copilot-instructions.md` → enlace a `~/.agents/AGENTS.md`; (d) skills enlazadas en `~/.claude/skills/` y `~/.gemini/config/skills/`; (e) saca de `~/.claude/rules/` y `~/.gemini/rules/` los ficheros de CSR/MAW (**Claude Code carga todo `~/.claude/rules/` en cada sesión**).
 
 ## 3. Proyecto
 1. `./install.sh --project-only <ruta>`. Migra los overrides del bloque CSR antiguo a `AGENTS.md` y deja `CLAUDE.md` como `@AGENTS.md`.

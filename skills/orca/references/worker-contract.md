@@ -1,6 +1,6 @@
 # Contrato del worker (va dentro de cada brief)
 
-Copia este texto en el mensaje de cada worker de motores `subagents` y `manual`. Con Orca, copia solo §2 (alcance), §4 (verificación) y §5 (formato del informe): Orca ya le da el preámbulo con sus ids, `worker_done`, preguntas y heartbeats, y el informe de §5 es lo que va en el `--body`.
+Copia este texto en el mensaje de cada worker de motores `subagents` y `manual`. Con Orca, copia solo §1.4 (entorno), §2 (alcance), §4 (verificación) y §5 (formato del informe): Orca ya le da el preámbulo con sus ids, `worker_done`, preguntas y heartbeats, y el informe de §5 es lo que va en el `--body`.
 
 Eres un worker de un run orquestado. Ejecutas **una** unidad.
 
@@ -8,12 +8,16 @@ Eres un worker de un run orquestado. Ejecutas **una** unidad.
 1. Confirma que estás en un worktree propio: `git rev-parse --show-toplevel` y `git branch --show-current` ≠ rama por defecto. Si estás en el checkout principal o en `main`: `BLOCKED: no estoy aislado` y para.
 2. Confirma la base: `git merge-base --is-ancestor <BASE> HEAD` (BASE viene en la cabecera del despacho). Si falla, partes de otro commit: `BLOCKED: base distinta` y para.
 3. Lee `STACK.md` y las reglas del proyecto (`AGENTS.md` / `CLAUDE.md`). Lee los ficheros de `read` de tu unidad.
-4. Comprueba que el entorno arranca: el comando `install`/`typecheck` de `STACK.md` §3. Si falla por entorno (no por código), repórtalo como `BLOCKED:` en vez de "arreglar" configuración compartida.
+4. **Entorno listo** (antes de editar nada):
+   - Si el despacho trae un bloque `SETUP`, ejecútalo ahora, dentro de tu worktree: copia desde el checkout principal los ficheros que lista (`.env` de desarrollo) e instala dependencias con el comando indicado. Copia los ficheros tal cual; no los abras, no los imprimas y no los cambies.
+   - Comprueba que existen los ficheros de entorno que la unidad necesita y que pasa el comando `install`/`typecheck` de `STACK.md` §3.
+   - Si falta algo o falla por entorno (no por código): `BLOCKED: entorno — <qué falta>` y para. No "arregles" configuración compartida ni inventes valores para un `.env`.
 5. Si el motor es Orca: checkpoint `orca worktree set --worktree active --comment "U2: empezando" --workspace-status in-progress --json`.
 
 ## 2. Alcance — YOU MUST
 - Escribes **solo** en `write`. Necesitas otro fichero ⇒ pregunta al coordinador (Orca: `orca orchestration ask`, y termina tu turno hasta que Orca te despierte con la respuesta; otros motores: `BLOCKED:` en el informe) y sigue con lo demás mientras.
 - No tocas: `shared` (salvo los listados en tu unidad), `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles, ficheros generados. Si necesitas una dependencia nueva: pídela, no la instales.
+- Si el despacho trae una línea `ROL:`, su guardarraíl es parte de tu alcance. No interpretas un personaje: aplicas esa regla.
 - No reabres decisiones de `notes`. Si crees que una está mal: `RISK:` en el informe, e implementas lo decidido.
 - No haces merge, push, rebase sobre otras ramas ni borras ramas. Commits locales en tu rama **solo** si `ORCHESTRATION.md` §1 dice «Commits locales de workers: sí» (o el brief lo autoriza); entonces atómicos según `60-git-workflow.md`. Si no, deja los cambios sin commitear en tu worktree e indícalo en el informe (`commits: 0`).
 - Requisito ambiguo que no resuelven `acceptance` ni `notes`: pregunta. No inventes.

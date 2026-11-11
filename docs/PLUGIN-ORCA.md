@@ -19,10 +19,10 @@ Si `omk` no está en el `PATH`, el terminal muestra el error del shell y, en uno
 
 ### Por qué el contrato del worker
 
-Con el motor Orca, la skill `orca` solo copia en el despacho el alcance del contrato (§2), porque Orca ya le explica al worker cómo preguntar y cómo cerrar con `worker_done`. El resto del contrato (arranque, verificación con `csr-gate` y el formato fijo del informe que lee el coordinador) se quedaba fuera. El hook añade una línea que remite al fichero completo. Para eso:
+Con el motor Orca, la skill `orca` copia en el despacho solo parte del contrato (entorno §1.4, alcance §2, verificación §4 e informe §5), porque Orca ya le explica al worker cómo preguntar y cómo cerrar con `worker_done`. El hook añade una línea que remite al fichero completo, para que el worker tenga también el arranque y la implementación. Para eso:
 
 - Solo actúa sobre prompts que Orca marca como despacho de orquestación (`inputKind: "orchestration"`). Nunca toca lo que escribes tú, los prompts de arranque de un agente ni `orca terminal send`.
-- En el modo por defecto (*Solo despachos del kit*), además, el despacho tiene que llevar la cabecera de la skill `orca` (`UNIT: U<n> …` al principio de una línea y `RUN: …`). Los despachos de otros coordinadores pasan intactos. *Todos los despachos* lo añade a cualquiera; *Desactivado* lo apaga.
+- En el modo por defecto (*Solo despachos del kit*), además, el despacho tiene que llevar la cabecera de la skill `orca` (`UNIT: U<n> …` al principio de una línea y `RUN: …`). Las líneas `ROL:` y `SETUP:` que la skill añade desde la 1.4.0 no cambian esa detección. Los despachos de otros coordinadores pasan intactos. *Todos los despachos* lo añade a cualquiera; *Desactivado* lo apaga.
 - Si el prompt ya cita `worker-contract.md`, no lo repite.
 - **No deniega nunca** y falla en abierto (`"onError": "pass"`): si el worker del plugin falla o tarda más de 2 s, Orca envía el prompt sin cambios. Es una ayuda para el worker, no un control de seguridad.
 
@@ -83,13 +83,14 @@ DEFERRED:
 - **Progreso del run en la barra** (`ronda 1 · 2/3 unidades`): exige leer `.work/runs/<run>/units.md`, y la API de Orca no da acceso a ficheros a los workers. Hoy el coordinador lo deja en el comentario del worktree (`orca worktree set --comment`).
 - **Instalación desde Git** (`orca plugin install FernandoBaqueroo/orca-multiagent-kit`): la ayuda de `orca plugin install` (1.4.252) no documenta instalar desde una subcarpeta del repositorio. Haría falta un repo propio para el plugin o confirmar que Orca acepta una URL `tree/<ref>/orca-plugin`.
 - **Instalación automática** con `install.sh` / `omk install`: ahora se instala a mano. Para hacerlo automático hay que tocar el instalador, y se deja para otro PR.
-- **Preparar worktrees nuevos** (`workspace.create.after`): ya lo hacen `orca.yaml` y `worker-start --setup run`, así que un hook duplicaría ese trabajo.
+- **Preparar worktrees nuevos** (`workspace.create.after`): ya lo hacen `orca.yaml` (`scripts.setup`, `sharedDirectories`), `.worktreeinclude` y `worker-start --setup run`, que la skill pasa siempre; un hook duplicaría ese trabajo.
+- **Rol y modelo en la barra de estado**: la barra cuenta agentes por estado, pero no sabe qué rol de Olimpo ni qué nivel de modelo tiene cada uno; eso está en `.work/runs/<run>/run.md`, que el plugin no puede leer.
 
 ## Probarlo
 
 ```bash
 orca plugin validate orca-plugin --json   # manifiesto como lo carga Orca
-orca plugin test orca-plugin --json       # 37 pruebas: src/kit.test.ts y src/worker.test.ts
+orca plugin test orca-plugin --json       # 38 pruebas: src/kit.test.ts y src/worker.test.ts
 orca plugin check orca-plugin --json
 orca plugin inspect orca-plugin --json    # qué aporta y qué acceso pide
 bash scripts/check.sh                     # comprobación estática del manifiesto, también en CI (sin Orca)
