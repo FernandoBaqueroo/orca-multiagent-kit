@@ -54,7 +54,7 @@ echo "== omk setup desde el ejecutable"
 check "deja omk en OMK_BIN_DIR"                  'run setup --yes --no-path --agents claude && [ -x "$W/bin/$EXE_NAME" ] && said "omk copiado en"'
 check "instala el plugin desde el kit extraído"  'grep -qF "plugin install $OMK_HOME" "$STATE.calls" && said "Entorno de Orca listo"'
 check "con su carpeta ya en el PATH no lo toca" 'PATH="$W/bin:$PATH" run setup --yes --no-plugin --agents claude && said "ya está en el PATH"'
-rm -rf "$W/bin"; mkdir -p "$W/bin"; echo "otra herramienta" > "$W/bin/$EXE_NAME"
+rm -rf "${W:?}/bin"; mkdir -p "$W/bin"; echo "otra herramienta" > "$W/bin/$EXE_NAME"
 check "no pisa otro omk que no es el del kit"    '! run setup --yes --no-path --no-plugin --agents claude && said "no es el ejecutable del kit" && [ "$(cat "$W/bin/$EXE_NAME")" = "otra herramienta" ]'
 
 printf '\n%s ok · %s fallos\n' "$PASS" "$FAIL"
