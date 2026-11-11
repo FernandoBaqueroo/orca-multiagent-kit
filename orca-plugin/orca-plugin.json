@@ -2,8 +2,8 @@
   "manifestVersion": 2,
   "id": "multiagent-kit",
   "name": "Orca Multiagent Kit",
-  "version": "0.1.0",
-  "description": "Comandos del kit en la paleta, el contrato del worker en cada despacho de orquestación del kit y los agentes activos en la barra de estado.",
+  "version": "0.2.0",
+  "description": "Comandos del kit en la paleta, un panel con las acciones y los ajustes, el contrato del worker en cada despacho de orquestación del kit y los agentes activos en la barra de estado.",
   "author": {
     "name": "Fernando Baquero y Necro-Coder",
     "url": "https://github.com/FernandoBaqueroo/orca-multiagent-kit"
@@ -27,6 +27,9 @@
     { "kind": "settings:own" }
   ],
   "contributes": {
+    "panels": [
+      { "id": "kit", "title": "Multiagent Kit", "icon": "bot", "entry": "src/panel.tsx", "ui": "components" }
+    ],
     "commands": [
       { "id": "kit.verify", "title": "Orca Multiagent Kit: verificar instalación", "when": "workspace" },
       { "id": "kit.init", "title": "Orca Multiagent Kit: inicializar proyecto", "when": "workspace" },

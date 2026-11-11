@@ -1,10 +1,12 @@
 // Worker del plugin: comandos de paleta del kit, referencia al contrato del worker en los
-// despachos de orquestación y un resumen de agentes en la barra de estado.
+// despachos de orquestación, un resumen de agentes en la barra de estado y las peticiones del panel.
 // Orca transpila este fichero al cargarlo: no hay paso de build.
 import type { OrcaWorkerApi } from 'orca/worker'
 import {
   INSTALL_HINT,
+  agentLines,
   describeAgents,
+  isKitAction,
   isMissingCommand,
   isValidAgentId,
   parseContractHintMode,
@@ -13,8 +15,10 @@ import {
   summarizeAgents,
   withContractHint,
   type ContractHintMode,
+  type KitAction,
   type TrackedAgent
 } from './kit.ts'
+import type { AgentsView } from './protocol.ts'
 
 const STATUS_ITEM = 'agents'
 const INIT_PROMPT = 'inicializa el proyecto'
@@ -45,12 +49,16 @@ export function deactivate(): void {
 const describeError = (error: unknown) =>
   error instanceof Error ? `${(error as { code?: string }).code ?? 'error'}: ${error.message}` : String(error)
 
+// Un `code` de error del host llega tal cual al panel (`plugin.request` lo rechaza con él).
+const invalidParams = (message: string) => Object.assign(new Error(message), { code: 'invalid_params' })
+
 export default async function activate(orca: OrcaWorkerApi): Promise<void> {
   const { host } = orca
   let contractHint: ContractHintMode = 'kit'
   let statusBarEnabled = true
   let initAgent: unknown = DEFAULT_INIT_AGENT
   const agents = new Map<string, TrackedAgent>()
+  let postedView = ''
 
   const notify = (title: string, body: string) => {
     void host.call('notifications.show', { title, body }).catch((error: unknown) => {
@@ -78,10 +86,25 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     return resolveFocusedWorkspaceId(focused, list.workspaces)
   }
 
+  const agentsView = (): AgentsView => ({
+    ...summarizeAgents(agents.values()),
+    agents: agentLines(agents.values())
+  })
+
+  // Los paneles abiertos reciben el resumen solo cuando cambia: los eventos de estado llegan a
+  // ráfagas y Orca limita los envíos (200 cada 10 s).
+  const postAgents = (view: AgentsView) => {
+    const serialized = JSON.stringify(view)
+    if (serialized === postedView) return
+    postedView = serialized
+    orca.panels.post('agents.changed', view)
+  }
+
   const renderStatus = () => {
-    const summary = summarizeAgents(agents.values())
+    const view = agentsView()
+    postAgents(view)
     const update = statusBarEnabled
-      ? { id: STATUS_ITEM, visible: true, text: summary.text, tone: summary.tone, tooltip: summary.tooltip }
+      ? { id: STATUS_ITEM, visible: true, text: view.text, tone: view.tone, tooltip: view.tooltip }
       : { id: STATUS_ITEM, visible: false }
     void host.call('statusBar.update', update).catch((error: unknown) => {
       orca.log(`barra de estado sin actualizar: ${describeError(error)}`)
@@ -146,10 +169,24 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     return prompt === null ? undefined : next({ ...event, prompt })
   })
 
-  orca.commands.register('kit.verify', runOmk('verify'))
-  orca.commands.register('kit.update', runOmk('update'))
-  orca.commands.register('kit.init', initProject)
+  const actions: Record<KitAction, () => Promise<string>> = {
+    verify: runOmk('verify'),
+    update: runOmk('update'),
+    init: initProject
+  }
+
+  orca.commands.register('kit.verify', actions.verify)
+  orca.commands.register('kit.update', actions.update)
+  orca.commands.register('kit.init', actions.init)
   orca.commands.register('agents.status', async () => describeAgents(agents.values()))
+
+  // El panel solo elige entre las acciones fijas de arriba; cualquier otro valor se rechaza.
+  orca.panels.handle('kit.run', async (input) => {
+    const action: unknown = input?.action
+    if (!isKitAction(action)) throw invalidParams(`acción desconocida: ${String(action)}`)
+    return { message: await actions[action]() }
+  })
+  orca.panels.handle('agents.summary', () => agentsView())
 
   orca.events.on('agent.status.changed', (event) => {
     const key = event.terminalId ? `t:${event.terminalId}` : `p:${event.paneKey}`
