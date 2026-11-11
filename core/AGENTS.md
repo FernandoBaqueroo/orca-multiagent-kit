@@ -1,4 +1,4 @@
-# Reglas operativas globales (Orca Multiagent Kit v1.4.1 · CSR + MAW)
+# Reglas operativas globales (Orca Multiagent Kit v1.5.0 · CSR + MAW)
 <!-- Fuente única para todos los agentes (import o enlace). Edita el kit y reinstala; no edites copias. -->
 
 ## 0. Precedencia

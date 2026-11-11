@@ -5,6 +5,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-11
+
 Orca listo de una vez: `omk setup`, un ejecutable sin Node y el plugin configurable desde un panel. Detalle en [`docs/EJECUTABLE.md`](docs/EJECUTABLE.md).
 
 ### Añadido
@@ -140,7 +142,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.2.0...v1.3.0
