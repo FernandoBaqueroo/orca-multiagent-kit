@@ -7,7 +7,9 @@ err(){ printf '  FAIL  %s\n' "$1"; FAIL=1; }
 ok(){ printf '  ok    %s\n' "$1"; }
 
 echo "== sintaxis bash"
-node --check bin/omk.js 2>/dev/null && ok "bin/omk.js" || { command -v node >/dev/null && err "bin/omk.js"; }
+for f in bin/*.js scripts/*.js tests/fixtures/*.js; do
+  node --check "$f" 2>/dev/null && ok "$f" || { command -v node >/dev/null && err "$f"; }
+done
 for f in install.sh scripts/*.sh tests/*.sh; do bash -n "$f" && ok "$f" || err "$f"; done
 # bash 3.2 (macOS) lee un carácter no ASCII pegado a $VAR como parte del nombre: «$FIX»» falla con set -u. Usa ${VAR}.
 for f in install.sh scripts/*.sh tests/*.sh; do
@@ -95,6 +97,7 @@ if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(m.id || '') || m.id.startsWith('orca-')) pr
 if (!/^\d+\.\d+\.\d+$/.test(m.version || '')) problems.push(`version no es SemVer: ${m.version}`)
 if (!/^>=\d+\.\d+\.\d+$/.test((m.engines || {}).orca || '')) problems.push('engines.orca debe ser >=x.y.z')
 if (m.main && !fs.existsSync(path.join(dir, m.main))) problems.push(`main no existe: ${m.main}`)
+for (const p of c.panels || []) if (!fs.existsSync(path.join(dir, p.entry))) problems.push(`panels.${p.id}: entry no existe: ${p.entry}`)
 const ids = new Set((c.commands || []).map((x) => x.id))
 for (const item of c.statusBarItems || []) if (item.command && !ids.has(item.command)) problems.push(`statusBarItems.${item.id}: comando ${item.command} no declarado`)
 const kinds = new Set((m.capabilities || []).map((x) => x.kind))

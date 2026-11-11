@@ -28,8 +28,33 @@ jobs:
         run: bash tests/test_install.sh
       - name: Pruebas del CLI (npm pack + omk)
         run: bash tests/test_cli.sh
+      - name: Pruebas de omk setup y omk plugin (doble de Orca)
+        run: bash tests/test_orca.sh
       - name: Empaquetado
         run: bash scripts/build-release.sh
+
+  exe:
+    name: Ejecutable autónomo (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # El ejecutable lleva dentro este Node: una LTS con soporte largo
+          node-version: 22
+      - name: Construir
+        run: node scripts/build-exe.js
+      - name: Probar el ejecutable
+        run: bash tests/test_exe.sh
+      - name: Pruebas de omk setup y omk plugin (doble de Orca)
+        run: bash tests/test_orca.sh
 
   speckit:
     name: Extensión spec-kit (CLI real)

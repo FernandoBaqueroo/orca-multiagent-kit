@@ -5,6 +5,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+Orca listo de una vez: `omk setup`, un ejecutable sin Node y el plugin configurable desde un panel. Detalle en [`docs/EJECUTABLE.md`](docs/EJECUTABLE.md).
+
+### Añadido
+- **`omk setup`**: instala el kit, abre Orca si hace falta, enciende los plugins, instala (o actualiza, o aprueba) el plugin del kit y abre su panel. Enseña lo que pide el plugin y pregunta antes de aprobarlo; `--yes` lo aprueba de antemano, `--dry-run` simula, `--no-plugin` solo instala el kit.
+- **`omk plugin install|status|uninstall`**: el plugin de Orca sin copiar comandos de `orca plugin`. No toca una versión instalada desde otra carpeta ni reactiva un plugin que desactivaste.
+- **Ejecutable autónomo** (`omk-windows-x64.exe`, `omk-macos-arm64`, `omk-linux-x64`, Node SEA): con doble clic hace `omk setup`, se copia al `PATH` del usuario (en Windows, en el registro, conservando las variables sin expandir) y extrae el kit a una carpeta estable. `scripts/build-exe.js` lo construye; la release lo adjunta con su `.sha256`.
+- **Panel *Multiagent Kit*** en el plugin (v0.2.0): verificar, inicializar y actualizar con un botón, los tres ajustes del plugin (los mismos de *Settings → Plugins*) y los agentes activos.
+- Pruebas: `tests/test_orca.sh` (contra un doble del CLI de Orca), `tests/test_exe.sh` y las del panel; la CI construye y prueba el ejecutable en Linux, macOS y Windows.
+
+### Cambiado
+- La notificación «omk no está instalado» del plugin menciona el ejecutable y que hay que reiniciar Orca.
+
 ## [1.4.1] - 2026-11-11
 
 ### Corregido

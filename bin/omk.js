@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// omk — CLI de Orca Multiagent Kit. Sin dependencias: envuelve install.sh con comandos cortos.
+// omk — CLI de Orca Multiagent Kit. Sin dependencias: envuelve install.sh con comandos cortos y prepara Orca.
 'use strict';
 
 const { spawn, spawnSync } = require('node:child_process');
@@ -11,6 +11,9 @@ const KIT = path.resolve(__dirname, '..');
 const VERSION = fs.readFileSync(path.join(KIT, 'VERSION'), 'utf8').trim();
 const REPO = 'orca-multiagent-kit';
 const AGENTS_HOME = process.env.AGENT_KIT_HOME || path.join(os.homedir(), '.agents');
+const RELEASES = 'https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest';
+// Ejecutable autónomo (Node SEA, bin/sea.js)
+const STANDALONE = require('./orca').isSea;
 
 const color = process.stdout.isTTY && !process.env.NO_COLOR;
 const lime = (s) => (color ? `\x1b[38;5;154m${s}\x1b[0m` : s);
@@ -24,9 +27,11 @@ ${bold('Uso')}
   omk <comando> [opciones]
 
 ${bold('Comandos')}
+  ${lime('setup')}    [--yes] [--dry-run]          Prepara Orca entero: kit, plugins, plugin del kit y su panel
   ${lime('install')}  [--agents a,b] [--dry-run]   Instala o migra la fuente única en ~/.agents
   ${lime('init')}     [ruta]                       Prepara un proyecto (por defecto, la carpeta actual)
   ${lime('verify')}                                Comprueba enlaces, imports y copias divergentes
+  ${lime('plugin')}   install|status|uninstall     El plugin de Orca del kit (install pide tu aprobación)
   ${lime('adopt')}    <carpeta-skill>              Comparte una skill externa con todos los agentes
   ${lime('backups')}                               Lista las copias de seguridad
   ${lime('restore')}  <fecha>                      Deshace una instalación (fecha de "omk backups")
@@ -38,6 +43,7 @@ ${bold('Comandos')}
 ${bold('Agentes')}  claude · antigravity · codex · copilot · cursor · devin (opcional)
 
 ${bold('Ejemplos')}
+  omk setup                     ${dim('todo de una vez; pregunta antes de aprobar el plugin')}
   npx orca-multiagent-kit install --dry-run
   omk install
   omk init ~/Dev/mi-app
@@ -68,15 +74,30 @@ function findBash() {
   die('Windows necesita Git Bash. Instala Git for Windows, define OMK_BASH con la ruta de su bash.exe, o ejecuta omk dentro de WSL (instala en el $HOME de WSL).');
 }
 
-function runInstaller(args) {
+/** Ejecuta install.sh dibujando su salida; resuelve con su código de salida. */
+function installer(args) {
   const child = spawn(findBash(), [path.join(KIT, 'install.sh'), ...args], {
     stdio: ['inherit', 'pipe', 'pipe'],
     env: { ...process.env, OMK_CLI: '1', OMK_EVENTS: '1' },
   });
   child.on('error', (e) => die(e.message));
   // Ctrl+C: deja la terminal limpia (sin el spinner a medias)
-  process.on('SIGINT', () => { process.stdout.write('\r\x1b[2K'); child.kill('SIGINT'); process.exit(130); });
-  require('./ui').render(child).then((code) => process.exit(code));
+  const onInterrupt = () => { process.stdout.write('\r\x1b[2K'); child.kill('SIGINT'); process.exit(130); };
+  process.on('SIGINT', onInterrupt);
+  return require('./ui').render(child).finally(() => process.off('SIGINT', onInterrupt));
+}
+
+function runInstaller(args) {
+  installer(args).then((code) => process.exit(code));
+}
+
+// Un fallo inesperado de setup/plugin se cuenta y sale con error; nunca se queda a medias en silencio.
+function finish(promise) {
+  const { pauseIfAsked } = require('./setup');
+  promise
+    .catch((e) => { process.stderr.write(`omk: ${e.message}\n`); return 1; })
+    .then(pauseIfAsked)
+    .then((code) => process.exit(code));
 }
 
 function listBackups() {
@@ -88,6 +109,14 @@ function listBackups() {
 const [cmd = 'help', ...rest] = process.argv.slice(2);
 
 switch (cmd) {
+  case 'setup':
+    finish(require('./setup').setup({ kit: KIT, args: rest, installer, standalone: STANDALONE }));
+    break;
+
+  case 'plugin':
+    finish(require('./setup').plugin({ kit: KIT, args: rest }));
+    break;
+
   case 'install':
   case 'i':
     runInstaller(rest);
@@ -124,6 +153,13 @@ switch (cmd) {
     break;
 
   case 'update': {
+    if (STANDALONE) {
+      // El ejecutable no se actualiza solo: la versión nueva es otro binario que se descarga.
+      console.log(`${lime('›')} Este omk es el ejecutable autónomo v${VERSION}. La última versión está en ${RELEASES}`);
+      console.log(dim('  Descárgala y ejecútala (o «omk setup» con ella). Reaplicando ahora la instalación de esta versión…'));
+      runInstaller(rest.filter((a) => a !== '--force'));
+      break;
+    }
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     const sh = { encoding: 'utf8', shell: process.platform === 'win32' };
     const latest = (spawnSync(npm, ['view', REPO, 'version'], sh).stdout || '').trim();
