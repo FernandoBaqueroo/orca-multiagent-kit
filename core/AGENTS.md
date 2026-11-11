@@ -1,4 +1,4 @@
-# Reglas operativas globales (Orca Multiagent Kit v1.3.0 · CSR + MAW)
+# Reglas operativas globales (Orca Multiagent Kit v1.4.0 · CSR + MAW)
 <!-- Fuente única para todos los agentes (import o enlace). Edita el kit y reinstala; no edites copias. -->
 
 ## 0. Precedencia
@@ -57,8 +57,8 @@ Ningún código es válido hasta pasar, en orden y sin saltos (módulos en `~/.a
 - **Usa la skill `orca` por iniciativa propia**, sin esperar a que te lo pidan, cuando la tarea tenga ≥2 partes independientes de >15 min (varias user stories, sprints, módulos o pantallas) o el usuario mencione paralelo, Orca, worktrees o varios agentes. Ella decide si compensa y, si no, lo dice en una línea y sigues tú.
 - En proyectos con spec-kit, `/speckit.implement` llama a `orca` automáticamente (hook `before_implement`). No hace falta pedirlo.
 - Cambio único y claro ⇒ sin orquestar: hazlo y pasa `csr-gate`.
-- Respeta la autonomía de `./ORCHESTRATION.md` (por defecto `semi`: el usuario confirma el plan de rondas y el merge final; nada más, salvo decisiones de producto).
-- **Invariantes — YOU MUST**: (1) una unidad = un worktree = una rama; (2) los ficheros `shared` de `ORCHESTRATION.md` los toca una sola unidad por ronda o el coordinador; (3) un worker no edita `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles ni migraciones ajenas; (4) un worker no mergea, ni hace push, ni borra ramas; (5) todo worker entrega su informe; (6) salir del alcance ⇒ `BLOCKED:` y preguntar; (7) nunca merge a la rama por defecto ni push sin confirmación.
+- Respeta la autonomía de `./ORCHESTRATION.md` (por defecto `semi`: el usuario confirma el plan de rondas, el merge final y la limpieza de worktrees y ramas; nada más, salvo decisiones de producto).
+- **Invariantes — YOU MUST**: (1) una unidad = un worktree = una rama; (2) los ficheros `shared` de `ORCHESTRATION.md` los toca una sola unidad por ronda o el coordinador; (3) un worker no edita `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles ni migraciones ajenas; (4) un worker no mergea, ni hace push, ni borra ramas; (5) todo worker entrega su informe; (6) salir del alcance ⇒ `BLOCKED:` y preguntar; (7) nunca merge a la rama por defecto ni push sin confirmación; (8) ningún worktree nace de una rama local sin contrastar con `origin`, y todo worktree integrado se ofrece para borrar al cerrar el run.
 Detalle: `~/.agents/rules/95-multi-agent.md`.
 
 ## 7. Router (leer bajo demanda, no todo a la vez)

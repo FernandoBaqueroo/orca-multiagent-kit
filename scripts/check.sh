@@ -46,7 +46,34 @@ sys.exit(0 if pathlib.Path(d,'banner.svg').read_text()==pathlib.Path('assets/ban
 EOF
 PV="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' package.json)"
 [ "$PV" = "$V" ] || err "package.json ($PV) no coincide con VERSION ($V)"
+grep -q "<span id=\"ver\">v$V</span>" site/index.html || err "site/index.html: el pie no dice v$V"
 ok "versión $V"
+
+echo "== Olimpo (roles con nivel válido, modelos solo en models.md)"
+OL=skills/orca/references/olimpo.md
+NROL=0
+while IFS= read -r line; do
+  NROL=$((NROL+1))
+  lvl="$(printf '%s' "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/,"",$4); print $4}')"
+  case "$lvl" in alto|medio|bajo) ;; *) err "$OL: rol sin nivel válido (alto|medio|bajo): $(printf '%s' "$line" | cut -c1-60)" ;; esac
+done <<EOF
+$(grep -E '^\| \*\*' "$OL")
+EOF
+[ "$NROL" -ge 10 ] || err "$OL: solo $NROL roles (se esperan al menos 10)"
+for lvl in alto medio bajo; do
+  grep -Eq "^\| $lvl \|" templates/models.md || err "templates/models.md: falta la fila del nivel $lvl"
+  grep -Eq "^\| \`$lvl\` \|" "$OL" || err "$OL: falta la definición del nivel $lvl"
+done
+# El kit no nombra versiones de modelo: caducan. Los nombres viven en ~/.agents/models.md, que es del usuario.
+MODEL_ID='(claude-(opus|sonnet|haiku)-[0-9]|gpt-[0-9]|gemini-[0-9]|o[0-9]-(mini|pro))'
+if grep -rnEi "$MODEL_ID" core rules skills templates >/dev/null; then
+  grep -rnEi "$MODEL_ID" core rules skills templates | sed 's/^/  /'; err "versión concreta de un modelo en reglas, skills o plantillas"
+fi
+grep -q 'Agentes por capa' templates/ORCHESTRATION.md && err "templates/ORCHESTRATION.md conserva la tabla «Agentes por capa» (el reparto sale de olimpo.md)"
+for f in SKILL.md references/units.md references/ledger.md references/integrate.md; do
+  grep -q 'olimpo\|role\|cleanup' "skills/orca/$f" || err "skills/orca/$f no enlaza con Olimpo ni con la limpieza"
+done
+ok "$NROL roles · 3 niveles · sin versiones de modelo en el kit"
 
 echo "== rutas neutrales (sin ~/.claude/rules ni ~/.gemini/rules en reglas y skills)"
 # shellcheck disable=SC2088  # se busca el texto literal "~/", no una ruta

@@ -156,7 +156,7 @@ footer{margin-top:64px;color:var(--muted);font-size:13px;text-align:center}
 <div class="ambient" aria-hidden="true"><span></span><span></span></div>
 <main>
 <nav class="toc" aria-label="Secciones">
-  <a href="#fuente">Fuente única</a><a href="#instalar">Instalar</a><a href="#proyecto">Proyecto nuevo</a><a href="#modos">Modos</a><a href="#paralelo">Paralelo</a><a href="#speckit">spec-kit</a><a href="#reglas">Reglas</a><a href="#convivencia">Convivencia</a><a href="#editar">Editar</a><a href="#frases">Frases</a><a href="#problemas">Problemas</a>
+  <a href="#fuente">Fuente única</a><a href="#instalar">Instalar</a><a href="#proyecto">Proyecto nuevo</a><a href="#modos">Modos</a><a href="#paralelo">Paralelo</a><a href="#olimpo">Olimpo</a><a href="#speckit">spec-kit</a><a href="#reglas">Reglas</a><a href="#convivencia">Convivencia</a><a href="#editar">Editar</a><a href="#frases">Frases</a><a href="#problemas">Problemas</a>
 </nav>
 
 <header class="hero">
@@ -246,7 +246,7 @@ chmod +x install.sh
 
 <section id="paralelo">
   <h2>Cómo trabajan en paralelo sin pisarse</h2>
-  <p class="sub">Toda entrada se convierte en unidades de trabajo. El coordinador hace la base común (U0), cada unidad va a su worktree y su rama, y todo se integra en una rama de trabajo. Con autonomía <code>semi</code> solo confirmas dos veces: el plan de rondas y el merge final.</p>
+  <p class="sub">Toda entrada se convierte en unidades de trabajo. El coordinador hace la base común (U0), cada unidad va a su worktree y su rama, y todo se integra en una rama de trabajo. Todo parte de <code>origin</code> actualizado, nunca de una rama local desfasada, y cada worktree nace con sus dependencias y su <code>.env</code> de desarrollo. Con autonomía <code>semi</code> solo confirmas tres veces: el plan de rondas, el merge final y la limpieza.</p>
   <div class="glass pad diagram lanes" role="img" aria-label="Pipeline: entrada, unidades, U0 del coordinador, tres workers en paralelo en worktrees (Claude, Antigravity, Codex), integración con gates y tu sí">
     <svg viewBox="0 0 760 300">
       <g><rect class="node" x="10" y="115" width="110" height="70" rx="16"/><text x="65" y="144" text-anchor="middle" font-size="13" font-weight="600">Entrada</text><text class="lbl" x="65" y="163" text-anchor="middle">chat · plan · spec</text></g>
@@ -267,9 +267,29 @@ chmod +x install.sh
     </svg>
   </div>
   <div class="grid g3" style="margin-top:14px">
-    <div class="glass pad"><h3>Motor <code>orca</code></h3><p class="muted small">Varios proveedores a la vez, con seguimiento en la interfaz. Requiere Orca abierto y la orquestación activada en Experimental.</p></div>
-    <div class="glass pad"><h3>Motor <code>subagents</code></h3><p class="muted small">Un solo proveedor sin Orca: subagentes nativos de Claude, o el Agent Manager de Antigravity.</p></div>
-    <div class="glass pad"><h3>Motor <code>manual</code></h3><p class="muted small">El agente crea los worktrees y te dice qué agente abrir en cada carpeta y con qué brief.</p></div>
+    <div class="glass pad"><h3>Worker de Orca</h3><p class="muted small">Para unidades de otro proveedor y revisiones cruzadas, con seguimiento en la interfaz. Requiere Orca abierto y la orquestación activada en Experimental.</p></div>
+    <div class="glass pad"><h3>Subagente</h3><p class="muted small">Para unidades del mismo proveedor que coordina: con worktree propio si escribe, sin worktree si solo lee (investigar, auditar, revisar).</p></div>
+    <div class="glass pad"><h3>Manual</h3><p class="muted small">Si no hay Orca ni subagentes, el agente crea los worktrees y te dice qué agente abrir en cada carpeta y con qué brief. El recurso se elige unidad a unidad, y un run puede mezclarlos.</p></div>
+  </div>
+</section>
+
+<section id="olimpo">
+  <h2>Olimpo: quién hace cada unidad y con qué modelo</h2>
+  <p class="sub">Cada unidad recibe un rol. Del rol sale el nivel de modelo, y del nivel, el modelo de cada proveedor. Los nombres de modelo viven solo en <code>~/.agents/models.md</code>, que es tuyo: cuando sale un modelo nuevo no hay que reinstalar ni reinicializar nada.</p>
+  <div class="glass table-wrap">
+    <table>
+      <thead><tr><th>Nivel</th><th>Trabajo</th><th>Roles</th></tr></thead>
+      <tbody>
+        <tr><td><code>alto</code></td><td>Arquitectura, seguridad, normativa, revisión crítica y código de dinero, fiscal, tenancy y auth</td><td>Hefesto, Dédalo, Casandra, Temis, Ariadna</td></tr>
+        <tr><td><code>medio</code></td><td>Implementación, ADR técnicos, investigación, tests e infraestructura</td><td>Perséfone, Proteo, Narciso, Ícaro, Argos, Atlas</td></tr>
+        <tr><td><code>bajo</code></td><td>Tareas mecánicas: índices, tableros, plantillas, formateo, enlaces, extracción</td><td>Clío</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="glass pad"><h3>El plan lo enseña todo</h3><p class="muted small">Antes de tu «sí» ves, por unidad, el rol, el nivel, el modelo y el recurso que se va a usar.</p></div>
+    <div class="glass pad"><h3>Modelos al día solos</h3><p class="muted small">Claude usa alias. Para los demás, la skill consulta la lista del proveedor en cada run: una versión nueva de una familia conocida entra sola; una familia nueva la clasifica el agente con evidencia y te lo dice en el plan.</p></div>
+    <div class="glass pad"><h3>Guardarraíles, no personajes</h3><p class="muted small">Cada rol trae una regla: el código sensible lleva revisión de otro proveedor, un hallazgo de seguridad alto bloquea el merge, el coordinador delega.</p></div>
   </div>
 </section>
 
@@ -299,6 +319,8 @@ chmod +x install.sh
     <div class="glass pad rule"><span class="dot"></span><div><h3>Los workers no tocan el estado</h3><p class="muted small">Ni <code>tasks.md</code>, ni planes, ni <code>STACK.md</code>. Tampoco hacen merge ni push.</p></div></div>
     <div class="glass pad rule"><span class="dot"></span><div><h3>Sin informe no hay unidad</h3><p class="muted small">Formato fijo: qué se hizo, ficheros, criterios verificados, tabla de gates.</p></div></div>
     <div class="glass pad rule"><span class="dot core"></span><div><h3>Nunca PASS sin ejecutar</h3><p class="muted small">Un gate que no se ejecutó se reporta como <code>SKIPPED (motivo)</code>. Al integrar se repasa el conjunto.</p></div></div>
+    <div class="glass pad rule"><span class="dot"></span><div><h3>Base fresca</h3><p class="muted small">Ningún worktree nace de una rama local sin contrastarla con <code>origin</code>. Si la tuya tiene commits sin subir, se te pregunta.</p></div></div>
+    <div class="glass pad rule"><span class="dot"></span><div><h3>Sin residuos</h3><p class="muted small">Tras el merge final ves qué worktrees, ramas y copias de <code>.env</code> han quedado. Se borran solo con tu «sí».</p></div></div>
     <div class="glass pad rule"><span class="dot warn"></span><div><h3>Lo pequeño no se orquesta</h3><p class="muted small">Un cambio claro se hace directamente y pasa <code>csr-gate</code>.</p></div></div>
   </div>
 </section>
@@ -330,7 +352,8 @@ chmod +x install.sh
         <tr><td>Una regla tuya que el kit no debe pisar</td><td><code>~/.agents/rules/personal.md</code></td><td>Nada</td></tr>
         <tr><td>Una skill</td><td><code>orca-multiagent-kit/skills/&lt;skill&gt;/</code></td><td><code>./install.sh</code></td></tr>
         <tr><td>Reglas de un proyecto</td><td><code>AGENTS.md</code> del proyecto, en <em>Overrides</em></td><td>Nada</td></tr>
-        <tr><td>Reparto de agentes de un proyecto</td><td><code>ORCHESTRATION.md</code></td><td>Nada</td></tr>
+        <tr><td>Proveedores activos y dominios sensibles de un proyecto</td><td><code>ORCHESTRATION.md</code></td><td>Nada</td></tr>
+        <tr><td>Qué modelo usa cada nivel en cada proveedor</td><td><code>~/.agents/models.md</code></td><td>Nada</td></tr>
       </tbody>
     </table>
   </div>
@@ -350,7 +373,9 @@ chmod +x install.sh
     <details><summary>Antigravity no ve las skills</summary><p>Comprueba los enlaces en <code>~/.gemini/config/skills/</code> con <code>--verify</code> y reinicia Antigravity. Si se queja del plugin <code>claude-session-rules</code>, desactívalo: su contenido ya está en el núcleo.</p></details>
     <details><summary>El agente orquesta tareas pequeñas</summary><p>Dile «hazlo inline». Si pasa a menudo, ajusta los umbrales en <code>rules/95-multi-agent.md</code>, en «Cuándo paralelizar».</p></details>
     <details><summary>Conflictos en <code>tasks.md</code> o en el plan</summary><p>Un worker lo editó. Revierte su cambio en ese fichero: solo el coordinador marca tareas.</p></details>
-    <details><summary>Un worktree arranca sin dependencias o sin <code>.env</code></summary><p>Repite «inicializa el proyecto». Lo que va en <code>orca.yaml</code> y <code>.worktreeinclude</code> tiene que existir y estar en <code>.gitignore</code>. Solo <code>.env</code> de desarrollo.</p></details>
+    <details><summary>Un worktree arranca sin dependencias o sin <code>.env</code></summary><p>El worker lo detecta al arrancar y se para con <code>BLOCKED: entorno</code>. Repite «inicializa el proyecto»: rellena el setup de <code>ORCHESTRATION.md</code> y <code>orca.yaml</code>. Lo que va en <code>.worktreeinclude</code> tiene que existir y estar en <code>.gitignore</code>. Solo <code>.env</code> de desarrollo: el instalador desactiva los que parecen de producción.</p></details>
+    <details><summary>Ha salido un modelo nuevo</summary><p>No hay que hacer nada. Con Claude, los alias apuntan solos al modelo vigente. Con los demás, la skill lo ve en el siguiente run y, si es de una familia nueva, decide ella su nivel con lo que publica el proveedor y te lo dice en el plan de rondas. Para cambiarlo a mano, edita <code>~/.agents/models.md</code>.</p></details>
+    <details><summary>Quedan worktrees o ramas de un run antiguo</summary><p>Di «limpia el run». El agente enseña el inventario y borra solo lo integrado y sin cambios pendientes, tras tu «sí».</p></details>
     <details><summary>Quiero volver atrás</summary><p><code>./install.sh --restore &lt;fecha&gt;</code> con la fecha que imprimió la instalación. Los backups están en <code>~/.agents/backups/</code>.</p></details>
   </div>
 </section>
@@ -373,8 +398,8 @@ chmod +x install.sh
 
   var MODES=[
     {id:'directo',name:'Directo',when:'Un cambio lógico y claro, en pocos ficheros.',chain:[['agente','lo hace él solo'],['csr-gate','pasa los gates']],engine:'un agente',say:'Añade validación de email al formulario de registro',out:'orca ni se activa: orquestar lo pequeño cuesta más que hacerlo.'},
-    {id:'spec',name:'spec-kit',when:'Tu flujo habitual: specify → plan → tasks. Al implementar, se reparte solo si compensa.',chain:[['/speckit.implement','lo escribes como siempre'],['hook orca','¿compensa repartir?'],['tú','confirmas el plan de rondas'],['workers','una user story por worktree'],['integración','gates y [x] en tasks.md'],['tú','confirmas el merge final']],engine:'orca',say:'/speckit.implement',out:'Si no compensa, implement sigue normal, con un agente.'},
-    {id:'chat',name:'Petición',when:'Pides una feature grande sin spec. El agente detecta las partes independientes.',chain:[['orca','sola, por iniciativa del agente'],['unidades','reescribe tu petición como brief'],['tú','confirmas el plan de rondas'],['workers','en paralelo'],['tú','confirmas el merge final']],engine:'orca · subagentes',say:'Añade el módulo de notificaciones: email, push y preferencias',out:'Lo mismo sirve con un plan del modo plan o un implementation_plan.md.'},
+    {id:'spec',name:'spec-kit',when:'Tu flujo habitual: specify → plan → tasks. Al implementar, se reparte solo si compensa.',chain:[['/speckit.implement','lo escribes como siempre'],['hook orca','¿compensa repartir?'],['tú','confirmas el plan de rondas'],['workers','una user story por worktree'],['integración','gates y [x] en tasks.md'],['tú','confirmas el merge final'],['tú','confirmas la limpieza']],engine:'orca',say:'/speckit.implement',out:'Si no compensa, implement sigue normal, con un agente.'},
+    {id:'chat',name:'Petición',when:'Pides una feature grande sin spec. El agente detecta las partes independientes.',chain:[['orca','sola, por iniciativa del agente'],['unidades','reescribe tu petición como brief'],['tú','confirmas el plan de rondas'],['workers','en paralelo'],['tú','confirmas el merge final'],['tú','confirmas la limpieza']],engine:'orca · subagentes',say:'Añade el módulo de notificaciones: email, push y preferencias',out:'Lo mismo sirve con un plan del modo plan o un implementation_plan.md.'},
     {id:'plan',name:'Sprints',when:'Quieres un plan por sprints antes de tocar código.',chain:[['orca','modo plan'],['planes/x.md','sprints con ficheros y dependencias'],['tú','sprint a sprint o en paralelo']],engine:'un agente · orca',say:'Planifica en sprints el panel de administración',out:'Mantiene los dos modos de planificar y añade el paralelo.'},
     {id:'race',name:'Carrera',when:'Bug difícil de causa desconocida, o varias soluciones plausibles.',chain:[['orca','modo carrera'],['test','reproducción que falla'],['2–3 agentes','mismo problema'],['tabla','puntuación de diffs'],['tú','eliges la ganadora']],engine:'orca',say:'Carrera entre Claude y Gemini: el pago se duplica a veces',out:'Gana el mejor diff, no el mejor informe.'}
   ];

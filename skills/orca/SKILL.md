@@ -12,12 +12,13 @@ Lee `./ORCHESTRATION.md` (si no existe, valores por defecto entre paréntesis):
 - **Autonomía** (`semi`):
   | Nivel | Confirmaciones del usuario |
   |---|---|
-  | `manual` | plan de rondas · cada ronda antes de lanzarla · cada merge |
-  | `semi` | **1)** plan de rondas (autoriza también los commits del run) · **2)** merge final a la rama destino |
-  | `auto` | solo **2)**; el plan se muestra pero no espera respuesta |
-  En ningún nivel se mergea a la rama por defecto ni se hace push sin confirmación. Las decisiones de producto que surjan siempre se preguntan.
-- **Agentes por capa**, **ficheros `shared`**, **máximo de workers** (3), **motor preferido**, **revisión cruzada**, **reintentos** (1).
+  | `manual` | plan de rondas · cada ronda antes de lanzarla · cada merge · **3)** limpieza |
+  | `semi` | **1)** plan de rondas (autoriza también los commits del run) · **2)** merge final a la rama destino · **3)** limpieza |
+  | `auto` | **2)** y **3)**; el plan se muestra pero no espera respuesta |
+  En ningún nivel se mergea a la rama por defecto, se hace push ni se borran worktrees o ramas sin confirmación. Las decisiones de producto que surjan siempre se preguntan.
+- **Proveedores activos**, **dominios sensibles**, **excepciones de reparto**, **ficheros `shared`**, **máximo de workers** (3), **revisión cruzada**, **reintentos** (1), **entorno de worktree**.
 - **Run a medias**: si existe `.work/runs/*/run.md` con `status: active` para este mismo trabajo, no planifiques de nuevo: reanuda con `references/ledger.md` §Reanudar.
+- **Limpieza pendiente**: si algún `run.md` tiene `cleanup: pending`, dilo en una línea antes de seguir (`ORCA: limpieza pendiente del run <run> — <n> worktrees, <m> ramas`) y ofrece hacerla (`references/integrate.md` §6).
 
 ## 1. ¿Compensa? (decídelo en menos de un minuto)
 Criterio y cuenta rápida en `~/.agents/rules/95-multi-agent.md` §Cuándo paralelizar: ≥2 unidades independientes, `write` disjuntos, ≥15 min cada una, verificables por separado, y el ahorro supera el coste de coordinar.
@@ -37,33 +38,60 @@ Identifica la entrada y lee **solo** su adaptador:
 | Mockup, diseño, documento | `references/adapters/artifact.md` |
 Escribe las unidades con el formato de `references/units.md` en `.work/runs/<run>/units.md` (`.work/` en `.gitignore`).
 
+Después, con `references/olimpo.md`, da a cada unidad su **rol** (de él salen el nivel de modelo y quién la revisa), comprueba los modelos disponibles de cada proveedor activo y elige proveedor. Con `~/.agents/rules/95-multi-agent.md` §Recurso por unidad, elige su **recurso** (coordinador, subagente de solo lectura, subagente con worktree, worker de Orca o manual). Nada de esto se improvisa, y si una unidad va con el modelo por defecto del proveedor, el plan lo dice.
+
 ## 3. Plan de rondas — confirmación 1 (`manual`, `semi`)
 Una sola tabla, sin más prosa:
 ```
 run 20261107-recargas · spec-kit 003-recargas · autonomía semi
-ronda | unidad                     | agente      | ficheros | depende
-0     | U0 setup + foundational    | coordinador | 7        | —
-1     | U1 consulta de saldo (P1)  | claude      | 9        | U0
-1     | U2 recarga con tarjeta (P1)| antigravity | 11       | U0
-2     | U3 historial (P2)          | codex       | 6        | U1 (comparte layout)
-merge final: feat/003-recargas → main (te lo pediré al terminar)
+base: origin/main @ 1a2b3c4 (main local iba 3 commits por detrás)
+ronda | unidad                      | rol · nivel     | agente · modelo       | recurso   | ficheros | depende
+0     | U0 setup + foundational     | Hefesto · alto  | coordinador           | inline    | 7        | —
+1     | U1 consulta de saldo (P1)   | Proteo · medio  | claude · <medio>      | subagente | 9        | U0
+1     | U2 recarga con tarjeta (P1) | Ariadna · alto  | claude · <alto>       | worker    | 11       | U0
+1     | U2r revisión cross de U2    | Casandra · alto | antigravity · <alto>  | worker    | lectura  | U2
+2     | U3 historial (P2)           | Narciso · medio | antigravity · <medio> | worker    | 6        | U1 (comparte layout)
+modelos: nuevo en antigravity: <id> → nivel medio (alias `pro` del proveedor)
+merge final: feat/003-recargas → main (te lo pediré al terminar; después, la limpieza)
 ¿Lanzo? (sí / cambia X)
 ```
-El «sí» autoriza los commits y merges **del run** en ramas de trabajo y en la rama de integración. Con el «sí», crea `.work/runs/<run>/run.md` (`references/ledger.md`): desde aquí, cada paso se anota **antes** de hacerlo.
+- `<alto>`, `<medio>`: el valor real de `~/.agents/models.md` para ese proveedor, o `por defecto` si ese nivel no tiene modelo ahí.
+- La línea `modelos:` solo aparece si `references/olimpo.md` §Modelos ha clasificado un modelo nuevo o tiene algo que avisar. Es informativa: el nivel lo decide el coordinador con evidencia, no se le pregunta al usuario.
+- El «sí» autoriza los commits y merges **del run** en ramas de trabajo y en la rama de integración, Con el «sí», crea `.work/runs/<run>/run.md` (`references/ledger.md`): desde aquí, cada paso se anota **antes** de hacerlo.
 
-## 4. Base común (U0)
-Haz tú la ronda 0, pasa `csr-gate`, crea la rama de integración (`feat/<feature>` si no existe) y haz commit. Todas las unidades parten de ese commit.
+## 4. Base fresca y base común (U0)
+**Antes del plan** (la línea `base:` sale de aquí): nunca partas de una rama local sin contrastarla con su remoto.
+```bash
+git fetch origin --prune
+git rev-list --left-right --count origin/<padre>...<padre>     # <detrás>  <delante>: la rama local respecto a origin
+```
+| Resultado | Base de la rama de integración |
+|---|---|
+| `0 0` | La rama padre: local y remota coinciden |
+| detrás > 0, delante = 0 | `origin/<padre>`. La rama local no se toca: `git switch -c feat/<feature> --no-track origin/<padre>` |
+| delante > 0 (commits sin subir o divergencia) | **Pregunta** (una): partir de `origin/<padre>` o de la local con sus commits sin subir |
+| `git fetch` falla | `RISK: no pude actualizar origin` y pregunta antes de seguir |
+| No hay remoto | La rama local, anotado en el plan |
+- `<padre>` es la rama destino del merge final: la de por defecto, `develop` o la que diga el usuario.
+- Si la rama de integración ya existe (feature empezada), compárala igual con su remoto y con `origin/<padre>`; si `<padre>` ha avanzado, dilo en el plan.
+- `--no-track` siempre que la rama de integración nazca de una ref remota: sin él, su upstream sería `origin/<padre>` y un push desde ella podría ir a la rama padre.
+- Anota en `run.md` `base_ref` y su sha. Todo worktree del run sale de la rama de integración; ninguno sale de `<padre>` directamente.
+
+Después haz tú la ronda 0, pasa `csr-gate` y haz commit en la rama de integración. Todas las unidades parten de ese commit.
 
 ## 5. Lanzar la ronda
-Motor: Orca si `orca status --json` responde con el runtime accesible y la orquestación está activada; si no, subagentes nativos; si no, manual. Lee solo su guía: `references/engine-orca.md` · `engine-subagents.md` · `engine-manual.md`.
+Cada unidad usa el recurso que le tocó en el plan. Orca solo si `orca status --json` responde con el runtime accesible y la orquestación está activada; si no, sus unidades caen al siguiente recurso que encaje. Lee solo la guía de los motores que uses: `references/engine-orca.md` · `engine-subagents.md` · `engine-manual.md`.
 Mensaje de despacho (todo dentro del mensaje: el worker no ve tu checkout ni tu conversación):
 ```
 UNIT: U2 — <título>     RUN: <run>     BASE: <sha>     PUERTO DEV: <PORT_BASE+n>
+ROL: Ariadna · código sensible · nivel alto — <guardarraíl de su fila en olimpo.md>
 <bloque completo de la unidad, tal cual está en units.md>
 Shared (no tocar salvo los de tu unidad): <lista de ORCHESTRATION.md>
-<contrato de references/worker-contract.md (con Orca, sus §2, §4 y §5)>
+SETUP: <solo sin Orca: ruta absoluta del checkout principal + bloque de setup de ORCHESTRATION.md §3>
+<contrato de references/worker-contract.md (con Orca, sus §1.4, §2, §4 y §5)>
 ```
-Nunca metas secretos en el despacho.
+Nunca metas secretos en el despacho: `SETUP` lleva las rutas de los ficheros a copiar, no su contenido.
+Antes del primer despacho del run, comprueba que los ficheros de `.worktreeinclude` son de desarrollo (mira nombres de claves y a qué entorno apuntan; no muestres valores). Si alguno parece de producción: `RISK:` y pregunta antes de lanzar; no lo copies a ningún worktree.
 
 ## 6. Vigilar sin molestar
 - Con Orca, lanza la ronda y termina tu turno: Orca te despierta con cada aviso. Nada de polling.
@@ -83,7 +111,9 @@ rama: feat/003-recargas (+1.240/−310, 46 ficheros)
 BLOCKED/DEFERRED: <si aplica>
 ¿Mergeo feat/003-recargas en main? (o abre PR)
 ```
-Limpieza de worktrees y ramas de unidades integradas tras el merge (Orca: `worker-release`). `run.md` a `status: done`.
+Antes de pedir el merge final repite el `git fetch` de §4: si `<padre>` ha avanzado, trae `origin/<padre>` a la rama de integración (merge, sin reescribir), repite `csr-gate` y enseña la tabla actualizada.
+
+**Confirmación 3 — limpieza.** Tras el merge final (o cuando el usuario confirme que el PR está fusionado), enseña el inventario de lo que el run ha dejado (worktrees, ramas, copias de `.env`) y pide permiso para borrarlo: `references/integrate.md` §6. No se borra nada sin ese «sí», y el run no se cierra sin haberlo preguntado: con un «no», `cleanup: pending` en `run.md`. Después, `run.md` a `status: done`.
 - **Si vienes del hook de spec-kit**: todas las tareas quedan marcadas `[x]`. Di en una línea «Tareas completadas por la orquestación; /speckit.implement solo debe validar y ejecutar sus hooks posteriores» y devuelve el control. Si el run queda a medias (unidades `BLOCKED` o en curso), devuelve `ORCA: pendiente — …` (ver `speckit-orca-implement`): implement no debe hacer las tareas restantes por su cuenta mientras haya intentos abiertos.
 
 ## Otros modos (cuando el usuario lo pide explícitamente)
@@ -91,3 +121,4 @@ Limpieza de worktrees y ramas de unidades integradas tras el merge (Orca: `worke
 - «solo planifica», «divide en sprints» ⇒ `references/plan.md` (plan sin ejecutar).
 - «prepara la orquestación» ⇒ `references/setup.md` (normalmente lo hace `kit-init`).
 - «sigue el run», «retoma la orquestación» ⇒ `references/ledger.md` §Reanudar.
+- «limpia el run», «borra los worktrees que quedan» ⇒ `references/integrate.md` §6 (inventario y confirmación 3; vale también para runs antiguos sin `run.md`, con el inventario de `git worktree list`).

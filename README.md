@@ -139,7 +139,11 @@ Solo tienes que conocer dos frases. El resto lo deciden los agentes.
 | `speckit-orca-implement` | Hook de spec-kit: decide si `/speckit.implement` se reparte | **Automática** al escribir `/speckit.implement` |
 | `csr-stack` · `csr-gate` · `csr-audit` | Ficha del stack, puerta de validez, auditoría de seguridad | Automáticas al cerrar tareas, o «pasa los gates» / «audita» |
 
-**Autonomía** (en `ORCHESTRATION.md`): `semi` por defecto. Confirmas el plan de rondas y el merge final, y nada más salvo decisiones de producto. `manual` pide confirmación en cada ronda; `auto`, solo el merge final. En ningún nivel se mergea a la rama por defecto ni se hace push sin tu confirmación.
+**Autonomía** (en `ORCHESTRATION.md`): `semi` por defecto. Confirmas el plan de rondas, el merge final y la limpieza, y nada más salvo decisiones de producto. `manual` pide confirmación en cada ronda; `auto`, solo el merge final y la limpieza. En ningún nivel se mergea a la rama por defecto, se hace push ni se borran worktrees o ramas sin tu confirmación.
+
+**Olimpo: roles y modelos.** Cada unidad recibe un rol (arquitectura, seguridad, código sensible, datos, interfaz, verificación, mecánico…) y de él sale el nivel de modelo: `alto`, `medio` o `bajo`. Qué modelo es cada nivel en cada proveedor lo dice un fichero tuyo, `~/.agents/models.md`, que el kit crea una vez y no vuelve a tocar: cuando sale un modelo nuevo no hay que reinstalar ni reinicializar nada. El plan de rondas enseña el rol, el modelo y el recurso (subagente, worker de Orca…) de cada unidad antes de que digas «sí». Detalle: [`docs/OLIMPO.md`](docs/OLIMPO.md).
+
+**Worktrees sanos.** Cada run parte de `origin` actualizado (nunca de una rama local desfasada), cada worktree nace con sus dependencias y su `.env` de desarrollo, y al terminar el coordinador enseña qué worktrees, ramas y copias de entorno han quedado y los borra con tu permiso.
 
 Convive con skills externas como **impeccable**, **supabase**, **spec-kit** y las de la app **Orca**: cada una manda en su terreno, y la puerta de validez y las prohibiciones se aplican siempre.
 
@@ -171,6 +175,8 @@ flowchart LR
 - Los workers no editan `tasks.md`, planes ni `STACK.md`, y no hacen merge.
 - Sin informe no hay unidad.
 - Nunca `PASS` de algo no ejecutado.
+- Ningún worktree nace de una rama local sin contrastarla con `origin`.
+- Nada se borra sin tu permiso, y nada integrado se queda sin ofrecerte borrarlo.
 - Lo pequeño no se orquesta.
 
 <a id="estructura"></a>
@@ -183,7 +189,7 @@ orca-multiagent-kit/
 ├── rules/                  00-router … 95-multi-agent  +  lang/ (17 lenguajes)
 ├── skills/                 kit-init · orca · speckit-orca-implement · csr-*
 ├── speckit-extension/      extensión de spec-kit (hook before_implement)
-├── templates/              AGENTS.md · CLAUDE.md · STACK.md · ORCHESTRATION.md · orca.yaml · .worktreeinclude
+├── templates/              AGENTS.md · CLAUDE.md · STACK.md · ORCHESTRATION.md · orca.yaml · .worktreeinclude · models.md
 ├── output-styles/          csr-minimal (Claude Code)
 ├── orca-plugin/            plugin de Orca: comandos del kit, contrato del worker, barra de estado
 ├── install.sh              instala · migra · verifica · restaura · adopta
@@ -205,6 +211,7 @@ orca-multiagent-kit/
 | [Guía visual](https://fernandobaqueroo.github.io/orca-multiagent-kit/guia.html) ([`GUIA.html`](GUIA.html)) | El flujo de trabajo completo, con esquemas |
 | [`docs/MANUAL.md`](docs/MANUAL.md) | Instalación detallada, migración, convivencia y problemas frecuentes |
 | [`AI_INSTALL.md`](AI_INSTALL.md) | Una IA que tiene que instalar o integrar el kit |
+| [`docs/OLIMPO.md`](docs/OLIMPO.md) | Roles, niveles de modelo, recurso por unidad y ciclo de vida de los worktrees |
 | [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md) | Quien usa Orca y quiere el kit integrado en la app |
 | [`CHANGELOG.md`](CHANGELOG.md) | Historial de versiones ([SemVer](https://semver.org/lang/es/)) |
 

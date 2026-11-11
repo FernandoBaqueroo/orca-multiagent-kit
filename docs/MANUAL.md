@@ -1,4 +1,4 @@
-# Orca Multiagent Kit v1.1.0 — Una sola fuente de reglas y skills para todos tus agentes
+# Orca Multiagent Kit — Una sola fuente de reglas y skills para todos tus agentes
 
 Une **CSR** (claude_session_rules: calidad, seguridad, tests, hablar poco) y **MAW** (trabajo multiagente sin pisarse) en **un único sitio**, `~/.agents/`, que leen a la vez Claude Code, Antigravity, Codex, Copilot CLI, Cursor y Devin.
 
@@ -62,7 +62,7 @@ orca-multiagent-kit/
 ├── speckit-extension/orca/   hook before_implement de spec-kit
 ├── output-styles/csr-minimal.md   (estilo de salida de Claude Code)
 └── templates/                AGENTS.md · CLAUDE.md · STACK.md · ORCHESTRATION.md · orca.yaml ·
-                              .worktreeinclude · claude-settings.json
+                              .worktreeinclude · claude-settings.json · models.md
 ```
 
 ---
@@ -91,12 +91,12 @@ Más opciones:
 
 ### Qué hace exactamente
 1. **Backup** de todo lo que toca en `~/.agents/backups/<fecha>/`, con las mismas rutas relativas a tu carpeta personal. `--restore` lo devuelve a su sitio.
-2. Copia núcleo, reglas, skills, plantillas y estilo a `~/.agents/`. Solo reemplaza **sus** skills: `orca-cli`, `orchestration`, `supabase` y el resto se quedan como están. Si creas `~/.agents/rules/personal.md`, no lo toca nunca.
+2. Copia núcleo, reglas, skills, plantillas y estilo a `~/.agents/`. Solo reemplaza **sus** skills: `orca-cli`, `orchestration`, `supabase` y el resto se quedan como están. Si creas `~/.agents/rules/personal.md`, no lo toca nunca. Crea `~/.agents/models.md` (qué modelo usa cada nivel en cada proveedor) solo si no existe; si ya lo tienes, tampoco lo toca.
 3. **Claude Code**: quita de `CLAUDE.md` los bloques CSR y MAW, pone el bloque con el import y **conserva el resto** de lo que tuvieras escrito. Saca de `~/.claude/rules/` los ficheros de CSR y MAW (los tuyos se quedan), enlaza las skills y el output style.
 4. **Antigravity**: `GEMINI.md` pasa a ser un enlace al núcleo. Retira las reglas copiadas de `~/.gemini/rules/`, las plantillas y el plugin `claude-session-rules` (todo va al backup) y enlaza las skills en `~/.gemini/config/skills/`.
 5. **Codex / Copilot / Devin**: enlazan su fichero global de instrucciones al núcleo. Sus skills ya las leen desde `~/.agents/skills/`.
 6. **Cursor**: no guarda las reglas de usuario en ficheros. El instalador te da la línea para pegar en **Settings → Rules → User Rules**.
-7. **Proyecto** (`--project`): reescribe `AGENTS.md` y `CLAUDE.md` con el formato del kit y **migra tus "Overrides de este proyecto"** del bloque CSR antiguo. Crea `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude` y `.claude/settings.json` si faltan, y añade `.work/` al `.gitignore`.
+7. **Proyecto** (`--project`): reescribe `AGENTS.md` y `CLAUDE.md` con el formato del kit y **migra tus "Overrides de este proyecto"** del bloque CSR antiguo. Crea `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude` y `.claude/settings.json` si faltan, y añade `.work/` al `.gitignore`. Si un `.env` del proyecto parece de producción, lo desactiva en el `.worktreeinclude` nuevo y te lo deja como pendiente.
 
 Reinstalar es idempotente: sirve también para actualizar después de editar el kit.
 
@@ -107,8 +107,8 @@ Reinstalar es idempotente: sirve también para actualizar después de editar el 
 Abre el agente en el repo y escribe **«inicializa el proyecto»** (skill `kit-init`). No hace falta terminal ni el instalador:
 1. Crea o migra `AGENTS.md` (con tus overrides del CSR antiguo) y deja `CLAUDE.md` como `@AGENTS.md`.
 2. Si `STACK.md` falta o está vacío, ejecuta `csr-stack`: **detecta el stack** leyendo manifiestos, configuración, versiones y comandos reales del repo. No necesitas describirle nada.
-3. Prepara la orquestación: `ORCHESTRATION.md` (con su nivel de autonomía), `orca.yaml`, `.worktreeinclude`, `.work/` en `.gitignore` y, si hay spec-kit, el hook `before_implement`.
-4. Te hace como máximo 4 preguntas en una tanda (lo que no se puede deducir: nivel ASVS, reparto de agentes…) y propone el commit.
+3. Prepara la orquestación: `ORCHESTRATION.md` (nivel de autonomía, proveedores activos, dominios sensibles y el setup real de cada worktree), `orca.yaml`, `.worktreeinclude`, `.work/` en `.gitignore` y, si hay spec-kit, el hook `before_implement`. Si a `~/.agents/models.md` le falta un proveedor activo, clasifica sus modelos en niveles y lo rellena.
+4. Te hace como máximo 4 preguntas en una tanda (lo que no se puede deducir: nivel ASVS, proveedores activos…) y propone el commit.
 
 Si el agente detecta un repo sin `AGENTS.md` o sin `STACK.md`, te ofrecerá `kit-init` él solo. Desde la terminal, `./install.sh --project <ruta>` hace la parte de ficheros, pero la detección del stack la sigue haciendo el agente.
 
@@ -129,7 +129,9 @@ Igual que antes; lo único que cambia es dónde vive cada cosa.
 | Cerrar una tarea | «pasa los gates» (`csr-gate`) |
 | Antes de publicar o tocar algo sensible | «audita la seguridad» (`csr-audit`) |
 
-**Autonomía** (`ORCHESTRATION.md` §0): `semi` por defecto. Confirmas el plan de rondas (autoriza los commits del run en ramas de trabajo) y el merge final; en medio solo te interrumpe por decisiones de producto. `manual` confirma cada ronda; `auto`, solo el merge final. Nunca hay merge a la rama por defecto ni push sin confirmación.
+**Autonomía** (`ORCHESTRATION.md` §0): `semi` por defecto. Confirmas el plan de rondas (autoriza los commits del run en ramas de trabajo), el merge final y la limpieza de worktrees y ramas; en medio solo te interrumpe por decisiones de producto. `manual` confirma cada ronda; `auto`, solo el merge final y la limpieza. Nunca hay merge a la rama por defecto, push ni borrado de worktrees o ramas sin confirmación.
+
+**Roles y modelos** ([`OLIMPO.md`](OLIMPO.md)): cada unidad lleva un rol y un nivel de modelo (`alto`, `medio`, `bajo`). El modelo concreto de cada nivel y proveedor está en `~/.agents/models.md`, que es tuyo: el instalador lo crea si falta y no lo sobrescribe. Para cambiar qué modelo usa un nivel, edita ese fichero; no hay que reinstalar.
 
 El detalle está en `skills/orca/SKILL.md` y sus `references/`, y en `rules/95-multi-agent.md`.
 
@@ -141,6 +143,7 @@ El detalle está en `skills/orca/SKILL.md` y sus `references/`, y en `rules/95-m
 |---|---|---|
 | Una regla global (todos los agentes) | `~/Documents/orca-multiagent-kit/core/AGENTS.md` o `rules/…` | `./install.sh` |
 | Una regla solo tuya que el kit no debe pisar | `~/.agents/rules/personal.md` | nada: el núcleo lo lee |
+| Qué modelo usa cada nivel en cada proveedor | `~/.agents/models.md` | nada: `orca` lo lee en cada run |
 | Una skill | `~/Documents/orca-multiagent-kit/skills/<skill>/` | `./install.sh` |
 | Reglas de un proyecto | `AGENTS.md` del proyecto, sección *Overrides* | nada |
 
@@ -173,7 +176,8 @@ Puedes editar directamente en `~/.agents/`, pero la próxima reinstalación lo s
 - **Nivel técnico** (`rules/10-communication.md`): la versión anterior te describía como "backend avanzado (Python, Kubernetes…)". Ahora pone fullstack con tu stack real. Ajústalo si no te encaja.
 - **Windows (Git Bash)**: el kit necesita enlaces simbólicos nativos. Activa el *Modo de desarrollador* (Configuración → Sistema → Para programadores) o abre Git Bash como administrador. Si no se pueden crear, el instalador se para antes de tocar nada; nunca deja copias. Detalle en [`INSTALADOR-ORCA-WINDOWS.md`](INSTALADOR-ORCA-WINDOWS.md).
 - **Claude dentro de la app Orca**: Orca lanza Claude con un perfil propio (`CLAUDE_CONFIG_DIR=…/orca/claude-profiles/<id>/home`) que importa `~/.claude/CLAUDE.md`. El instalador lo detecta, instala en `~/.claude` y no toca el perfil, así que puedes ejecutarlo desde una terminal de Orca.
-- **Permisos**: Orca y Antigravity ejecutan sin confirmación. Copia solo `.env` de desarrollo a los worktrees (`.worktreeinclude`) y revisa los permisos que tiene guardados Antigravity.
+- **Permisos**: Orca y Antigravity ejecutan sin confirmación. Copia solo `.env` de desarrollo a los worktrees (`.worktreeinclude`) y revisa los permisos que tiene guardados Antigravity. Las copias se borran con el worktree, en la limpieza que el coordinador te pide confirmar al cerrar cada run.
+- **Worktrees de runs antiguos**: si quedan worktrees o ramas de un run que no se limpió, di «limpia el run». El agente enseña el inventario y borra solo lo integrado y sin cambios pendientes, tras tu «sí».
 
 ---
 
@@ -194,7 +198,7 @@ Puedes editar directamente en `~/.agents/`, pero la próxima reinstalación lo s
 
 ```bash
 ./install.sh --restore <fecha-del-primer-backup>   # vuelve al estado anterior
-rm -rf ~/.agents/AGENTS.md ~/.agents/rules ~/.agents/templates ~/.agents/output-styles
+rm -rf ~/.agents/AGENTS.md ~/.agents/rules ~/.agents/templates ~/.agents/output-styles ~/.agents/models.md
 rm -rf ~/.agents/skills/csr-* ~/.agents/skills/orca ~/.agents/skills/kit-init ~/.agents/skills/speckit-orca-implement ~/.agents/speckit-ext
 ```
 

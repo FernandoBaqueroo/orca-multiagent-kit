@@ -25,7 +25,7 @@ Comprueba y anota en una línea cada uno:
 - Si está relleno: no lo toques; solo avisa (`RISK:`) si sus comandos no coinciden con el manifiesto.
 
 ## 4. Orquestación
-Sigue `~/.agents/skills/orca/references/setup.md` (`ORCHESTRATION.md` con su nivel de autonomía, `orca.yaml`, `.worktreeinclude`, `.work/` en `.gitignore`). Añade a la lista `shared` los ficheros de contexto de otras herramientas que existan: `PRODUCT.md`, `DESIGN.md`, `.specify/memory/constitution.md`.
+Sigue `~/.agents/skills/orca/references/setup.md` (`ORCHESTRATION.md` con su nivel de autonomía, proveedores activos, dominios sensibles y el setup real de worktree; `orca.yaml`; `.worktreeinclude`; `.work/` en `.gitignore`; y `~/.agents/models.md` si falta o le falta un proveedor activo). Añade a la lista `shared` los ficheros de contexto de otras herramientas que existan: `PRODUCT.md`, `DESIGN.md`, `.specify/memory/constitution.md`.
 Agrupa sus preguntas con las de `csr-stack` en **una sola tanda** (máximo 4 en total).
 
 ## 5. spec-kit (si existe `.specify/`)
@@ -54,7 +54,9 @@ kit-init · <proyecto>
 AGENTS.md   | creado / migrado (overrides: N) / ya ok
 CLAUDE.md   | @AGENTS.md
 STACK.md    | detectado: <stack en 1 línea> · TODO: <n>
-ORCHESTR.   | agentes: <reparto> · shared: <n> ficheros · autonomía: <nivel>
+ORCHESTR.   | proveedores: <activos> · sensibles: <n> · shared: <n> ficheros · autonomía: <nivel>
+entorno     | copia: <ficheros .env> · install: <cmd> · comprobación: <cmd>
+modelos     | ~/.agents/models.md: creado / ya ok / <proveedor> sin nivel <n>
 spec-kit    | hook before_implement: activo / no aplica
 convive con | spec-kit · impeccable · …
 commit sugerido: chore: inicializar Orca Multiagent Kit (AGENTS, STACK, ORCHESTRATION)

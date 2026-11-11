@@ -9,6 +9,7 @@ Gracias por querer mejorar **Orca Multiagent Kit**. Este documento explica cómo
 3. **El núcleo es caro.** `core/AGENTS.md` se carga en cada mensaje de cada agente. Límite: 200 líneas. Si algo no hace falta siempre, va a `rules/` o a una skill.
 4. **Lo que un linter puede imponer no se escribe aquí.** Estas reglas son para lo que ninguna herramienta verifica.
 5. **Contratos estables.** El formato de unidad (`skills/orca/references/units.md`) y el contrato del worker (`references/worker-contract.md`) se usan entre agentes. Si cambias un campo, cámbialo en los dos lados y súbelo como cambio MAJOR.
+6. **Sin nombres de modelo.** Reglas, skills y plantillas hablan de niveles (`alto`, `medio`, `bajo`) y de roles (`skills/orca/references/olimpo.md`). El nombre de un modelo solo aparece en `~/.agents/models.md`, que es del usuario; `scripts/check.sh` lo comprueba.
 
 ## Estructura
 
@@ -17,7 +18,7 @@ Gracias por querer mejorar **Orca Multiagent Kit**. Este documento explica cómo
 | `core/AGENTS.md` | Núcleo siempre cargado |
 | `rules/` | Módulos bajo demanda y `lang/` |
 | `skills/<nombre>/SKILL.md` | Skills en formato estándar (frontmatter `name` + `description`) |
-| `templates/` | Ficheros que se copian a cada proyecto |
+| `templates/` | Ficheros que se copian a cada proyecto, y `models.md`, que se copia una vez a `~/.agents/` |
 | `install.sh` | Instalador (bash 3.2 compatible: sin arrays asociativos ni `sed -i`) |
 | `tests/`, `scripts/` | Pruebas, comprobaciones y empaquetado |
 | `assets/` | SVG del README, generados con `scripts/banner.py` |
@@ -52,7 +53,7 @@ Un fichero nuevo en `rules/`, una fila en `rules/00-router.md` (disparador y cos
 
 ## Publicar una versión (mantenedores)
 
-1. Actualiza `VERSION`, `package.json`, la cabecera de `core/AGENTS.md` y mueve `[Unreleased]` a `[X.Y.Z] - AAAA-MM-DD` en `CHANGELOG.md`.
+1. Actualiza `VERSION`, `package.json`, la cabecera de `core/AGENTS.md`, el pie de `site/index.html` y mueve `[Unreleased]` a `[X.Y.Z] - AAAA-MM-DD` en `CHANGELOG.md`.
 2. `python3 scripts/banner.py assets && bash scripts/check.sh`.
 3. Commit `chore(release): vX.Y.Z` en una rama y abre un PR.
 4. Al fusionarlo, el workflow **Release** se lanza solo (detecta el cambio de `VERSION`): comprueba que coincide con `package.json`, ejecuta las pruebas, crea la release `vX.Y.Z` con el zip y `SHA256SUMS` y publica en npm con Trusted Publishing (sin tokens).

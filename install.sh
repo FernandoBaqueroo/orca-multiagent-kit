@@ -176,6 +176,33 @@ extract_overrides() { # $1 fichero -> stdout
        inb && /^## Overrides de este proyecto/ {ov=1; next}
        inb && ov && !/^<!--/ && !/^-[[:space:]]*$/ && NF>0 {print}' "$1"
 }
+# Un .env con señales de produccion no se copia a los worktrees: ahi los agentes trabajan sin confirmacion.
+# Solo se mira si hay coincidencia (grep -q): el contenido no se lee ni se muestra.
+PROD_MARK='^[[:space:]]*(export[[:space:]]+)?(NODE_ENV|APP_ENV|RAILS_ENV|DJANGO_ENV|FLASK_ENV|ENVIRONMENT|ASPNETCORE_ENVIRONMENT)[[:space:]]*=[[:space:]]*["'"'"']?prod|[sprk]k_live_'
+guard_worktreeinclude() { # $1 proyecto · $2 = 1 si .worktreeinclude ya existia (es del usuario: se avisa, no se edita)
+  local wi="$1/.worktreeinclude" f tmp hit="" cr
+  [ -f "$wi" ] || return 0
+  cr="$(printf '\r')"; tmp="$(mktemp)"
+  while IFS= read -r f || [ -n "$f" ]; do
+    f="${f%"$cr"}"
+    case "$f" in
+      ''|'#'*) printf '%s\n' "$f" ;;
+      *) if [ -f "$1/$f" ] && grep -Eiq "$PROD_MARK" "$1/$f" 2>/dev/null; then
+           hit="$hit $f"; printf '# %s   <- desactivado: parece de produccion\n' "$f"
+         else printf '%s\n' "$f"; fi ;;
+    esac
+  done < "$wi" > "$tmp"
+  if [ -z "$hit" ]; then rm -f "$tmp"; return 0; fi
+  if [ "$2" -eq 1 ]; then
+    rm -f "$tmp"
+    item warn ".worktreeinclude copia ficheros que parecen de producción:$hit"
+    todo "$(basename "$1"): .worktreeinclude lista$hit, que parece(n) de producción. Quítalo(s) de la lista o usa un .env de desarrollo: cada worktree recibe una copia."
+  else
+    cat "$tmp" > "$wi"; rm -f "$tmp"
+    item warn ".worktreeinclude: desactivado$hit (parece de producción)"
+    todo "$(basename "$1"):$hit parece(n) de producción y no se copiará a los worktrees. Crea un .env de desarrollo (por ejemplo .env.development.local) o reactívalo en .worktreeinclude si de verdad es de desarrollo."
+  fi
+}
 write_file() { # $1 destino, stdin contenido
   if [ "$DRY" -eq 1 ]; then cat >/dev/null; item dry "escribir $(short "$1")"; else mkdir -p "$(dirname "$1")"; cat > "$1"; fi
 }
@@ -294,6 +321,8 @@ if [ "$VERIFY" -eq 1 ]; then
   n=$(ls -1 "$AG/rules/lang"/*.md 2>/dev/null | wc -l | tr -d ' '); [ "$n" -ge 17 ] && vok "$n guías de lenguaje" || vfail "guías de lenguaje: $n de 17"
   ms=""; for s in $KIT_SKILLS; do [ -f "$AG/skills/$s/SKILL.md" ] || ms="$ms $s"; done
   [ -z "$ms" ] && vok "$NSK skills del kit" || vfail "faltan skills:$ms"
+  [ -f "$AG/skills/orca/references/olimpo.md" ] && vok "roles de Olimpo" || vfail "falta skills/orca/references/olimpo.md: ejecuta omk install"
+  [ -f "$AG/models.md" ] && vok "modelos por nivel en ~/.agents/models.md" || vfail "falta ~/.agents/models.md (qué modelo usa cada nivel): ejecuta omk install"
   [ -f "$AG/speckit-ext/orca/extension.yml" ] && vok "extensión de spec-kit" || vfail "falta la extensión de spec-kit (~/.agents/speckit-ext/orca)"
   for s in $OLD_SKILLS; do [ -e "$AG/skills/$s" ] && vfail "skill retirada sigue instalada: $s"; done
   if has_agent claude; then
@@ -346,6 +375,9 @@ if [ "$PROJECT_ONLY" -eq 0 ]; then
   [ -e "$AG/speckit-ext/orca" ] && run rm -rf "$AG/speckit-ext/orca"
   run cp -R "$SRC/speckit-extension/orca" "$AG/speckit-ext/orca"
   NR=$(find "$SRC/rules" -name '*.md' | wc -l | tr -d ' '); NS=$NSK
+  # models.md es del usuario (que modelo usa cada nivel en cada proveedor): se crea una vez y no se pisa nunca.
+  if [ -e "$AG/models.md" ]; then item keep "models.md es tuyo: no se toca"
+  else run cp "$SRC/templates/models.md" "$AG/models.md"; item add "models.md creado (qué modelo usa cada nivel; edítalo cuando quieras)"; fi
   if [ -z "$PREV" ]; then item add "instalada v${VERSION}"; elif [ "$PREV" = "$VERSION" ]; then item keep "v${VERSION} reinstalada"; else item add "actualizada de v${PREV} a v${VERSION}"; fi
   done_phase "núcleo · $NR reglas · $NS skills · extensión de spec-kit"
 
@@ -453,9 +485,11 @@ if [ -n "$PROJECT" ]; then
   item add "CLAUDE.md importa AGENTS.md"
   grep -q '[^[:space:]]' "$REST" && todo "$PNAME: CLAUDE.md tiene reglas propias que solo ve Claude. Pide al agente «inicializa el proyecto» para pasarlas a AGENTS.md y que las vean todos."
   rm -f "$TMP" "$REST"
+  [ -e "$PROJECT/.worktreeinclude" ] && HADWI=1 || HADWI=0
   for f in STACK.md ORCHESTRATION.md orca.yaml .worktreeinclude; do
     if [ -e "$PROJECT/$f" ]; then item keep "$f ya existía: no se toca"; else run cp "$SRC/templates/$f" "$PROJECT/$f"; item add "$f creado"; fi
   done
+  guard_worktreeinclude "$PROJECT" "$HADWI"
   if [ ! -e "$PROJECT/.claude/settings.json" ] && has_agent claude; then run mkdir -p "$PROJECT/.claude"; run cp "$SRC/templates/claude-settings.json" "$PROJECT/.claude/settings.json"; item add ".claude/settings.json creado"; fi
   if [ -d "$PROJECT/.specify" ]; then
     EXT="$PROJECT/.specify/extensions.yml"
