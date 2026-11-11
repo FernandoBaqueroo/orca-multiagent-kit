@@ -8,7 +8,8 @@ unset CLAUDE_CONFIG_DIR CODEX_HOME GEMINI_DIR AGENT_KIT_HOME ORCA_CLAUDE_INJECTE
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  ok    %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; }
-check(){ if eval "$2"; then ok "$1"; else bad "$1"; fi; }
+# Si falla, enseña lo que dijo omk: en CI es la única pista.
+check(){ if eval "$2"; then ok "$1"; else bad "$1"; if [ -s "${OUT:-}" ]; then sed "s/^/        │ /" "$OUT"; fi; fi; }
 
 command -v node >/dev/null || { echo "  SKIPPED (sin node)"; exit 0; }
 wpath() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
@@ -52,7 +53,10 @@ check "update explica cómo actualizar"           'run update --agents claude &&
 
 echo "== omk setup desde el ejecutable"
 check "deja omk en OMK_BIN_DIR"                  'run setup --yes --no-path --agents claude && [ -x "$W/bin/$EXE_NAME" ] && said "omk copiado en"'
-check "instala el plugin desde el kit extraído"  'grep -qF "plugin install $OMK_HOME" "$STATE.calls" && said "Entorno de Orca listo"'
+# Node carga omk desde la ruta real del kit (en macOS /var es un enlace a /private/var): esa es la que llega a Orca.
+# shellcheck disable=SC2034  # se usa dentro de eval (check)
+KIT_REAL="$(node -p 'require("fs").realpathSync(process.argv[1])' "$OMK_HOME")"
+check "instala el plugin desde el kit extraído"  'grep -qF "plugin install $KIT_REAL" "$STATE.calls" && said "Entorno de Orca listo"'
 check "con su carpeta ya en el PATH no lo toca" 'PATH="$W/bin:$PATH" run setup --yes --no-plugin --agents claude && said "ya está en el PATH"'
 rm -rf "${W:?}/bin"; mkdir -p "$W/bin"; echo "otra herramienta" > "$W/bin/$EXE_NAME"
 check "no pisa otro omk que no es el del kit"    '! run setup --yes --no-path --no-plugin --agents claude && said "no es el ejecutable del kit" && [ "$(cat "$W/bin/$EXE_NAME")" = "otra herramienta" ]'

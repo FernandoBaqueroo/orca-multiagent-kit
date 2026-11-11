@@ -8,7 +8,8 @@ unset CLAUDE_CONFIG_DIR CODEX_HOME GEMINI_DIR AGENT_KIT_HOME ORCA_CLAUDE_INJECTE
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  ok    %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; }
-check(){ if eval "$2"; then ok "$1"; else bad "$1"; fi; }
+# Si falla, enseña lo que dijo omk: en CI es la única pista.
+check(){ if eval "$2"; then ok "$1"; else bad "$1"; if [ -s "${OUT:-}" ]; then sed "s/^/        │ /" "$OUT"; fi; fi; }
 
 command -v node >/dev/null || { echo "  SKIPPED (sin node)"; exit 0; }
 
