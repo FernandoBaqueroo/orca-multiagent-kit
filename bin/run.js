@@ -20,12 +20,18 @@ const HELP = `Uso: omk run <subcomando> [opciones]
                                agent, round, attempts. status respeta las transiciones de ledger.md
   meta <run> clave=valor…      Cambia la cabecera: status, cleanup, integration, base_ref, confirm1…
   log <run> <texto>            Añade una línea al log con la hora
-  plan <run> [--json]          Valida units.md y calcula rondas, conflictos y si compensa
-  start <run> --parent RAMA    Base fresca y rama de integración
-  worktree <run> <unidad>      Crea el worktree de una unidad desde la rama de integración
-  check <run> <unidad>         Comprueba que lo cambiado está dentro de su write
-  merge <run> <unidad>         Integra la rama de una unidad (ensayo y merge --no-ff)
-  cleanup <run> [--apply]      Inventario de worktrees y ramas del run; --apply borra lo integrado
+  plan <run> [--json] [--orchestration RUTA]
+                               Valida units.md y calcula rondas, conflictos y si compensa
+  start <run> --parent RAMA [--remote origin] [--from local|remote] [--integration RAMA]
+                               Base fresca y rama de integración (sale con 3 si la decisión es tuya)
+  worktree <run> <unidad> [--path RUTA] [--no-copy]
+                               Worktree y rama wt/<run>/<u> desde la integración, con los .env de desarrollo
+  check <run> <unidad> [--json]
+                               Comprueba que lo cambiado está dentro de su write y commiteado
+  merge <run> <unidad> [--dry-run]
+                               Integra la rama de una unidad accepted (ensayo y merge --no-ff; nunca push)
+  cleanup <run> [--apply] [--json] [--integration RAMA]
+                               Inventario de worktrees y ramas del run; --apply borra lo integrado y limpio
 
 Estados de unidad: ${ledger.UNIT_STATUS.join(', ')}.`;
 
