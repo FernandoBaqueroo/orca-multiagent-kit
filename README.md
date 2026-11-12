@@ -104,6 +104,7 @@ Requisitos: macOS, Linux, WSL o Git Bash, con bash ≥ 3.2.
 | `omk setup [--yes] [--dry-run]` | **Lo instala todo**: reglas y skills en `~/.agents`, `omk` en el PATH, plugins de Orca encendidos, plugin del kit y su panel |
 | `omk install [--agents a,b] [--dry-run]` | Solo la fuente única (`~/.agents`) para los agentes detectados; si el plugin de Orca ya está instalado, lo deja en la versión del kit |
 | `omk plugin install\|status\|uninstall` | El plugin de Orca del kit; `install` pide tu aprobación (o `--yes`) |
+| `omk gate on\|off\|status` | La puerta de reparto obligatoria de Claude Code: tras cargar la skill `orca`, no se edita hasta que su veredicto esté registrado y, si reparte, hasta que respondas al plan |
 | `omk team` · `omk team set …` | Enseña o cambia el equipo de roles del proyecto (`ORCHESTRATION.md` §1): proveedores, revisión cruzada y proveedor por rol |
 | `omk init [ruta]` | Prepara un proyecto (por defecto, la carpeta actual) |
 | `omk verify` | Comprueba enlaces, imports y que no queden copias divergentes |

@@ -208,10 +208,13 @@ function addToWindowsPath(dir) {
   return r.stdout.trim();
 }
 
+/** Dónde queda el ejecutable autónomo instalado (lo usa también la puerta de reparto si no hay node). */
+const installedOmk = () => path.join(binDir(), process.platform === 'win32' ? 'omk.exe' : 'omk');
+
 /** Copia el ejecutable autónomo a binDir() y se asegura de que esa carpeta está en el PATH. */
 function installSelf({ noPath }) {
   const dir = binDir();
-  const target = path.join(dir, process.platform === 'win32' ? 'omk.exe' : 'omk');
+  const target = installedOmk();
   heading('omk en el PATH');
   if (!orcaCli.samePath(process.execPath, target)) {
     if (fs.existsSync(target) && !isKitExecutable(target)) {
@@ -250,7 +253,7 @@ async function setup({ kit, args, installer, standalone, agentsHome }) {
   const opts = parseOptions(args);
   const code = await installer(opts.rest);
   if (code !== 0) return code;
-  if (!applyHooks({ kit, agentsHome, dryRun: opts.dryRun, skip: opts.noHooks })) return 1;
+  if (!applyHooks({ kit, agentsHome, dryRun: opts.dryRun, skip: opts.noHooks, omkBinary: standalone ? installedOmk() : null })) return 1;
   if (standalone && opts.dryRun) {
     heading('omk en el PATH');
     detail(`Simulación: copiaría omk a ${binDir()} y comprobaría que está en el PATH.`);
@@ -393,4 +396,4 @@ async function pauseIfAsked(code) {
   return code;
 }
 
-module.exports = { setup, plugin, refreshPlugin, pauseIfAsked, parseOptions, binDir, ask };
+module.exports = { setup, plugin, refreshPlugin, pauseIfAsked, parseOptions, binDir, installedOmk, ask };

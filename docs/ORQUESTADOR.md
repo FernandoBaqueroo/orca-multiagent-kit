@@ -119,18 +119,28 @@ Nueva sección en `rules/95-multi-agent.md` (aplica `30-security.md` §C12 a la 
 - `kit-init` crea `.claude/settings.json` desde la plantilla o le añade esos dos hooks sin tocar lo demás.
 - La description de la skill `orca` nombra las entradas («implementa el plan», plan aprobado, plan en fichero, artefacto), y cada adaptador dice cuándo se usa.
 
-**Lo medido** (Claude Code en modo no interactivo, `claude -p`, sobre un repo de juguete; pocos ensayos, sirven de orientación y no de garantía):
-| Qué | Resultado |
-|---|---|
-| La skill `orca` se carga antes de la primera edición con un encargo de 2 o más entregables | 19 de 19 |
-| Una pregunta, un cambio de un fichero o «explica este fichero» no pasan por la puerta | 3 de 3 |
-| Un encargo grande (tres módulos o tres sprints independientes) se reparte de verdad | 2 de 2 con presupuesto suficiente: uno enseñó el plan de rondas y esperó el «sí»; el otro lanzó tres subagentes con su despacho `UNIT:` |
-| El hook `UserPromptSubmit` se ejecuta en cada mensaje | 9 de 9 |
-| El plan del modo plan termina en `Reparto`, y el hook de `ExitPlanMode` se ejecuta al aprobarlo | 2 de 2 y 1 de 1 |
-| Antigravity (`agy --print`): primera lectura la skill, respuesta que empieza por `ORCA:` | 2 de 2 |
-| La línea `ORCA: secuencial` **visible** cuando el encargo es pequeño | 4 de 16: la decisión se toma (la skill se carga), pero a menudo se queda en el razonamiento y no llega al chat |
+- **Puerta obligatoria en Claude Code** (`hooks/orca-gate.cjs`, en la configuración global; `omk gate on|off|status`). Recordar no bastaba: la línea `ORCA: secuencial` visible solo salía en 4 de 16 ensayos, y un reparto podía empezar sin esperar el «sí». El hook lo impone:
+  | Evento | Qué hace |
+  |---|---|
+  | `UserPromptSubmit` | Apunta cuándo escribe la persona (las notificaciones de tareas en segundo plano no cuentan) |
+  | `PostToolUse` sobre `Skill` | Apunta cuándo se carga la skill `orca` |
+  | `PreToolUse` sobre `Edit`, `Write`, `MultiEdit`, `NotebookEdit`, `Bash`, `PowerShell`, `Agent` | Apunta el veredicto cuando el agente lo registra con `echo "ORCA: …"`. Tras cargar la skill, deniega editar el proyecto (fuera de `.work/`) y escribir desde la shell hasta que haya veredicto; si reparte, deniega además lanzar subagentes hasta que la persona responda al plan |
+  - **Por qué `echo`**: Claude Code escribe el transcript con retraso (a veces al acabar el turno), así que el hook no ve a tiempo la línea del chat. La orden sí llega en su propia entrada. El agente escribe la línea en el chat y la registra con `echo`; el motivo de cada denegación le dice cómo.
+  - **Qué no toca**: una sesión sin la skill cargada; un encargo anterior (si la persona ha escrito después de cargar la skill sin veredicto); un worker (primer mensaje `UNIT:`); autonomía `auto`; repetir un plan ya confirmado. Un plan distinto tras «cambia X» vuelve a pedir confirmación.
+  - **Nunca bloquea por un fallo suyo**: sin estado o con una carga de la skill anterior a instalarlo (sesión ya abierta), sin transcript ni registro, o ante un error interno, deja pasar y lo avisa (`~/.agents/state/gate/errors.log`). Cuesta lo que tarda Node en arrancar (unos 170 ms en Windows) en cada edición u orden de shell.
+  - Va solo en la configuración global (`~/.claude/settings.json`), no en la del proyecto: así un repositorio clonado sin el kit no ejecuta un script que no tiene. Con el ejecutable autónomo y sin Node en el PATH, la orden es el propio `omk gate hook`.
 
-**Límites.** La línea visible del veredicto secuencial no se puede forzar con texto: reforzar la redacción tres veces no cambió la tasa. En modo no interactivo, además, un reparto puede empezar sin esperar la confirmación 1 (no hay a quién preguntar): pasó en uno de los dos ensayos grandes. Un hook de contexto no ejecuta la skill: se la recuerda al agente en el momento justo, igual que el hook de spec-kit es una instrucción que `/speckit.implement` lee. En Antigravity y Codex existen hooks propios, pero el kit no los instala todavía; ahí manda la regla del núcleo y la sección `Reparto` del plan.
+**Lo medido** (Claude Code en modo no interactivo, `claude -p`, sobre un repo de juguete; pocos ensayos, sirven de orientación y no de garantía):
+| Qué | Sin la puerta | Con la puerta |
+|---|---|---|
+| La skill `orca` se carga antes de la primera edición con un encargo de 2 o más entregables | 19 de 19 | 6 de 6 |
+| El veredicto queda a la vista (chat o `echo`) antes de la primera edición | 4 de 16 | 6 de 6, sin una sola denegación de más |
+| Un reparto espera al «sí» antes de editar o lanzar workers | 1 de 2 | 2 de 2; tras el «sí», la primera edición pasa |
+| Un cambio de un solo fichero no pasa por la puerta | 3 de 3 | 1 de 1 |
+| El plan del modo plan termina en `Reparto`, y el hook de `ExitPlanMode` se ejecuta al aprobarlo | 2 de 2 y 1 de 1 | — |
+| Antigravity (`agy --print`): primera lectura la skill, respuesta que empieza por `ORCA:` | 2 de 2 | (sin hook) |
+
+**Límites.** En Antigravity y Codex no hay puerta obligatoria: manda la regla. Una skill cargada leyendo su `SKILL.md` (sin la herramienta Skill) solo se detecta cuando llega al transcript. Con `claude -p --no-session-persistence` no hay transcript y la puerta solo usa lo que apuntan sus hooks. Un hook de contexto no ejecuta la skill: se la recuerda al agente en el momento justo, igual que el hook de spec-kit es una instrucción que `/speckit.implement` lee. En Antigravity y Codex existen hooks propios, pero el kit no los instala todavía; ahí manda la regla del núcleo y la sección `Reparto` del plan.
 
 ## Compatibilidad
 

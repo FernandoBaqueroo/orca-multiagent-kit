@@ -8,7 +8,7 @@
 |---|---|---|
 | 0. Solo con npx | El kit corre desde una caché que npm borra cuando quiere: instala `omk` de forma permanente (`npm install -g orca-multiagent-kit@<versión>`) y sigue desde ahí | Dice cómo hacerlo a mano y sale con error |
 | 1. Kit | Reglas y skills en `~/.agents` (con backup, como siempre; acepta `--agents` y `--dry-run`) | Se para con el código de `install.sh` |
-| 1b. Reparto en Claude Code | Si usas Claude Code, fusiona en `~/.claude/settings.json` los dos hooks que recuerdan la puerta de reparto (`--no-hooks` para omitirlo) | Un `settings.json` que no es JSON no se toca, y lo dice |
+| 1b. Reparto en Claude Code | Si usas Claude Code, fusiona en `~/.claude/settings.json` los hooks que recuerdan la puerta de reparto y la puerta obligatoria (`--no-hooks` para omitirlo). Sin Node en el PATH, la puerta se ejecuta con el propio `omk` (`omk gate hook`) | Un `settings.json` que no es JSON no se toca, y lo dice |
 | 2. `omk` en el `PATH` (solo el ejecutable) | Se copia a sí mismo a `%LOCALAPPDATA%\Programs\orca-multiagent-kit\omk.exe` (Windows) o `~/.local/bin/omk`, y en Windows añade esa carpeta al `Path` de tu usuario | No pisa un `omk` que no sea el del kit; lo dice y sale con error |
 | 3. Orca | Busca su CLI (`PATH`, o donde lo deja el instalador de Orca; `OMK_ORCA` para indicar otro) y comprueba que su versión cumple `engines.orca` del plugin | Dice qué falta (instalar o actualizar Orca) y sale con error |
 | 4. App | Si Orca no está abierto, `orca open` y espera a que arranque | Sale con error |

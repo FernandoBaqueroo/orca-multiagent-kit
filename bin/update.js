@@ -154,7 +154,8 @@ async function update({ kit, version, args, installer, standalone, agentsHome, c
     detail(`${cwd} no es un proyecto preparado con el kit: no hay nada que poner al día aquí.`);
     detail('Para prepararlo: omk init, o «inicializa el proyecto» en el agente.');
   }
-  good = applyHooks({ kit, agentsHome, project, dryRun: opts.dryRun, skip: opts.noHooks }) && good;
+  const omkBinary = standalone ? require('./setup').installedOmk() : null;
+  good = applyHooks({ kit, agentsHome, project, dryRun: opts.dryRun, skip: opts.noHooks, omkBinary }) && good;
   if (!opts.noPlugin) good = (await refreshPlugin({ kit, yes: opts.yes, dryRun: opts.dryRun })) && good;
 
   out();

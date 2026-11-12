@@ -1,13 +1,21 @@
-// Hooks de Claude Code del kit (templates/claude-settings.json): recuerdan la puerta de reparto en
-// cada mensaje y al aprobar un plan, que es lo que hace que la orquestación se evalúe también fuera
-// de spec-kit. Se fusionan en un settings.json que ya existe (el global de Claude Code o el de un
-// proyecto) sin tocar nada más: solo se añaden o se ponen al día las entradas marcadas con el
-// nombre del kit.
+// Hooks de Claude Code del kit. Los de templates/claude-settings.json recuerdan la puerta de reparto en
+// cada mensaje y al aprobar un plan; van en la configuración global y en la de cada proyecto. En la
+// global va además la puerta obligatoria (hooks/orca-gate.cjs, instalada en ~/.agents/hooks): deniega
+// editar hasta que el veredicto de la skill orca esté en el chat y, si reparte, hasta que la persona
+// responda al plan. Se fusionan en un settings.json que ya existe sin tocar nada más: solo se añaden o
+// se ponen al día las entradas marcadas con el nombre del kit.
 'use strict';
 
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+
+// Herramientas que la puerta vigila: las de edición, las de shell y las que lanzan subagentes.
+const GATE_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task';
+const GATE_TIMEOUT_S = 10;
+// La ruta va entre comillas dobles en una orden que ejecutan bash o PowerShell: nada que expandan.
+const SAFE_PATH = /^[\w .:/()+@~-]+$/;
 
 const KIT_MARK = '[Orca Multiagent Kit]';
 
@@ -50,13 +58,42 @@ function mergeKitHooks(settings, template) {
 }
 
 /**
- * Deja en `file` los hooks del kit de `templateFile`. Devuelve qué pasó:
+ * La orden del hook de la puerta, o `null` si no hay con qué ejecutarla: `node` si está en el PATH
+ * (Claude Code lo lanza desde su shell) o, con el ejecutable autónomo, el propio omk instalado.
+ */
+function gateCommand({ agentsHome, omkBinary = null, hasNode = nodeOnPath() }) {
+  const script = path.join(agentsHome, 'hooks', 'orca-gate.cjs').split(path.sep).join('/');
+  if (hasNode && SAFE_PATH.test(script)) return `node "${script}" "${KIT_MARK}"`;
+  const binary = omkBinary && omkBinary.split(path.sep).join('/');
+  if (binary && SAFE_PATH.test(binary)) return `"${binary}" gate hook "${KIT_MARK}"`;
+  return null;
+}
+
+function nodeOnPath() {
+  const r = spawnSync(process.platform === 'win32' ? 'node.exe' : 'node', ['--version'], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+  return r.status === 0 && /^v\d+/.test((r.stdout || '').trim());
+}
+
+/** La plantilla de la configuración global: la del proyecto más la puerta en UserPromptSubmit y PreToolUse. */
+function globalTemplate(template, command) {
+  const hooks = JSON.parse(JSON.stringify(template.hooks));
+  const gate = { type: 'command', command, timeout: GATE_TIMEOUT_S };
+  const prompt = (hooks.UserPromptSubmit || []).find((entry) => !entry.matcher);
+  if (prompt) prompt.hooks.push(gate);
+  else hooks.UserPromptSubmit = [...(hooks.UserPromptSubmit || []), { hooks: [gate] }];
+  hooks.PreToolUse = [...(hooks.PreToolUse || []), { matcher: GATE_MATCHER, hooks: [gate] }];
+  // Cuándo se carga la skill orca: Skill es poco frecuente, así que este hook no frena el trabajo normal.
+  hooks.PostToolUse = [...(hooks.PostToolUse || []), { matcher: 'Skill', hooks: [gate] }];
+  return { ...template, hooks };
+}
+
+/**
+ * Deja en `file` los hooks del kit de `template` (el objeto de la plantilla). Devuelve qué pasó:
  * 'created' (no existía y `create`), 'missing' (no existía), 'added' / 'current' (ya estaban al día),
  * o 'invalid' (no es un JSON con la forma esperada: no se toca). `backup(file)` se llama antes de
  * escribir sobre un fichero que ya existía.
  */
-function syncClaudeHooks(file, templateFile, { dryRun = false, create = false, backup = null } = {}) {
-  const template = JSON.parse(fs.readFileSync(templateFile, 'utf8'));
+function syncClaudeHooks(file, template, { dryRun = false, create = false, backup = null } = {}) {
   let text;
   try {
     text = fs.readFileSync(file, 'utf8');
@@ -98,17 +135,22 @@ function syncClaudeHooks(file, templateFile, { dryRun = false, create = false, b
  * proyecto, si tiene `.claude/settings.json`. Sin Claude Code no hace ni dice nada. Devuelve
  * `false` solo si algo falló. `OMK_NO_HOOKS=1` (o `--no-hooks`, que llega como `skip`) lo desactiva.
  */
-function applyHooks({ kit, agentsHome, project = null, global = true, dryRun = false, skip = false }) {
+function applyHooks({ kit, agentsHome, project = null, global = true, dryRun = false, skip = false, omkBinary = null }) {
   if (skip || process.env.OMK_NO_HOOKS === '1') return true;
   const { c, sym } = require('./ui');
   const { makeBackup } = require('./backup');
   const out = (s = '') => process.stdout.write(s + '\n');
-  const template = path.join(kit, 'templates', 'claude-settings.json');
+  const template = JSON.parse(fs.readFileSync(path.join(kit, 'templates', 'claude-settings.json'), 'utf8'));
   const targets = [];
   const dir = claudeDir();
-  if (global && fs.existsSync(dir)) targets.push({ file: path.join(dir, 'settings.json'), label: 'Claude Code', create: true });
+  let gateMissing = false;
+  if (global && fs.existsSync(dir)) {
+    const command = gateCommand({ agentsHome, omkBinary });
+    gateMissing = command === null;
+    targets.push({ file: path.join(dir, 'settings.json'), label: 'Claude Code', create: true, template: command ? globalTemplate(template, command) : template });
+  }
   if (project && fs.existsSync(path.join(project, '.claude', 'settings.json'))) {
-    targets.push({ file: path.join(project, '.claude', 'settings.json'), label: `Proyecto ${path.basename(project)}`, create: false });
+    targets.push({ file: path.join(project, '.claude', 'settings.json'), label: `Proyecto ${path.basename(project)}`, create: false, template });
   }
   if (targets.length === 0) return true;
   const { stamp, backup } = makeBackup(agentsHome);
@@ -116,10 +158,10 @@ function applyHooks({ kit, agentsHome, project = null, global = true, dryRun = f
   let touched = false;
   out();
   out(`  ${c.lime('◆')} ${c.bold('Puerta de reparto en Claude Code')}`);
-  for (const { file, label, create } of targets) {
+  for (const { file, label, create, template: wanted } of targets) {
     let result;
     try {
-      result = syncClaudeHooks(file, template, { dryRun, create, backup });
+      result = syncClaudeHooks(file, wanted, { dryRun, create, backup });
     } catch (e) {
       out(`  ${sym.fail} ${c.red(`${label}: no pude poner los hooks en ${file} (${e.message})`)}`);
       good = false;
@@ -134,10 +176,12 @@ function applyHooks({ kit, agentsHome, project = null, global = true, dryRun = f
       out(`  ${sym.ok} ${label}: hooks de reparto ${dryRun ? 'se añadirían a' : 'en'} ${file}`);
     }
   }
-  out(`      ${sym.info} ${c.grey('Recuerdan en cada mensaje y al aprobar un plan que un trabajo con 2 o más entregables pasa por la skill orca.')}`);
+  out(`      ${sym.info} ${c.grey('Recuerdan en cada mensaje y al aprobar un plan que un trabajo con 2 o más entregables pasa por la skill orca; en la configuración global, además, no dejan editar hasta que su veredicto esté en el chat y, si reparte, hasta que respondas al plan.')}`);
+  if (gateMissing) out(`  ${sym.warn} Sin node en el PATH ni ejecutable de omk: la puerta obligatoria no se instala, solo los recordatorios.`);
+  out(`      ${sym.info} ${c.grey('Apagar solo la puerta obligatoria: omk gate off (u OMK_NO_GATE=1).')}`);
   out(`      ${sym.info} ${c.grey('Para que omk no los ponga: OMK_NO_HOOKS=1 (o --no-hooks) y bórralos de settings.json.')}`);
   if (touched && !dryRun) out(`      ${sym.info} ${c.grey(`Copia anterior: omk restore ${stamp}`)}`);
   return good;
 }
 
-module.exports = { KIT_MARK, claudeDir, mergeKitHooks, syncClaudeHooks, applyHooks };
+module.exports = { KIT_MARK, GATE_MATCHER, claudeDir, gateCommand, globalTemplate, mergeKitHooks, syncClaudeHooks, applyHooks };

@@ -152,16 +152,17 @@ SET="$H/.claude/settings.json"
 kit_hooks() { node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const n=(e)=>(j.hooks[e]||[]).flatMap((x)=>x.hooks||[]).filter((h)=>String(h.command).includes("[Orca Multiagent Kit]")).length;console.log("UserPromptSubmit="+n("UserPromptSubmit")+" PostToolUse="+n("PostToolUse"))' "$(wpath "$1")"; }
 # shellcheck disable=SC2016  # el $ es de JavaScript
 check "la plantilla es JSON con los dos hooks, en ASCII y sin nada que un shell expanda" 'node -e '"'"'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const cmds=[...j.hooks.UserPromptSubmit,...j.hooks.PostToolUse].flatMap((e)=>e.hooks.map((h)=>h.command));const ok=cmds.length===2&&j.hooks.PostToolUse[0].matcher==="ExitPlanMode"&&cmds.every((c)=>/^echo \x27[\x20-\x7e]*\x27$/.test(c)&&!/[$`]/.test(c)&&c.split("\x27").length===3&&c.includes("[Orca Multiagent Kit]"));process.exit(ok?0:1)'"'"' "$(wpath "$ROOT/templates/claude-settings.json")"'
-check "omk update los deja en la configuración global" '[ "$(kit_hooks "$SET")" = "UserPromptSubmit=1 PostToolUse=1" ]'
+# En la global va también la puerta obligatoria (tests/test_gate.sh): un hook más en UserPromptSubmit y en PostToolUse (sobre Skill).
+check "omk update los deja en la configuración global" '[ "$(kit_hooks "$SET")" = "UserPromptSubmit=2 PostToolUse=2" ]'
 check "y en el .claude/settings.json del proyecto"     '[ "$(kit_hooks "$W/proj/.claude/settings.json")" = "UserPromptSubmit=1 PostToolUse=1" ]'
 printf '%s' '{"model":"x","hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"echo mio"}]}],"Stop":[{"hooks":[{"type":"command","command":"echo fin"}]}]}}' > "$SET"
-check "conserva los hooks y ajustes que ya tenías"     'update --no-project --no-plugin && [ "$(kit_hooks "$SET")" = "UserPromptSubmit=1 PostToolUse=1" ] && grep -q "echo mio" "$SET" && grep -q "echo fin" "$SET" && grep -q "\"model\": \"x\"" "$SET" && said "hooks de reparto en"'
+check "conserva los hooks y ajustes que ya tenías"     'update --no-project --no-plugin && [ "$(kit_hooks "$SET")" = "UserPromptSubmit=2 PostToolUse=2" ] && grep -q "echo mio" "$SET" && grep -q "echo fin" "$SET" && grep -q "\"model\": \"x\"" "$SET" && said "hooks de reparto en"'
 cp "$SET" "$W/antes"
 check "repetirlo no los duplica ni cambia el fichero"  'update --no-project --no-plugin && cmp -s "$SET" "$W/antes" && said "hooks de reparto al día"'
 check "deja copia del settings.json anterior"          '[ -n "$(find "$H/.agents/backups" -name settings.json -path "*.claude*" -type f | head -1)" ]'
 # Un hook del kit con un texto antiguo se pone al día, sin tocar el del usuario que comparte entrada.
 node -e 'const fs=require("fs");const f=process.argv[1];const j=JSON.parse(fs.readFileSync(f,"utf8"));const e=j.hooks.UserPromptSubmit.find((x)=>x.hooks.some((h)=>h.command.includes("[Orca Multiagent Kit]")));e.hooks=[{type:"command",command:"echo otro"},{type:"command",command:"echo [Orca Multiagent Kit] viejo"}];fs.writeFileSync(f,JSON.stringify(j))' "$(wpath "$SET")"
-check "un hook del kit antiguo se sustituye"           'update --no-project --no-plugin && [ "$(kit_hooks "$SET")" = "UserPromptSubmit=1 PostToolUse=1" ] && ! grep -q "viejo" "$SET" && grep -q "echo otro" "$SET"'
+check "un hook del kit antiguo se sustituye"           'update --no-project --no-plugin && [ "$(kit_hooks "$SET")" = "UserPromptSubmit=2 PostToolUse=2" ] && ! grep -q "viejo" "$SET" && grep -q "echo otro" "$SET"'
 printf '%s' '{ esto no es json' > "$SET"; cp "$SET" "$W/antes"
 check "un settings.json que no es JSON no se toca"     'update --no-project --no-plugin && cmp -s "$SET" "$W/antes" && said "no lo toco"'
 rm -f "$SET"

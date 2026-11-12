@@ -9,7 +9,8 @@ Un solo punto de entrada. El usuario no tiene que conocer fases ni comandos: tú
 
 **Lo primero que haces al cargar esta skill**: decidir §1 y dejar su veredicto **escrito en el chat**, en una línea que empieza por `ORCA:`. Es texto visible para el usuario, no razonamiento.
 - **Si reparte**: la línea y el plan de rondas (§3) van **antes de llamar a ninguna herramienta de edición**, también antes de la ronda 0: no se toca código hasta que el plan está enseñado (y confirmado, salvo en `auto`). No recortes el reparto porque la sesión vaya justa de presupuesto o de contexto: enseña el plan y dilo en un `RISK:`.
-- **Si es secuencial**: `ORCA: secuencial — <motivo>` como muy tarde en la primera línea de tu respuesta final.
+- **Si es secuencial**: `ORCA: secuencial — <motivo>` también antes de la primera edición; después, hazlo tú.
+- En Claude Code lo impone un hook del kit (`omk gate`): nada más escribir la línea en el chat, **regístrala** ejecutando `echo "ORCA: …"` con la misma línea (el hook la lee de esa orden, porque el chat le llega tarde); sin ese registro, la edición se deniega, y con un reparto sin responder se deniegan también la shell que escribe y lanzar workers. Si te deniega, no busques otro camino: escribe la línea (o termina el turno con el plan) y sigue.
 
 **Puerta de reparto** (`~/.agents/AGENTS.md` §6): se llega aquí antes de la primera edición de todo trabajo con ≥2 entregables separables, venga de un prompt, de un plan nativo aprobado, de un plan en fichero, de un artefacto, de un ticket o del hook de spec-kit. La salida mínima es siempre **una línea** `ORCA: …` (§1); sin ella no se edita.
 - **Sin `tasks.md` también se decide**: si la entrada no trae las partes hechas, esboza las unidades (título + ficheros que escribe cada una, buscados en el repo) con el adaptador de §2 y decide §1 con ese esbozo. No des «secuencial» por no tener el reparto hecho.

@@ -35,6 +35,7 @@ ${bold('Comandos')}
   ${lime('verify')}                                Comprueba enlaces, imports y copias divergentes
   ${lime('plugin')}   install|status|uninstall     El plugin de Orca del kit (install pide tu aprobación)
   ${lime('team')}     [set …]                      Enseña o cambia el equipo de roles y la autonomía de ORCHESTRATION.md
+  ${lime('gate')}     on|off|status                La puerta de reparto obligatoria de Claude Code (hooks/orca-gate.cjs)
   ${lime('adopt')}    <carpeta-skill>              Comparte una skill externa con todos los agentes
   ${lime('backups')}                               Lista las copias de seguridad
   ${lime('restore')}  <fecha>                      Deshace una instalación (fecha de "omk backups")
@@ -106,6 +107,50 @@ function finish(promise) {
     .then((code) => process.exit(code));
 }
 
+/**
+ * omk gate: la puerta de reparto obligatoria de Claude Code. `hook` es el propio hook (lee la entrada de
+ * Claude Code por stdin); lo usa el ejecutable autónomo cuando no hay node en el PATH.
+ */
+function gate([sub = 'status']) {
+  const gateModule = require(path.join(KIT, 'hooks', 'orca-gate.cjs'));
+  const off = path.join(gateModule.stateDir(), 'off');
+  if (sub === 'hook') {
+    const chunks = [];
+    process.stdin.on('data', (chunk) => chunks.push(chunk));
+    process.stdin.on('end', () => {
+      const output = gateModule.run(Buffer.concat(chunks).toString('utf8'));
+      if (output) process.stdout.write(output);
+    });
+    return 0;
+  }
+  if (sub === 'off') {
+    fs.mkdirSync(path.dirname(off), { recursive: true });
+    fs.writeFileSync(off, '');
+    console.log(`${lime('✓')} Puerta de reparto apagada: Claude Code edita sin esperar al veredicto de la skill orca. Volver a encenderla: omk gate on`);
+    return 0;
+  }
+  if (sub === 'on') {
+    fs.rmSync(off, { force: true });
+    console.log(`${lime('✓')} Puerta de reparto encendida.`);
+    return 0;
+  }
+  if (sub !== 'status') die(`subcomando desconocido: ${sub} (on, off, status)`, 2);
+  const { claudeDir, KIT_MARK } = require('./hooks');
+  const settings = path.join(claudeDir(), 'settings.json');
+  let installed = false;
+  try {
+    const hooks = (JSON.parse(fs.readFileSync(settings, 'utf8')).hooks || {}).PreToolUse || [];
+    installed = hooks.some((entry) => (entry.hooks || []).some((hook) => String(hook.command || '').includes(KIT_MARK)));
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.log(`${dim('·')} No pude leer ${settings}: ${e.message}`);
+  }
+  const disabled = process.env.OMK_NO_GATE === '1' || fs.existsSync(off);
+  console.log(`${bold('hook')}      ${installed ? 'instalado en ' + settings : 'no instalado: omk update (o omk setup)'}`);
+  console.log(`${bold('estado')}    ${disabled ? 'apagada (omk gate on para encenderla)' : 'encendida'}`);
+  console.log(`${bold('script')}    ${path.join(AGENTS_HOME, 'hooks', 'orca-gate.cjs')}${fs.existsSync(path.join(AGENTS_HOME, 'hooks', 'orca-gate.cjs')) ? '' : ' (falta: omk install)'}`);
+  return installed && !disabled ? 0 : 1;
+}
+
 function listBackups() {
   const dir = path.join(AGENTS_HOME, 'backups');
   if (!fs.existsSync(dir)) return [];
@@ -167,7 +212,8 @@ switch (cmd) {
     const opts = parseOptions(rest);
     finish(installer(opts.rest).then(async (code) => {
       if (code !== 0) return code;
-      const hooked = applyHooks({ kit: KIT, agentsHome: AGENTS_HOME, dryRun: opts.dryRun, skip: opts.noHooks });
+      const omkBinary = STANDALONE ? require('./setup').installedOmk() : null;
+      const hooked = applyHooks({ kit: KIT, agentsHome: AGENTS_HOME, dryRun: opts.dryRun, skip: opts.noHooks, omkBinary });
       if (opts.noPlugin) return hooked ? 0 : 1;
       return (await refreshPlugin({ kit: KIT, yes: opts.yes, dryRun: opts.dryRun, quiet: true })) && hooked ? 0 : 1;
     }));
@@ -214,6 +260,10 @@ switch (cmd) {
     finish(require('./update').update({
       kit: KIT, version: VERSION, args: rest, installer, standalone: STANDALONE, agentsHome: AGENTS_HOME,
     }));
+    break;
+
+  case 'gate':
+    process.exitCode = gate(rest);
     break;
 
   case 'where':

@@ -334,6 +334,7 @@ if [ "$VERIFY" -eq 1 ]; then
   [ -f "$AG/skills/orca/references/olimpo.md" ] && vok "roles de Olimpo" || vfail "falta skills/orca/references/olimpo.md: ejecuta $K_INSTALL"
   [ -f "$AG/models.md" ] && vok "modelos por nivel en ~/.agents/models.md" || vfail "falta ~/.agents/models.md (qué modelo usa cada nivel): ejecuta $K_INSTALL"
   [ -f "$AG/speckit-ext/orca/extension.yml" ] && vok "extensión de spec-kit" || vfail "falta la extensión de spec-kit (~/.agents/speckit-ext/orca)"
+  [ -f "$AG/hooks/orca-gate.cjs" ] && vok "puerta de reparto (hooks/orca-gate.cjs)" || vfail "falta ~/.agents/hooks/orca-gate.cjs: ejecuta $K_INSTALL"
   for s in $OLD_SKILLS; do [ -e "$AG/skills/$s" ] && vfail "skill retirada sigue instalada: $s"; done
   if has_agent claude; then
     grep -q '@~/.agents/AGENTS.md' "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && vok "Claude Code: CLAUDE.md importa el núcleo" || vfail "Claude Code: CLAUDE.md no importa el núcleo"
@@ -380,6 +381,9 @@ if [ "$PROJECT_ONLY" -eq 0 ]; then
   done
   run cp -R "$SRC/templates/." "$AG/templates/"
   run cp -R "$SRC/output-styles/." "$AG/output-styles/"
+  # La puerta de reparto de Claude Code (omk la registra en ~/.claude/settings.json).
+  run mkdir -p "$AG/hooks"
+  run cp -R "$SRC/hooks/." "$AG/hooks/"
   run cp "$SRC/VERSION" "$AG/AGENT_KIT_VERSION"
   run mkdir -p "$AG/speckit-ext"
   [ -e "$AG/speckit-ext/orca" ] && run rm -rf "$AG/speckit-ext/orca"
