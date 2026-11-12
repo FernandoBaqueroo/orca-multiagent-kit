@@ -291,6 +291,8 @@ export type AgentLine = {
   /** Clave del agente en el worker: el panel la devuelve para abrir su workspace. */
   id: string
   title: string
+  /** Id del agente (claude, codex…), para su icono; `null` si no se sabe. */
+  agent?: string | null
   state: string
   blocked: boolean
   /** Qué agente es y en qué workspace, lo que se sepa: «codex · palolo». */
@@ -367,6 +369,7 @@ export function groupAgents(
       line: {
         id,
         title,
+        agent: agent.agent ?? null,
         state: STATE_LABEL[agent.state][0],
         blocked: agent.state === 'blocked',
         detail,
@@ -703,6 +706,19 @@ export const TEAM_COMMAND_MAX = 7000
 export function teamCommand(team: Team): string | null {
   const command = `omk team set --data ${encodeTeam(team)}`
   return command.length > TEAM_COMMAND_MAX ? null : command
+}
+
+/** Cuántas confirmaciones pide la skill `orca` antes de seguir sola (`ORCHESTRATION.md` §0). */
+export type Autonomy = 'manual' | 'semi' | 'auto'
+
+export const AUTONOMY_LEVELS: readonly { id: Autonomy; label: string; hint: string }[] = [
+  { id: 'manual', label: 'Manual', hint: 'Confirmas el plan, cada ronda, cada merge y la limpieza.' },
+  { id: 'semi', label: 'Semi', hint: 'Confirmas el plan, el merge final y la limpieza.' },
+  { id: 'auto', label: 'Auto', hint: 'Solo confirmas el merge final y la limpieza; el plan se enseña sin esperar.' }
+]
+
+export function isAutonomy(value: unknown): value is Autonomy {
+  return AUTONOMY_LEVELS.some(({ id }) => id === value)
 }
 
 export const TASK_MAX = 4000

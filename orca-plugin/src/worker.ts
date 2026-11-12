@@ -1,6 +1,8 @@
 // Worker del plugin: comandos de paleta del kit, referencia al contrato del worker en los
 // despachos de orquestación, la skill orca en los prompts de arranque, los agentes con nombre en
 // la barra de estado y el panel, sus avisos, y las peticiones del panel (acciones, equipo y repartir).
+// Las pestañas Avisos, Worktrees e Historial viven en src/worker/: este núcleo oye a Orca una sola
+// vez y les reparte los sucesos (src/worker/context.ts).
 // Orca transpila este fichero al cargarlo: no hay paso de build.
 import type { OrcaWorkerApi } from 'orca/worker'
 import {
@@ -33,11 +35,14 @@ import {
   type Notice,
   type RunProgress,
   type TrackedAgent,
-  type UnitInfo,
   type WorkspaceEntry,
   type WorkspaceIndex
 } from './kit.ts'
 import type { AgentsView } from './protocol.ts'
+import { createBus, type KitContext, type TerminalInfo } from './worker/context.ts'
+import { registerHistory } from './worker/history.ts'
+import { registerNotices } from './worker/notices.ts'
+import { registerWorktrees } from './worker/worktrees.ts'
 
 const STATUS_ITEM = 'agents'
 const INIT_PROMPT = 'inicializa el proyecto'
@@ -50,8 +55,6 @@ const NO_WORKSPACE =
   'No identifico el workspace activo. Abre el proyecto en Orca y vuelve a lanzar el comando.'
 
 type OmkSubcommand = 'verify' | 'update'
-/** Lo que los hooks enseñan de un terminal antes, o además, de sus cambios de estado. */
-type TerminalInfo = { agent?: string; unit?: UnitInfo; workspaceId?: string }
 
 // Esperas pendientes de las comprobaciones de `omk`: `deactivate` las cancela al parar el worker.
 const pendingTimers = new Set<ReturnType<typeof setTimeout>>()
@@ -90,6 +93,7 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
   const runs: RunProgress = new Map()
   let refreshing: Promise<void> | null = null
   let postedView = ''
+  const bus = createBus((message) => orca.log(message))
 
   const notify = (title: string, body: string) => {
     void host.call('notifications.show', { title, body }).catch((error: unknown) => {
@@ -99,6 +103,13 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
 
   const announce = (notice: Notice | null) => {
     if (notice && notifyEnabled) notify(notice.title, notice.body)
+  }
+
+  // Una unidad cambia de estado en su run; si con ella terminan todas, se avisa y se cuenta.
+  const progress = (run: string, key: string, state: TrackedAgent['state'], at: number) => {
+    const notice = trackRun(runs, run, key, state)
+    announce(notice)
+    if (notice) bus.emit('runDone', { run, notice, at })
   }
 
   // Un fallo de Orca en un comando se cuenta al usuario; nunca se queda en silencio.
@@ -205,10 +216,11 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     if (!unit && !id) return
     rememberTerminal(terminalId, { ...(id ? { agent: id } : {}), ...(unit ? { unit } : {}) })
     const key = `t:${terminalId}`
+    if (unit) bus.emit('dispatch', { key, terminalId, unit, agent: id, at: Date.now() })
     const tracked = agents.get(key)
     if (!tracked) return
     agents.set(key, { ...tracked, agent: id ?? tracked.agent ?? null, unit: unit ?? tracked.unit ?? null })
-    if (unit) announce(trackRun(runs, unit.run, key, tracked.state))
+    if (unit) progress(unit.run, key, tracked.state, Date.now())
     renderStatus()
   }
 
@@ -296,6 +308,22 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
       ...(agent ? { agent } : {}),
       ...(event.workspaceId ? { workspaceId: event.workspaceId } : {})
     })
+    if (agent) {
+      const { terminalId, workspaceId, command } = event
+      bus.emit('launch', { terminalId, agent, workspaceId, command, at: Date.now() })
+    }
+  })
+
+  // Solo observa: Orca no espera a este hook.
+  orca.hooks.on('agent.tool.after', (event) => {
+    bus.emit('tool', {
+      agent: event.agent,
+      workspaceId: event.workspaceId,
+      terminalId: event.terminalId ?? null,
+      tool: event.tool,
+      input: event.input,
+      at: Date.now()
+    })
   })
 
   const actions: Record<KitAction, () => Promise<string>> = {
@@ -343,7 +371,12 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     const prompt = orchestratePrompt(input?.task, input?.source)
     if (prompt === null) throw invalidParams(`falta la tarea, pasa de ${TASK_MAX} caracteres o la entrada no existe`)
     const done = `Lanzado ${agent} con la skill orca en el workspace activo.`
-    return { message: await launchAgent('orquestar', agent, prompt, done)() }
+    const message = await launchAgent('orquestar', agent, prompt, done)()
+    if (message === done) {
+      const task = cleanLabel(typeof input?.task === 'string' ? input.task : '', 120)
+      bus.emit('action', { kind: 'orchestrate', title: `Repartir con ${agent}`, detail: task, agentKey: null, run: null, at: Date.now() })
+    }
+    return { message }
   })
 
   orca.events.on('agent.status.changed', (event) => {
@@ -366,7 +399,15 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     if (agent.state === 'done') agents.delete(key)
     else agents.set(key, agent)
     announce(blockedNotice(previous?.state, agent, workspaceName(agent.workspaceId)))
-    if (agent.unit) announce(trackRun(runs, agent.unit.run, key, agent.state))
+    if (agent.unit) progress(agent.unit.run, key, agent.state, event.receivedAt)
+    bus.emit('agent', {
+      key,
+      previous,
+      agent: agent.state === 'done' ? null : agent,
+      state: agent.state,
+      outcome: agent.outcome ?? null,
+      at: event.receivedAt
+    })
     renderStatus()
   })
 
@@ -380,8 +421,28 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     for (const [terminalId, info] of terminals) {
       if (info.workspaceId !== undefined && removed.has(canonical(info.workspaceId))) terminals.delete(terminalId)
     }
+    bus.emit('workspaceRemoved', { workspaceId: canonical(event.workspaceId) ?? event.workspaceId, at: Date.now() })
     renderStatus()
   })
+
+  const ctx: KitContext = {
+    host,
+    panels: orca.panels,
+    storage: orca.storage,
+    log: (message) => orca.log(message),
+    notify: (title, body) => {
+      if (notifyEnabled) notify(title, body)
+    },
+    agents,
+    terminals,
+    workspaces: () => workspaces,
+    workspaceName,
+    refreshWorkspaces,
+    ...bus
+  }
+  registerNotices(ctx)
+  registerWorktrees(ctx)
+  registerHistory(ctx)
 
   orca.settings.onDidChange(() => {
     void loadSettings().then(renderStatus)

@@ -2,8 +2,8 @@
   "manifestVersion": 2,
   "id": "multiagent-kit",
   "name": "Orca Multiagent Kit",
-  "version": "0.5.0",
-  "description": "Comandos del kit en la paleta; un panel con los agentes por nombre, el equipo de roles, orquestar una tarea, las acciones y los ajustes; el contrato del worker en cada despacho del kit; avisos de agentes bloqueados y de runs terminados, y los agentes activos en la barra de estado.",
+  "version": "0.6.0",
+  "description": "Comandos del kit en la paleta; un panel con los avisos que esperan tu respuesta (plan de rondas incluido), los agentes por nombre y con su icono, los worktrees de la orquestación y su modelo, el historial de runs, el equipo de roles y la autonomía, orquestar una tarea, las acciones y los ajustes; el contrato del worker en cada despacho del kit; avisos de agentes bloqueados y de runs terminados, y los agentes activos en la barra de estado.",
   "author": {
     "name": "Fernando Baquero y Necro-Coder",
     "url": "https://github.com/FernandoBaqueroo/orca-multiagent-kit"
@@ -25,7 +25,8 @@
     { "kind": "agent:launch" },
     { "kind": "agent:read" },
     { "kind": "notifications:show" },
-    { "kind": "settings:own" }
+    { "kind": "settings:own" },
+    { "kind": "storage:own" }
   ],
   "contributes": {
     "panels": [
@@ -39,7 +40,8 @@
     ],
     "hooks": [
       { "event": "agent.prompt.before", "onError": "pass" },
-      { "event": "agent.launch.before", "onError": "pass" }
+      { "event": "agent.launch.before", "onError": "pass" },
+      { "event": "agent.tool.after" }
     ],
     "events": [
       { "on": "agent.status.changed" },

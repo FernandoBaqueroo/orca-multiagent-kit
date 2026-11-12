@@ -66,6 +66,7 @@ merge final: feat/003-recargas → main (te lo pediré al terminar; después, la
 ```
 - `<alto>`, `<medio>`: el valor real de `~/.agents/models.md` para ese proveedor, o `por defecto` si ese nivel no tiene modelo ahí.
 - La línea `modelos:` solo aparece si `references/olimpo.md` §Modelos ha clasificado un modelo nuevo o tiene algo que avisar. Es informativa: el nivel lo decide el coordinador con evidencia, no se le pregunta al usuario.
+- **Tarjeta del plan** (solo en Orca): justo antes de enseñar la tabla, escribe el mismo plan en `.work/runs/<run>/plan.json` con el formato de `references/plan-card.md`. El plugin del kit lo enseña en su pestaña Avisos con «Sí» y «Cambiar»; la respuesta te llega al chat como si la escribiera el usuario, y vale igual que esa. Si no puedes escribirlo, sigue sin él: la tabla del chat manda.
 - El «sí» autoriza los commits y merges **del run** en ramas de trabajo y en la rama de integración, Con el «sí», crea `.work/runs/<run>/run.md` (`references/ledger.md`): desde aquí, cada paso se anota **antes** de hacerlo.
 
 ## 4. Base fresca y base común (U0)

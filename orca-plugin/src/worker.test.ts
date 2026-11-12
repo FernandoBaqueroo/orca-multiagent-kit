@@ -390,3 +390,17 @@ test('un chat de Orca con el workspace en formato repo::ruta sale con su agente 
   await w.request('agents.open', { id: line?.id ?? '' })
   assert.deepEqual(w.host.callsOf('workspace.open'), [{ workspaceId: 'w1' }])
 })
+
+test('las pestañas nuevas responden con su contrato aunque estén vacías', async () => {
+  const w = await start()
+  assert.deepEqual(await w.request('notices.list'), { items: [] })
+  assert.deepEqual(await w.request('worktrees.list'), { groups: [] })
+  assert.deepEqual(await w.request('history.list'), { items: [] })
+})
+
+test('el hook agent.tool.after solo observa: nunca cambia ni para nada', async () => {
+  const w = await start()
+  const call = { agent: 'claude', workspaceId: 'w1', terminalId: 't1', tool: 'Write', input: { file_path: 'x' } }
+  assert.deepEqual(await w.hooks.fire('agent.tool.after', call), { kind: 'continue', event: call })
+  assert.deepEqual(w.logs.filter((line) => line.includes('falló')), [])
+})

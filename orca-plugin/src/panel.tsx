@@ -1,5 +1,7 @@
-// Panel lateral del kit en cuatro pestañas: los agentes activos con su ficha, repartir una tarea
-// entre agentes, el equipo de roles del proyecto y el kit (acciones y ajustes del plugin).
+// Panel lateral del kit en pestañas: lo que espera tu respuesta (Avisos), los agentes activos con
+// su ficha, los worktrees de la orquestación, repartir una tarea entre agentes, el historial, el
+// equipo de roles del proyecto y el kit (acciones y ajustes del plugin). Avisos, Worktrees e
+// Historial viven en src/tabs/; el estado que comparten todas, en src/panel-state.ts.
 // Los ajustes son los mismos de Settings → Plugins → Orca Multiagent Kit: cambiarlos aquí o allí
 // es lo mismo, y el worker se entera por `settings.onDidChange`.
 // Orca transpila este fichero al cargarlo: no hay paso de build.
@@ -61,7 +63,12 @@ import {
   type TeamDraft,
   type TeamPreset
 } from './kit.ts'
+import { ask, busy, describeError, outcome } from './panel-state.ts'
 import type { AgentsView } from './protocol.ts'
+import { History, setupHistory } from './tabs/history.tsx'
+import { Notices, setupNotices } from './tabs/notices.tsx'
+import { Worktrees, setupWorktrees } from './tabs/worktrees.tsx'
+import { AgentIcon } from './ui/agent-icon.tsx'
 
 type Preferences = {
   contractHint: ContractHintMode
@@ -70,7 +77,6 @@ type Preferences = {
   notify: boolean
   initAgent: string
 }
-type Outcome = { tone: 'success' | 'danger'; text: string }
 
 const DEFAULTS: Preferences = {
   contractHint: 'kit',
@@ -117,9 +123,6 @@ const SOURCE_FIELD: Record<TaskSource, { label: string; placeholder: string }> =
 
 const preferences = atom<Preferences>(DEFAULTS)
 const agents = atom<AgentsView | null>(null)
-// Qué petición al worker está en curso: una cada vez.
-const busy = atom<string | null>(null)
-const outcome = atom<Outcome | null>(null)
 const team = atom<TeamDraft>('team', draftFromPreset('claude'), {
   persist: 'plugin',
   version: 2,
@@ -127,10 +130,6 @@ const team = atom<TeamDraft>('team', draftFromPreset('claude'), {
 })
 const task = atom('')
 const source = atom<TaskSource>('chat')
-
-// Los errores del host llevan `code` (host-api §Errors); el tipo de `catch` no lo sabe.
-const describeError = (error: unknown) =>
-  error instanceof Error ? `${(error as { code?: string }).code ?? 'error'}: ${error.message}` : String(error)
 
 function fromSettings(values: Record<string, unknown>): Preferences {
   return {
@@ -157,21 +156,6 @@ async function save(key: keyof Preferences, value: string | boolean): Promise<vo
     set(outcome, { tone: 'success', text: 'Ajuste guardado.' })
   } catch (error) {
     set(outcome, { tone: 'danger', text: `No se guardó el ajuste: ${describeError(error)}` })
-  }
-}
-
-/** Una petición al worker cada vez; su respuesta o su error quedan en el aviso de arriba. */
-async function ask(label: string, request: () => Promise<{ message: string }>): Promise<boolean> {
-  set(busy, label)
-  try {
-    const { message } = await request()
-    set(outcome, { tone: 'success', text: message })
-    return true
-  } catch (error) {
-    set(outcome, { tone: 'danger', text: describeError(error) })
-    return false
-  } finally {
-    set(busy, null)
   }
 }
 
@@ -232,6 +216,9 @@ export function setup(ctx: PanelContext): void {
   ctx.subscriptions.push(plugin.on('agents.changed', (view) => set(agents, view)))
   ctx.subscriptions.push(settings.onDidChange(() => void loadPreferences()))
   void loadPreferences()
+  setupNotices(ctx)
+  setupWorktrees(ctx)
+  setupHistory(ctx)
   void plugin
     .request('agents.summary')
     .then((view) => set(agents, view))
@@ -248,6 +235,7 @@ function AgentCard({ agent }: { agent: AgentLine }) {
     >
       <Stack gap="sm">
         <Row gap="xs" align="center" wrap>
+          <AgentIcon agent={agent.agent} />
           <Badge tone={agent.blocked ? 'warning' : 'neutral'}>{agent.state}</Badge>
           {agent.since === null ? null : (
             <Text muted size="xs">
@@ -570,11 +558,20 @@ export default function Panel() {
         </Callout>
       ) : null}
       <Tabs label="Secciones" defaultValue="agents">
+        <Tab value="notices" label="Avisos" icon="bell">
+          <Notices />
+        </Tab>
         <Tab value="agents" label="Agentes" icon="agent">
           <Agents />
         </Tab>
+        <Tab value="worktrees" label="Worktrees" icon="branch">
+          <Worktrees />
+        </Tab>
         <Tab value="orchestrate" label="Repartir" icon="play">
           <Orchestrate />
+        </Tab>
+        <Tab value="history" label="Historial" icon="calendar">
+          <History />
         </Tab>
         <Tab value="team" label="Equipo" icon="settings">
           <Team />

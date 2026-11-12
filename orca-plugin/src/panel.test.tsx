@@ -70,7 +70,8 @@ const open = async (options: { settings?: Record<string, string | boolean>; requ
   return { view, host, calls }
 }
 
-const tab = (v: TestPanel, value: 'agents' | 'orchestrate' | 'team' | 'kit') => v.select({ label: 'Secciones' }, value)
+type TabId = 'notices' | 'agents' | 'worktrees' | 'orchestrate' | 'history' | 'team' | 'kit'
+const tab = (v: TestPanel, value: TabId) => v.select({ label: 'Secciones' }, value)
 const applied = (calls: { name: string; input: unknown }[]) =>
   (calls.find((c) => c.name === 'team.apply')?.input as { team: Team }).team
 const text = (v: TestPanel) => JSON.stringify(v.tree())
@@ -239,5 +240,30 @@ test('un agente guardado que no está en la lista sigue saliendo', async () => {
   const { view } = await open({ settings: { initAgent: 'mi-agente' } })
   await tab(view, 'kit')
   assert.equal(view.valueOf({ label: 'Agente para inicializar' }), 'mi-agente')
+  assert.deepEqual(view.warnings, [])
+})
+
+test('Avisos, Worktrees e Historial tienen su pestaña', async () => {
+  const { view } = await open()
+  await tab(view, 'notices')
+  assert.match(text(view), /Nada pendiente/)
+  await tab(view, 'worktrees')
+  assert.match(text(view), /Ningún worktree/)
+  await tab(view, 'history')
+  assert.match(text(view), /Sin historial/)
+  assert.deepEqual(view.errors, [])
+  assert.deepEqual(view.warnings, [])
+})
+
+test('cada agente lleva el icono de su proveedor', async () => {
+  const withAgent: AgentsView = {
+    ...TWO_AGENTS,
+    groups: TWO_AGENTS.groups.map((group) => ({
+      ...group,
+      agents: group.agents.map((agent) => ({ ...agent, agent: agent.id === 't:2' ? 'codex' : 'claude' }))
+    }))
+  }
+  const { view } = await open({ requests: { 'agents.summary': () => withAgent } })
+  assert.match(text(view), /assets\/agents\/openai\.png/)
   assert.deepEqual(view.warnings, [])
 })
