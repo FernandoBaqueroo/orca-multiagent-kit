@@ -65,6 +65,7 @@ import {
 } from './kit.ts'
 import { ask, busy, describeError, outcome } from './panel-state.ts'
 import type { AgentsView } from './protocol.ts'
+import { AutonomyCard, AutonomyOverride, runAutonomy } from './tabs/autonomy.tsx'
 import { History, setupHistory } from './tabs/history.tsx'
 import { Notices, setupNotices } from './tabs/notices.tsx'
 import { Worktrees, setupWorktrees } from './tabs/worktrees.tsx'
@@ -164,8 +165,14 @@ const run = (action: KitAction) => ask(action, () => plugin.request('kit.run', {
 const openAgent = (id: string) => ask('open', () => plugin.request('agents.open', { id }))
 
 async function orchestrate(): Promise<void> {
+  const autonomy = read(runAutonomy)
   const sent = await ask('orchestrate', () =>
-    plugin.request('team.orchestrate', { agent: read(team).coordinator, task: read(task), source: read(source) })
+    plugin.request('team.orchestrate', {
+      agent: read(team).coordinator,
+      task: read(task),
+      source: read(source),
+      ...(autonomy ? { autonomy } : {})
+    })
   )
   if (sent) set(task, '')
 }
@@ -324,6 +331,7 @@ function Orchestrate() {
           onSubmit={() => orchestrate()}
         />
         <Select label="Coordinador" value={coordinator} options={agentOptions([coordinator])} onChange={setCoordinator} />
+        <AutonomyOverride />
         <Button icon="play" disabled={working || (from === 'chat' && text.trim() === '')} onPress={orchestrate}>
           {read(busy) === 'orchestrate' ? 'Lanzando…' : 'Repartir'}
         </Button>
@@ -408,6 +416,7 @@ function Team() {
   const ready = teamFromDraft(draft) !== null
   return (
     <Stack gap="md">
+      <AutonomyCard />
       <Card
         title="Equipo"
         description="Quién hace cada rol. «Aplicar» lo escribe en ORCHESTRATION.md §1 del proyecto activo, que la skill orca lee al repartir."

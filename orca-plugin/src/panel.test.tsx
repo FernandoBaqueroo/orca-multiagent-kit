@@ -55,6 +55,9 @@ const open = async (options: { settings?: Record<string, string | boolean>; requ
     settings: options.settings ?? {},
     requests: {
       'agents.summary': () => NO_AGENTS,
+      'notices.list': () => ({ items: [] }),
+      'worktrees.list': () => ({ groups: [] }),
+      'history.list': () => ({ items: [] }),
       'kit.run': (input: { action: string }) => {
         calls.push({ name: 'kit.run', input })
         return { message: `hecho: ${input.action}` }
@@ -110,6 +113,28 @@ test('repartir manda la tarea, la entrada y el coordinador elegido, y vacía el 
     { name: 'team.orchestrate', input: { agent: 'codex', task: 'Login con Google', source: 'chat' } }
   ])
   assert.equal(view.valueOf({ label: 'Qué quieres hacer' }), '')
+  assert.deepEqual(view.warnings, [])
+})
+
+test('repartir con otra autonomía solo para ese run la manda al worker', async () => {
+  const { view, calls } = await open()
+  await tab(view, 'orchestrate')
+  await view.select({ label: 'Autonomía de este run' }, 'auto')
+  await view.type({ label: 'Qué quieres hacer' }, 'Login')
+  await view.press({ text: 'Repartir' })
+  assert.deepEqual(calls, [
+    { name: 'team.orchestrate', input: { agent: 'claude', task: 'Login', source: 'chat', autonomy: 'auto' } }
+  ])
+  await view.select({ label: 'Autonomía de este run' }, '(proyecto)')
+})
+
+test('la autonomía del proyecto se elige y se guarda con omk team', async () => {
+  const { view, calls } = await open({ requests: { 'team.autonomy': (input: unknown) => (calls.push({ name: 'team.autonomy', input }), { message: 'ok' }) } })
+  await tab(view, 'team')
+  await view.select({ label: 'Nivel' }, 'manual')
+  assert.match(text(view), /cada ronda, cada merge/)
+  await view.press({ text: 'Guardar en el proyecto' })
+  assert.deepEqual(calls, [{ name: 'team.autonomy', input: { autonomy: 'manual' } }])
   assert.deepEqual(view.warnings, [])
 })
 

@@ -78,5 +78,16 @@ for bad_args in "--provider Claude" "--provider cla.ude" "--cross aveces" "--rol
 done
 check "un rol con un proveedor no activo explica por qué" 'team set --role casandra=gemini; said "no está entre los proveedores activos (claude)"'
 
+echo "== omk team set --autonomy (§0)"
+fresh
+check "enseña el nivel de la plantilla"                 'team && said "Autonomía            semi"'
+check "cambia el nivel y conserva el comentario"         'team set --autonomy auto && said "Autonomía            auto" && line "- Nivel: auto        <!-- manual | semi | auto -->"'
+check "solo toca la línea de §0"                         'team set --autonomy semi && cmp -s "$F" "$ROOT/templates/ORCHESTRATION.md"'
+cp "$F" "$W/antes"
+for bad_level in "x" "Semi" "auto;rm" ""; do
+  check "rechaza: --autonomy '$bad_level'"              "! team set --autonomy '$bad_level' && cmp -s \"\$F\" \"\$W/antes\""
+done
+check "una «- Nivel:» fuera de §0 no cuenta"             'printf "## 0. Autonomía\n- Otra cosa\n## 1. Reparto\n- Nivel: alto\n" > "$F" && ! team set --autonomy auto && said "«- Nivel:» de §0" && has "- Nivel: alto"'
+
 printf '\n%s ok · %s fallos\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

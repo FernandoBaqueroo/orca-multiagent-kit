@@ -721,6 +721,11 @@ export function isAutonomy(value: unknown): value is Autonomy {
   return AUTONOMY_LEVELS.some(({ id }) => id === value)
 }
 
+/** La orden que deja el nivel en `ORCHESTRATION.md` §0: un literal por nivel, nada más. */
+export function autonomyCommand(level: Autonomy): string {
+  return `omk team set --autonomy ${level}`
+}
+
 export const TASK_MAX = 4000
 
 /** De dónde sale el trabajo que se reparte. spec-kit es una opción, nunca un requisito. */
@@ -741,14 +746,19 @@ const SOURCE_PROMPT: Record<TaskSource, string> = {
 /**
  * El prompt para que el coordinador orqueste, o `null` si no vale. Con «lo que escribo aquí» la
  * tarea es obligatoria; con un plan o spec-kit es una indicación opcional (qué plan, qué feature).
+ * Un nivel de autonomía cambia el de `ORCHESTRATION.md` solo para ese run; sin él, manda el fichero.
  */
-export function orchestratePrompt(task: unknown, source: unknown = 'chat'): string | null {
+export function orchestratePrompt(task: unknown, source: unknown = 'chat', autonomy: unknown = null): string | null {
   if (typeof task !== 'string') return null
   const from = TASK_SOURCES.find(({ id }) => id === source)?.id
   if (!from) return null
+  if (autonomy !== null && autonomy !== undefined && !isAutonomy(autonomy)) return null
   // Saltos de línea y tabuladores sí; el resto de caracteres de control, no.
   const clean = task.replace(/\r\n?/g, '\n').replace(/[^\P{Cc}\n\t]/gu, ' ').trim()
   if (clean.length > TASK_MAX || (from === 'chat' && clean === '')) return null
-  if (clean === '') return SOURCE_PROMPT[from]
-  return `${SOURCE_PROMPT[from]}\n\n${from === 'chat' ? clean : `Indicaciones: ${clean}`}`
+  const head = isAutonomy(autonomy)
+    ? `${SOURCE_PROMPT[from]} Autonomía de este run: ${autonomy} (manda sobre ORCHESTRATION.md §0 solo en este run).`
+    : SOURCE_PROMPT[from]
+  if (clean === '') return head
+  return `${head}\n\n${from === 'chat' ? clean : `Indicaciones: ${clean}`}`
 }

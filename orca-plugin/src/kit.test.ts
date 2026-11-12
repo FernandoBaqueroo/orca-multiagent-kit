@@ -27,6 +27,9 @@ import {
   normalizeDraft,
   normalizePath,
   orchestratePrompt,
+  AUTONOMY_LEVELS,
+  autonomyCommand,
+  isAutonomy,
   parseContractHintMode,
   parseDispatch,
   parseTeam,
@@ -589,6 +592,24 @@ describe('orchestratePrompt', () => {
     assert.equal(orchestratePrompt('x'.repeat(TASK_MAX + 1), 'plan'), null)
     assert.equal(orchestratePrompt('algo', 'jira'), null)
     assert.equal(orchestratePrompt(42), null)
+  })
+
+  test('una autonomía para el run se dice en el prompt; sin ella manda ORCHESTRATION.md', () => {
+    assert.match(orchestratePrompt('Login', 'chat', 'auto') ?? '', /Autonomía de este run: auto \(manda sobre ORCHESTRATION\.md §0 solo en este run\)\.\n\nLogin$/)
+    assert.ok(!/Autonomía/.test(orchestratePrompt('Login', 'chat', null) ?? ''))
+    assert.ok(!/Autonomía/.test(orchestratePrompt('Login') ?? ''))
+    assert.equal(orchestratePrompt('Login', 'chat', 'total'), null)
+    assert.equal(orchestratePrompt('Login', 'chat', 'auto; rm -rf ~'), null)
+  })
+})
+
+describe('autonomía', () => {
+  test('solo los tres niveles, y cada uno con su orden literal', () => {
+    assert.deepEqual(AUTONOMY_LEVELS.map(({ id }) => id), ['manual', 'semi', 'auto'])
+    assert.equal(isAutonomy('semi'), true)
+    assert.equal(isAutonomy('Semi'), false)
+    assert.equal(isAutonomy(undefined), false)
+    assert.equal(autonomyCommand('manual'), 'omk team set --autonomy manual')
   })
 })
 

@@ -333,6 +333,37 @@ test('aplicar el equipo ejecuta omk team set con el equipo en base64url', async 
   assert.equal((w.host.callsOf('terminal.create')[1] as { command: string }).command, 'omk team')
 })
 
+test('la autonomía del proyecto va con una orden literal y nada más', async () => {
+  const w = await start()
+  await w.request('team.autonomy', { autonomy: 'auto' })
+  assert.deepEqual(w.host.callsOf('terminal.create'), [
+    { workspaceId: 'w1', title: 'omk team', command: 'omk team set --autonomy auto' }
+  ])
+  for (const autonomy of ['total', 'auto; rm -rf ~', '', null]) {
+    await assert.rejects(
+      w.request('team.autonomy', { autonomy } as unknown as { autonomy: 'auto' }),
+      (error: unknown) => (error as { code?: string }).code === 'invalid_params'
+    )
+  }
+  assert.equal(w.host.callsOf('terminal.create').length, 1)
+})
+
+test('repartir con autonomía para el run la pasa en el prompt; una desconocida no lanza nada', async () => {
+  const w = await start()
+  await w.request('team.orchestrate', { agent: 'claude', task: 'Login', source: 'chat', autonomy: 'manual' })
+  const [launch] = w.host.callsOf('agent.launch') as { prompt: string }[]
+  assert.match(launch?.prompt ?? '', /Autonomía de este run: manual/)
+  await assert.rejects(
+    w.request('team.orchestrate', { agent: 'claude', task: 'Login', source: 'chat', autonomy: 'yolo' } as unknown as {
+      agent: string
+      task: string
+      source: 'chat'
+    }),
+    (error: unknown) => (error as { code?: string }).code === 'invalid_params'
+  )
+  assert.equal(w.host.callsOf('agent.launch').length, 1)
+})
+
 test('un equipo con texto que no es un id no llega al terminal', async () => {
   const w = await start()
   const hostile = [

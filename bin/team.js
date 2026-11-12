@@ -1,6 +1,6 @@
 // omk team: el equipo de roles del proyecto en ORCHESTRATION.md §1 (proveedores activos, revisión
-// cruzada, las filas «Rol <nombre>» de la tabla de excepciones y los roles propios del proyecto).
-// El panel Equipo del plugin lo usa con --data.
+// cruzada, las filas «Rol <nombre>» de la tabla de excepciones y los roles propios del proyecto) y
+// el nivel de autonomía de §0. El panel Equipo del plugin lo usa con --data y --autonomy.
 'use strict';
 
 const fs = require('node:fs');
@@ -16,6 +16,7 @@ const ROLE_NAME = new Map(ROLES);
 const RESERVED = new Set(['Hefesto', ...ROLE_NAME.values()].map((name) => name.toLocaleLowerCase('es')));
 const CROSS = { sensibles: 'unidades L y sensibles', todas: 'todas', nunca: 'nunca' };
 const LEVELS = ['alto', 'medio', 'bajo'];
+const AUTONOMY = ['manual', 'semi', 'auto'];
 // Columna «Revisión» de los roles propios, como la escribe olimpo.md.
 const REVIEW = { propia: 'propia', cross: '`cross`', argos: 'Argos', casandra: 'Casandra' };
 const AGENT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -33,6 +34,8 @@ const CROSS_LINE = /^(\s*- Revisión cruzada[^:]*:)[ \t]*(.*?)[ \t]*$/;
 const EXCEPTIONS_LINE = /^\s*- Excepciones al reparto/;
 const CUSTOM_LINE = /^\s*- Roles propios del proyecto/;
 const TABLE_LINE = /^\s*\|/;
+const AUTONOMY_HEADING = /^##\s*0\.\s*Autonom/;
+const AUTONOMY_LINE = /^(\s*- Nivel:)[ \t]*(.*?)([ \t]*<!--.*-->)?[ \t]*$/;
 
 const HELP = `Uso:
   omk team [show] [--file ruta]      Enseña el equipo de ORCHESTRATION.md
@@ -41,6 +44,7 @@ const HELP = `Uso:
     --cross sensibles|todas|nunca    Qué unidades revisa otro proveedor
     --role <rol>=<id>|auto           Fija el proveedor de un rol (repetible); auto lo quita
     --reset-roles                    Quita antes los roles fijados por omk team
+    --autonomy manual|semi|auto      Cuántas confirmaciones pide la skill orca (§0)
     --data <base64url>               El equipo entero en JSON (lo usa el panel del plugin);
                                      sustituye proveedores, revisión, roles fijados y roles propios
     --file <ruta>                    Otro ORCHESTRATION.md (por defecto, el de la carpeta actual)
@@ -100,7 +104,7 @@ function parseData(encoded) {
 function parseArgs(args) {
   const [first, ...rest] = args;
   const action = first === 'set' ? 'set' : 'show';
-  const opts = { action, file: null, providers: [], cross: null, roles: new Map(), resetRoles: false, custom: null };
+  const opts = { action, file: null, providers: [], cross: null, roles: new Map(), resetRoles: false, custom: null, autonomy: null };
   const list = first === 'set' || first === 'show' ? rest : args;
   for (let i = 0; i < list.length; i += 1) {
     const arg = list[i];
@@ -128,6 +132,10 @@ function parseArgs(args) {
       const mode = value();
       if (!Object.hasOwn(CROSS, mode)) throw new TeamError(`--cross admite sensibles, todas o nunca, no «${mode}»`);
       opts.cross = mode;
+    } else if (arg === '--autonomy') {
+      const level = value();
+      if (!AUTONOMY.includes(level)) throw new TeamError(`--autonomy admite manual, semi o auto, no «${level}»`);
+      opts.autonomy = level;
     } else if (arg === '--role') {
       const [role, provider, extra] = value().split('=');
       if (!ROLE_NAME.has(role)) throw new TeamError(`rol desconocido: «${role}». Roles: ${ROLES.map(([id]) => id).join(', ')}`);
@@ -137,7 +145,7 @@ function parseArgs(args) {
       opts.roles.set(role, provider);
     } else throw new TeamError(`opción desconocida: ${arg}\n${HELP}`);
   }
-  if (action === 'set' && !opts.providers.length && !opts.cross && !opts.roles.size && !opts.resetRoles) {
+  if (action === 'set' && !opts.providers.length && !opts.cross && !opts.roles.size && !opts.resetRoles && !opts.autonomy) {
     throw new TeamError(`omk team set sin cambios\n${HELP}`);
   }
   return opts;
@@ -172,9 +180,20 @@ function customRow(line) {
   return { name: name.replace(/^\*\*|\*\*$/g, ''), work, level, review, guard };
 }
 
+/** Índice de la línea «- Nivel:» de §0 Autonomía, o -1: solo cuenta la de esa sección. */
+function autonomyLine(lines) {
+  const heading = lines.findIndex((line) => AUTONOMY_HEADING.test(line));
+  if (heading === -1) return -1;
+  for (let i = heading + 1; i < lines.length && !/^##\s/.test(lines[i]); i += 1) {
+    if (AUTONOMY_LINE.test(lines[i])) return i;
+  }
+  return -1;
+}
+
 /** Lo que dice ORCHESTRATION.md del equipo; `null` en lo que no encuentra. */
 function readTeam(text) {
   const lines = text.split(/\r?\n/);
+  const autonomyAt = autonomyLine(lines);
   const providersLine = lines.find((line) => PROVIDERS_LINE.test(line));
   const crossLine = lines.find((line) => CROSS_LINE.test(line));
   const exceptions = tableAfter(lines, EXCEPTIONS_LINE);
@@ -183,6 +202,7 @@ function readTeam(text) {
   const customTable = tableAfter(lines, CUSTOM_LINE);
   const custom = customTable ? lines.slice(customTable.rows, customTable.end).filter(isCustomRow).map(customRow) : [];
   return {
+    autonomy: autonomyAt === -1 ? null : lines[autonomyAt].match(AUTONOMY_LINE)[2],
     providers: providersLine
       ? providersLine.match(PROVIDERS_LINE)[2].split(/[\s,]+/).filter((id) => id !== '')
       : null,
@@ -209,6 +229,12 @@ function applyTeam(text, opts) {
   const lines = text.split(/\r?\n/);
   const current = readTeam(text);
 
+  if (opts.autonomy) {
+    const at = autonomyLine(lines);
+    if (at === -1) throw new TeamError('ORCHESTRATION.md no tiene la línea «- Nivel:» de §0 Autonomía (regenérala con kit-init)');
+    const [, label, , comment = ''] = lines[at].match(AUTONOMY_LINE);
+    lines[at] = `${label} ${opts.autonomy}${comment}`;
+  }
   if (opts.providers.length) {
     const at = lines.findIndex((line) => PROVIDERS_LINE.test(line));
     if (at === -1) throw new TeamError('ORCHESTRATION.md no tiene la línea «- Proveedores activos:» de §1 (regenérala con kit-init)');
@@ -263,6 +289,9 @@ function applyTeam(text, opts) {
 function describe(file, team) {
   const pad = (label) => `  ${label.padEnd(21)}`;
   const out = [`Equipo de ${file}`];
+  const autonomy = team.autonomy === null ? 'sin línea en §0'
+    : AUTONOMY.includes(team.autonomy) ? team.autonomy : `no válida (${team.autonomy})`;
+  out.push(`${pad('Autonomía')}${autonomy}`);
   out.push(`${pad('Proveedores activos')}${team.providers?.length ? team.providers.join(', ') : 'sin línea en §1'}`);
   const cross = team.cross === null ? 'sin línea en §1' : team.cross.includes('|') ? `sin elegir (${team.cross})` : team.cross;
   out.push(`${pad('Revisión cruzada')}${cross}`);

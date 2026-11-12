@@ -12,10 +12,12 @@ import {
   cleanLabel,
   describeAgents,
   agentFromPaneKey,
+  autonomyCommand,
   canonicalWorkspaceId,
   forgetRunUnit,
   groupAgents,
   indexWorkspaces,
+  isAutonomy,
   isKitAction,
   isMissingCommand,
   isValidAgentId,
@@ -74,6 +76,9 @@ export function deactivate(): void {
 // Los errores del host son `Error` con `code` (host-api §Errors); el tipo no lo declara.
 const describeError = (error: unknown) =>
   error instanceof Error ? `${(error as { code?: string }).code ?? 'error'}: ${error.message}` : String(error)
+
+// Lo que responde `runOmk` cuando abre el terminal; cualquier otra respuesta es un fallo ya avisado.
+const running = (command: string) => `Ejecutando \`${command}\` en un terminal nuevo del workspace activo.`
 
 // Un `code` de error del host llega tal cual al panel (`plugin.request` lo rechaza con él).
 const invalidParams = (message: string) => Object.assign(new Error(message), { code: 'invalid_params' })
@@ -259,7 +264,7 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
       void warnIfOmkMissing(terminalId).catch((error: unknown) => {
         orca.log(`no pude leer la salida de ${title}: ${describeError(error)}`)
       })
-      return `Ejecutando \`${command}\` en un terminal nuevo del workspace activo.`
+      return running(command)
     })
 
   const subcommand = (name: OmkSubcommand) => runOmk(`omk ${name}`, `omk ${name}`)
@@ -365,16 +370,32 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
 
   orca.panels.handle('team.show', async () => ({ message: await runOmk('omk team', 'omk team')() }))
 
+  // Solo uno de los tres niveles llega a la orden: `autonomyCommand` no interpola nada más.
+  orca.panels.handle('team.autonomy', async (input) => {
+    const level: unknown = input?.autonomy
+    if (!isAutonomy(level)) throw invalidParams(`autonomía desconocida: ${String(level)}`)
+    const command = autonomyCommand(level)
+    const message = await runOmk('omk team', command)()
+    if (message === running(command)) {
+      bus.emit('action', { kind: 'autonomy', title: `Autonomía del proyecto → ${level}`, detail: null, agentKey: null, run: null, at: Date.now() })
+    }
+    return { message }
+  })
+
   orca.panels.handle('team.orchestrate', async (input) => {
     const agent: unknown = input?.agent
     if (!isValidAgentId(agent)) throw invalidParams('el coordinador no es un id de agente válido')
-    const prompt = orchestratePrompt(input?.task, input?.source)
-    if (prompt === null) throw invalidParams(`falta la tarea, pasa de ${TASK_MAX} caracteres o la entrada no existe`)
+    const autonomy: unknown = input?.autonomy ?? null
+    const prompt = orchestratePrompt(input?.task, input?.source, autonomy)
+    if (prompt === null) {
+      throw invalidParams(`falta la tarea, pasa de ${TASK_MAX} caracteres, o la entrada o la autonomía no existen`)
+    }
     const done = `Lanzado ${agent} con la skill orca en el workspace activo.`
     const message = await launchAgent('orquestar', agent, prompt, done)()
     if (message === done) {
       const task = cleanLabel(typeof input?.task === 'string' ? input.task : '', 120)
-      bus.emit('action', { kind: 'orchestrate', title: `Repartir con ${agent}`, detail: task, agentKey: null, run: null, at: Date.now() })
+      const title = isAutonomy(autonomy) ? `Repartir con ${agent} (autonomía ${autonomy})` : `Repartir con ${agent}`
+      bus.emit('action', { kind: 'orchestrate', title, detail: task, agentKey: null, run: null, at: Date.now() })
     }
     return { message }
   })
