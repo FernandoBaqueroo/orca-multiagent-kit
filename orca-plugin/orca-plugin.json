@@ -2,8 +2,8 @@
   "manifestVersion": 2,
   "id": "multiagent-kit",
   "name": "Orca Multiagent Kit",
-  "version": "0.2.0",
-  "description": "Comandos del kit en la paleta, un panel con las acciones y los ajustes, el contrato del worker en cada despacho de orquestación del kit y los agentes activos en la barra de estado.",
+  "version": "0.6.0",
+  "description": "Comandos del kit en la paleta; un panel con los avisos que esperan tu respuesta (plan de rondas incluido), los agentes por nombre y con su icono, los worktrees de la orquestación y su modelo, el historial de runs, el equipo de roles y la autonomía, orquestar una tarea, las acciones y los ajustes; el contrato del worker en cada despacho del kit; avisos de agentes bloqueados y de runs terminados, y los agentes activos en la barra de estado.",
   "author": {
     "name": "Fernando Baquero y Necro-Coder",
     "url": "https://github.com/FernandoBaqueroo/orca-multiagent-kit"
@@ -19,12 +19,14 @@
   "main": "src/worker.ts",
   "capabilities": [
     { "kind": "workspace:read" },
+    { "kind": "workspace:write" },
     { "kind": "terminal:send" },
     { "kind": "terminal:read" },
     { "kind": "agent:launch" },
     { "kind": "agent:read" },
     { "kind": "notifications:show" },
-    { "kind": "settings:own" }
+    { "kind": "settings:own" },
+    { "kind": "storage:own" }
   ],
   "contributes": {
     "panels": [
@@ -37,7 +39,9 @@
       { "id": "agents.status", "title": "Orca Multiagent Kit: estado de los agentes" }
     ],
     "hooks": [
-      { "event": "agent.prompt.before", "onError": "pass" }
+      { "event": "agent.prompt.before", "onError": "pass" },
+      { "event": "agent.launch.before", "onError": "pass" },
+      { "event": "agent.tool.after" }
     ],
     "events": [
       { "on": "agent.status.changed" },
@@ -70,13 +74,27 @@
         "default": true
       },
       {
+        "key": "autoOrchestrate",
+        "title": "Repartir al lanzar un agente con tarea",
+        "description": "Cuando Orca arranca un agente con una tarea (al crear un worktree, en una pestaña nueva o desde una issue), le añade que pase primero por la skill orca: decide si compensa repartirla entre agentes y, si compensa, la reparte. No necesita spec-kit.",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "notify",
+        "title": "Avisos de agentes",
+        "description": "Notifica cuando un agente se bloquea y cuando terminan todas las unidades lanzadas de un run del kit.",
+        "type": "boolean",
+        "default": true
+      },
+      {
         "key": "initAgent",
         "title": "Agente para inicializar",
-        "description": "Id del agente que lanza «inicializar proyecto» con el prompt «inicializa el proyecto» (skill kit-init), por ejemplo claude o codex.",
+        "description": "El agente que lanza «inicializar proyecto» con el prompt «inicializa el proyecto» (skill kit-init).",
         "type": "string",
         "default": "claude",
-        "maxLength": 40,
-        "placeholder": "claude"
+        "enum": ["claude", "codex", "gemini", "antigravity", "copilot", "cursor", "opencode", "amp", "droid", "grok", "kimi", "qwen-code", "aider", "goose", "cline", "kiro", "devin"],
+        "enumLabels": ["Claude Code", "Codex", "Gemini CLI", "Antigravity", "GitHub Copilot", "Cursor", "OpenCode", "Amp", "Droid", "Grok", "Kimi", "Qwen Code", "Aider", "Goose", "Cline", "Kiro", "Devin"]
       }
     ]
   }

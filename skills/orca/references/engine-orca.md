@@ -21,6 +21,7 @@ orca orchestration run-create --objective "<run-id>: <objetivo>" --json      # a
 orca orchestration task-create --task-title "U2 <título>" --spec-file .work/runs/<run>/briefs/u2.md \
      --deps '["<taskId de U0>"]' --json
 ```
+- El `run-create` va **antes** de enseñar el plan: su id va en la tarjeta del plan (`orcaRun`, `plan-card.md`), y por su buzón te llega la respuesta del panel si corres como chat. Las tareas, después del «sí».
 - Crear todas las tareas al principio deja el plan completo visible en Orca; las de rondas siguientes esperan a sus `--deps`.
 - `--spec-file` evita problemas de comillas (PowerShell y bash) con briefs largos. El fichero es el mensaje de despacho completo (`SKILL.md` §5).
 - `U0` la hace el coordinador: créala igualmente como tarea y márcala al terminarla (`task-update --id <id> --status completed --result "merge <sha>"`), para que sus dependientes queden `ready`.

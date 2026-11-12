@@ -107,6 +107,7 @@ Requisitos: macOS, Linux, WSL o Git Bash, con bash ≥ 3.2.
 | `omk setup [--yes] [--dry-run]` | Prepara Orca entero: kit, plugins encendidos, plugin del kit y su panel |
 | `omk install [--agents a,b] [--dry-run]` | Instala o migra la fuente única para los agentes detectados |
 | `omk plugin install\|status\|uninstall` | El plugin de Orca del kit; `install` pide tu aprobación (o `--yes`) |
+| `omk team` · `omk team set …` | Enseña o cambia el equipo de roles del proyecto (`ORCHESTRATION.md` §1): proveedores, revisión cruzada y proveedor por rol |
 | `omk init [ruta]` | Prepara un proyecto (por defecto, la carpeta actual) |
 | `omk verify` | Comprueba enlaces, imports y que no queden copias divergentes |
 | `omk adopt <carpeta-skill>` | Comparte una skill externa (p. ej. impeccable) con todos los agentes |
@@ -151,7 +152,7 @@ Solo tienes que conocer dos frases. El resto lo deciden los agentes.
 
 Convive con skills externas como **impeccable**, **supabase**, **spec-kit** y las de la app **Orca**: cada una manda en su terreno, y la puerta de validez y las prohibiciones se aplican siempre.
 
-**Plugin de Orca** (opcional, Orca ≥ 1.4.248): `omk verify`, «inicializa el proyecto» y `omk update` en la paleta de comandos y en un panel lateral, *Multiagent Kit*, que además cambia los ajustes del plugin (los mismos de *Settings → Plugins*); el contrato del worker añadido a cada despacho de orquestación del kit, y los agentes activos en la barra de estado. Se instala con `omk plugin install` (o `omk setup`). Detalle, permisos que pide y cómo desactivarlo: [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md).
+**Plugin de Orca** (opcional, Orca ≥ 1.4.248): `omk verify`, «inicializa el proyecto» y `omk update` en la paleta de comandos y en un panel lateral, *Multiagent Kit*, que además enseña los agentes con nombre y su ficha (unidad, rol, rama, estado…), configura el equipo de roles (también roles propios), reparte una tarea entre agentes (sin necesidad de spec-kit) y cambia los ajustes del plugin (los mismos de *Settings → Plugins*); el contrato del worker añadido a cada despacho de orquestación del kit, avisos de agentes bloqueados y de runs terminados, y los agentes activos en la barra de estado. Se instala con `omk plugin install` (o `omk setup`). Detalle, permisos que pide y cómo desactivarlo: [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md).
 
 <a id="flujo"></a>
 ## <img src="assets/icons/flow.svg" width="22" height="22" alt=""> Flujo de trabajo

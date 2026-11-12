@@ -28,6 +28,8 @@ jobs:
         run: bash tests/test_install.sh
       - name: Pruebas del CLI (npm pack + omk)
         run: bash tests/test_cli.sh
+      - name: Pruebas de omk team (ORCHESTRATION.md)
+        run: bash tests/test_team.sh
       - name: Pruebas de omk setup y omk plugin (doble de Orca)
         run: bash tests/test_orca.sh
       - name: Empaquetado

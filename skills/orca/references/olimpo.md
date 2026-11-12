@@ -8,6 +8,7 @@ Origen de los nombres y fichas completas del equipo: `docs/OLIMPO.md` del kit (n
 unidad ──► rol (esta tabla) ──► nivel (alto | medio | bajo) ──► modelo (~/.agents/models.md, por proveedor)
 ```
 - `./ORCHESTRATION.md` §1 solo aporta: proveedores activos, dominios sensibles del proyecto y excepciones. Una excepción escrita ahí gana a esta tabla; una instrucción del usuario en la sesión gana a todo.
+- Una fila `Rol <nombre> | <nombre> / <proveedor>` de esas excepciones (las escriben `omk team` y el panel *Equipo* del plugin) fija el proveedor de **todas** las unidades de ese rol; el nivel sigue saliendo de aquí.
 - Ningún fichero del kit ni del proyecto nombra un modelo concreto: los nombres viven solo en `~/.agents/models.md`.
 - `ORCHESTRATION.md` antiguo con la tabla «Agentes por capa» rellena: sus filas valen como excepciones de proveedor; el nivel sigue saliendo de aquí.
 

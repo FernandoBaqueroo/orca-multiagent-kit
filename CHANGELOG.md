@@ -5,6 +5,32 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+### Añadido
+- **`omk team`**: enseña y cambia el equipo de roles del proyecto en `ORCHESTRATION.md` §1 (proveedores activos, revisión cruzada, un proveedor fijo por rol de Olimpo y roles propios del proyecto) sin tocar lo escrito a mano. `--data` recibe el equipo entero en base64url (lo usa el panel). Pruebas en `tests/test_team.sh`.
+- **Plugin v0.5.0**: orquestación sin spec-kit. Todo agente que Orca arranca con una tarea (crear un worktree con tarea, pestaña nueva, issue) pasa primero por la skill `orca`, que decide si compensa repartir (ajuste *Repartir al lanzar un agente con tarea*, activado por defecto).
+- Panel del plugin en pestañas *Agentes*, *Repartir*, *Equipo* y *Kit*.
+  - *Agentes*: cada agente con nombre (`U2 · Ariadna — Pagos` en los despachos del kit, el título de Orca o el agente que es), agrupados por run o workspace, los bloqueados primero; cada uno con su ficha (agente, unidad, rol y nivel, run, workspace, rama, carpeta, terminal o chat, último turno, desde cuándo) y un botón para ir a su workspace.
+  - *Repartir*: lanza el coordinador con la skill `orca` desde lo que escribes, un plan del repo o spec-kit; las dos primeras no necesitan spec-kit.
+  - *Equipo*: equipos predefinidos (Solo Claude, Claude + Codex revisor, Codex + Claude revisor) o personalizado; proveedores con casillas, un proveedor por rol de Olimpo y roles propios (nombre, qué hace, nivel, revisión, guardarraíl, proveedor). «Aplicar al proyecto» ejecuta `omk team set --data`.
+  - Los agentes (inicializar, coordinador, proveedores) se eligen de una lista con el catálogo de Orca, no se escriben.
+  - Avisos (ajuste *Avisos de agentes*) cuando un agente se bloquea y cuando terminan todas las unidades lanzadas de un run. El tooltip de la barra nombra a los agentes.
+- **Plugin v0.6.0**: pestañas *Avisos*, *Worktrees* e *Historial*, iconos de agente y autonomía.
+  - *Avisos*: la tarjeta del plan de rondas del coordinador, en colores, con «Sí, lánzalo» y «Pedir cambio», que se escriben en su terminal; y los agentes bloqueados o esperando, con las últimas líneas de su terminal y una caja para responderles. La skill `orca` escribe el plan en `.work/runs/<run>/plan.json` (`references/plan-card.md`) y el plugin lo lee del hook `agent.tool.after`.
+  - Con el coordinador como chat de Orca (sin terminal), la tarjeta también sale y se contesta: el plugin lee `plan.json` del disco cuando el coordinador espera, y manda la respuesta por el buzón del Run de Orca (`orcaRun` en la tarjeta, `orca orchestration send` sin shell). La skill solo acepta esas respuestas para la confirmación 1.
+  - *Worktrees*: los worktrees de la orquestación por run, con sus agentes, estado y modelo (de `--model`), y «Cambiar modelo» (`/model`) para un Claude Code que espera.
+  - *Historial*: despachos, bloqueos, finales de unidad, runs terminados y lo que haces desde el panel; las 200 últimas entradas, guardadas en el plugin.
+  - El logo de cada agente, los mismos que usa Orca y a su tamaño (16 px), delante de cada agente y cada worktree; uno genérico para los que no tienen.
+  - Autonomía: en *Equipo*, la del proyecto (`ORCHESTRATION.md` §0); en *Repartir*, otra solo para ese run.
+- **`omk team set --autonomy manual|semi|auto`**: cambia la línea `- Nivel:` de `ORCHESTRATION.md` §0; `omk team` la enseña.
+
+### Corregido
+- Plugin: el resultado de cada acción salía como «Consejo» (Orca pinta así un aviso sin título). Ahora dice «Hecho» o «No se pudo» y se puede cerrar.
+- Plugin: los agentes salían «sin título» en el panel y en la barra. Cada cambio de estado sin título borraba el que ya se conocía; no se usaban ni el agente (`agents.list`, hook `agent.launch.before`, panel de los chats de Orca) ni el despacho del kit; y el workspace de los eventos (`<repo>::<ruta>`) no casaba con el de `workspace.list` (`identity:…`).
+
+### Cambiado
+- El plugin pide `workspace:write` (abrir el workspace de un agente) y observa el hook `agent.launch.before`; hay que volver a aprobarlo (`omk plugin install`).
+- La v0.6.0 del plugin pide además `storage:own` (historial) y observa `agent.tool.after` (tarjeta del plan): otra aprobación.
+
 ## [1.5.0] - 2026-11-11
 
 Orca listo de una vez: `omk setup`, un ejecutable sin Node y el plugin configurable desde un panel. Detalle en [`docs/EJECUTABLE.md`](docs/EJECUTABLE.md).
