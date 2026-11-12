@@ -20,7 +20,9 @@ export const runAutonomy = atom<Autonomy | null>(null)
 
 const hint = (level: Autonomy) => AUTONOMY_LEVELS.find(({ id }) => id === level)?.hint ?? ''
 
-const saveAutonomy = () => ask('autonomy', () => plugin.request('team.autonomy', { autonomy: read(projectAutonomy) }))
+// `omk team set --autonomy` se sigue en la tarjeta de la acción en curso.
+const saveAutonomy = () =>
+  ask('autonomy', () => plugin.request('team.autonomy', { autonomy: read(projectAutonomy) }), { tracked: true })
 
 export function AutonomyCard() {
   const level = read(projectAutonomy)

@@ -50,6 +50,7 @@ const open = async (groups: WorktreeGroup[] = GROUPS) => {
     settings: {},
     requests: {
       'agents.summary': () => NO_AGENTS,
+      'kit.action': () => ({ action: null }),
       // Las demás pestañas también piden su lista al montar el panel.
       'notices.list': () => ({ items: [] }),
       'history.list': () => ({ items: [] }),

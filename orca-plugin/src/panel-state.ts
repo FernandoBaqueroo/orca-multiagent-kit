@@ -12,12 +12,20 @@ export const outcome = atom<Outcome | null>(null)
 export const describeError = (error: unknown) =>
   error instanceof Error ? `${(error as { code?: string }).code ?? 'error'}: ${error.message}` : String(error)
 
-/** Una petición al worker cada vez; su respuesta o su error quedan en el aviso de arriba. */
-export async function ask(label: string, request: () => Promise<{ message: string }>): Promise<boolean> {
+/**
+ * Una petición al worker cada vez; su respuesta o su error quedan en el aviso de arriba. Con
+ * `tracked`, la petición lanza algo que el panel sigue en su tarjeta (src/ui/action-card.tsx): su
+ * respuesta no se enseña, porque «hecho» sería mentira mientras sigue en curso; un error, sí.
+ */
+export async function ask(
+  label: string,
+  request: () => Promise<{ message: string }>,
+  options: { tracked?: boolean } = {}
+): Promise<boolean> {
   set(busy, label)
   try {
     const { message } = await request()
-    set(outcome, { tone: 'success', text: message })
+    set(outcome, options.tracked ? null : { tone: 'success', text: message })
     return true
   } catch (error) {
     set(outcome, { tone: 'danger', text: describeError(error) })

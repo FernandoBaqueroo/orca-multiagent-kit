@@ -2,7 +2,7 @@
 // esperando) y sus respuestas. Con terminal, la respuesta se escribe en él; con el coordinador en un
 // chat de Orca, va al buzón de su run de Orca, que se la entrega en el chat (src/worker/system.ts).
 // Estado en memoria: un aviso por agente que espera (clave del núcleo) y uno por plan (`plan:<run>`).
-import { agentName, canonicalWorkspaceId, cleanLabel, type TrackedAgent } from '../kit.ts'
+import { ANSI, agentName, canonicalWorkspaceId, cleanLabel, type TrackedAgent } from '../kit.ts'
 import { parsePlan, planPathRun } from '../plan-card.ts'
 import type { NoticeItem, PlanCard } from '../protocol.ts'
 import type { KitContext, KitEvents } from './context.ts'
@@ -14,9 +14,6 @@ const PLAN_BYTES_MAX = 64 * 1024
 const REPLY_MAX = 2000
 const DETAIL_MAX = 120
 const KIND_ORDER: Record<NoticeItem['kind'], number> = { plan: 0, blocked: 1, waiting: 2 }
-
-// Códigos de escape de terminal (CSI y OSC) antes de quitar los demás caracteres de control.
-const ANSI = /\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g
 
 // Un aviso y lo que el panel no ve: el terminal o el run de Orca al que se responde, su workspace
 // y su run del kit.

@@ -3,6 +3,7 @@
 // pestaña (src/worker/notices.ts, worktrees.ts, history.ts) se registra con `register(ctx)`.
 import type { JsonValue, OrcaWorkerApi } from 'orca/worker'
 import type { Notice, TrackedAgent, UnitInfo, WorkspaceIndex } from '../kit.ts'
+import type { Tone } from '../protocol.ts'
 import type { KitSystem } from './system.ts'
 
 /** Lo que los hooks enseñan de un terminal antes, o además, de sus cambios de estado. */
@@ -33,7 +34,9 @@ export type KitEvents = {
   runDone: { run: string; notice: Notice; at: number }
   /** La persona hizo algo desde el panel que conviene dejar en el historial. */
   action: {
-    kind: 'orchestrate' | 'reply' | 'model' | 'autonomy' | 'plan'
+    kind: 'kit' | 'orchestrate' | 'reply' | 'model' | 'autonomy' | 'plan'
+    /** El color de su entrada en el historial; sin él, el de las acciones (`accent`). */
+    tone?: Tone
     title: string
     detail: string | null
     /** Clave del agente afectado (`t:<terminal>`), si lo hay. */

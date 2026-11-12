@@ -33,7 +33,11 @@ import {
   parseContractHintMode,
   parseDispatch,
   parseTeam,
-  pollUntil,
+  OUTPUT_LINE_MAX,
+  exitCodeOf,
+  isYesNoPrompt,
+  lacksExitMarker,
+  outputLines,
   resolveFocusedWorkspaceId,
   summarizeAgents,
   teamCommand,
@@ -613,20 +617,38 @@ describe('autonomía', () => {
   })
 })
 
-describe('pollUntil', () => {
-  const instant = { attempts: 3, delayMs: 10, sleep: async () => undefined }
-
-  test('para en cuanto la salida coincide', async () => {
-    let reads = 0
-    const found = await pollUntil(async () => [String(++reads)], (lines) => lines[0] === '2', instant)
-    assert.equal(found, true)
-    assert.equal(reads, 2)
+describe('salida de un comando omk en su terminal', () => {
+  test('la línea de cierre da el código de salida; sin ella, nada', () => {
+    assert.equal(exitCodeOf(['PS C:\\repo> omk verify --exit-marker', '  ✓ Todo correcto', '', '[omk:fin] verify salida=0']), 0)
+    assert.equal(exitCodeOf(['[omk:fin] update salida=1', 'PS C:\\repo>']), 1)
+    assert.equal(exitCodeOf(['\u001b[32m[omk:fin] team salida=2\u001b[0m']), 2)
+    // La orden tecleada lleva la opción, no la línea de cierre.
+    assert.equal(exitCodeOf(['$ omk update --exit-marker', '  ✓ Fuente única en ~/.agents']), null)
+    assert.equal(exitCodeOf(['[omk:fin] update salida=', '[omk:fin] salida=0', '[omk:fin] update salida=1234']), null)
+    assert.equal(exitCodeOf([]), null)
   })
 
-  test('se rinde tras el número de intentos', async () => {
-    let reads = 0
-    const found = await pollUntil(async () => [String(++reads)], () => false, instant)
-    assert.equal(found, false)
-    assert.equal(reads, 3)
+  test('reconoce un omk anterior a la línea de cierre', () => {
+    assert.equal(lacksExitMarker(['  Opcion desconocida: --exit-marker']), true)
+    assert.equal(lacksExitMarker(['omk team: opción desconocida para omk team: --exit-marker']), true)
+    assert.equal(lacksExitMarker(['omk: comando desconocido: --exit-marker']), true)
+    assert.equal(lacksExitMarker(['$ omk verify --exit-marker', '  ✓ núcleo en ~/.agents/AGENTS.md']), false)
+  })
+
+  test('una pregunta de sí o no solo cuenta si es lo último', () => {
+    assert.equal(isYesNoPrompt(['  Orca pide tu aprobación', '  › ¿Apruebas este acceso? [s/N] ', '']), true)
+    assert.equal(isYesNoPrompt(['  › ¿Apruebas este acceso? [s/N] s', '  ✓ Plugin instalado']), false)
+    assert.equal(isYesNoPrompt([]), false)
+  })
+
+  test('limpia la salida: sin escapes ni control, con sangría, sin la línea de cierre y acotada', () => {
+    assert.deepEqual(
+      outputLines(['\u001b[1m  ✓ Hecho\u001b[0m\u0007', '    + models.md\u202e creado', '[omk:fin] update salida=0', '', '  ']),
+      ['  ✓ Hecho', '    + models.md  creado']
+    )
+    assert.equal(outputLines([`${'x'.repeat(OUTPUT_LINE_MAX)}yz`])[0]?.length, OUTPUT_LINE_MAX)
+    assert.deepEqual(outputLines(['a', 'b', 'c'], 2), ['b', 'c'])
+    // Un spinner leído como salida acumulada: cuenta el último fotograma, no todos pegados.
+    assert.deepEqual(outputLines(['\r  ⠋ Claude Code…\r  ⠙ Claude Code…\r  ✓ Claude Code\r']), ['  ✓ Claude Code'])
   })
 })

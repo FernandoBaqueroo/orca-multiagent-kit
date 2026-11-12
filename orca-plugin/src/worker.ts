@@ -1,12 +1,12 @@
 // Worker del plugin: comandos de paleta del kit, referencia al contrato del worker en los
 // despachos de orquestación, la skill orca en los prompts de arranque, los agentes con nombre en
 // la barra de estado y el panel, sus avisos, y las peticiones del panel (acciones, equipo y repartir).
-// Las pestañas Avisos, Worktrees e Historial viven en src/worker/: este núcleo oye a Orca una sola
-// vez y les reparte los sucesos (src/worker/context.ts).
+// Las pestañas Avisos, Worktrees e Historial y el seguimiento de la acción en curso viven en
+// src/worker/: este núcleo oye a Orca una sola vez y les reparte los sucesos (src/worker/context.ts).
 // Orca transpila este fichero al cargarlo: no hay paso de build.
 import type { OrcaWorkerApi } from 'orca/worker'
 import {
-  INSTALL_HINT,
+  EXIT_MARKER_FLAG,
   TASK_MAX,
   blockedNotice,
   cleanLabel,
@@ -19,13 +19,11 @@ import {
   indexWorkspaces,
   isAutonomy,
   isKitAction,
-  isMissingCommand,
   isValidAgentId,
   orchestratePrompt,
   parseContractHintMode,
   parseDispatch,
   parseTeam,
-  pollUntil,
   resolveFocusedWorkspaceId,
   summarizeAgents,
   teamCommand,
@@ -41,6 +39,7 @@ import {
   type WorkspaceIndex
 } from './kit.ts'
 import type { AgentsView } from './protocol.ts'
+import { registerActions } from './worker/actions.ts'
 import { createBus, type KitContext, type TerminalInfo } from './worker/context.ts'
 import { createNodeSystem, type KitSystem } from './worker/system.ts'
 import { registerHistory } from './worker/history.ts'
@@ -50,8 +49,6 @@ import { registerWorktrees } from './worker/worktrees.ts'
 const STATUS_ITEM = 'agents'
 const INIT_PROMPT = 'inicializa el proyecto'
 const DEFAULT_INIT_AGENT = 'claude'
-// `omk verify` tarda poco; si en ~15 s no hay error de "comando no encontrado", existe.
-const MISSING_CHECK = { attempts: 10, delayMs: 1500 }
 // Terminales de los que se recuerda qué agente y qué unidad llevan; los más antiguos se olvidan.
 const TERMINALS_MAX = 200
 const NO_WORKSPACE =
@@ -59,7 +56,7 @@ const NO_WORKSPACE =
 
 type OmkSubcommand = 'verify' | 'update'
 
-// Esperas pendientes de las comprobaciones de `omk`: `deactivate` las cancela al parar el worker.
+// Esperas pendientes del seguimiento de acciones: `deactivate` las cancela al parar el worker.
 const pendingTimers = new Set<ReturnType<typeof setTimeout>>()
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => {
@@ -81,11 +78,11 @@ export function deactivate(): void {
 const describeError = (error: unknown) =>
   error instanceof Error ? `${(error as { code?: string }).code ?? 'error'}: ${error.message}` : String(error)
 
-// Lo que responde `runOmk` cuando abre el terminal; cualquier otra respuesta es un fallo ya avisado.
 const running = (command: string) => `Ejecutando \`${command}\` en un terminal nuevo del workspace activo.`
 
 // Un `code` de error del host llega tal cual al panel (`plugin.request` lo rechaza con él).
-const invalidParams = (message: string) => Object.assign(new Error(message), { code: 'invalid_params' })
+const failure = (code: string, message: string) => Object.assign(new Error(message), { code })
+const invalidParams = (message: string) => failure('invalid_params', message)
 
 export default async function activate(orca: OrcaWorkerApi): Promise<void> {
   const { host } = orca
@@ -121,8 +118,9 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     if (notice) bus.emit('runDone', { run, notice, at })
   }
 
-  // Un fallo de Orca en un comando se cuenta al usuario; nunca se queda en silencio.
-  const guarded = (label: string, run: () => Promise<string>) => async () => {
+  // Desde la paleta no hay panel que enseñe el error: un fallo se notifica y es lo que responde
+  // el comando; nunca se queda en silencio.
+  const fromPalette = (label: string, run: () => Promise<string>) => async () => {
     try {
       return await run()
     } catch (error) {
@@ -130,6 +128,16 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
       orca.log(message)
       notify('Orca Multiagent Kit', message)
       return message
+    }
+  }
+
+  // Desde el panel el error vuelve a él con su `code` y lo enseña; aquí solo queda en el log.
+  const fromPanel = async (label: string, run: () => Promise<string>) => {
+    try {
+      return { message: await run() }
+    } catch (error) {
+      orca.log(`${label}: ${describeError(error)}`)
+      throw error
     }
   }
 
@@ -246,56 +254,64 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     }
   }
 
-  const warnIfOmkMissing = async (terminalId: string) => {
-    const missing = await pollUntil(
-      async () => (await host.call('terminal.read', { terminalId, maxLines: 40 })).lines,
-      (lines) => isMissingCommand(lines),
-      { ...MISSING_CHECK, sleep }
-    )
-    if (missing) notify('omk no está instalado', INSTALL_HINT)
+  const ctx: KitContext = {
+    host,
+    panels: orca.panels,
+    storage: orca.storage,
+    system: hostSystem.current,
+    log: (message) => orca.log(message),
+    notify: (title, body) => {
+      if (notifyEnabled) notify(title, body)
+    },
+    agents,
+    terminals,
+    workspaces: () => workspaces,
+    workspaceName,
+    refreshWorkspaces,
+    ...bus
+  }
+  const tracker = registerActions(ctx, sleep)
+
+  const activeWorkspaceId = async () => {
+    const workspaceId = await focusedWorkspaceId()
+    if (!workspaceId) throw failure('unavailable', NO_WORKSPACE)
+    return workspaceId
   }
 
-  // `command` es siempre un literal o sale de `teamCommand` (ids validados): nunca se interpola
-  // texto libre del usuario ni de terceros en el terminal.
-  const runOmk = (title: string, command: string) =>
-    guarded(title, async () => {
-      const workspaceId = await focusedWorkspaceId()
-      if (!workspaceId) {
-        notify('Orca Multiagent Kit', NO_WORKSPACE)
-        return NO_WORKSPACE
-      }
-      const { terminalId } = await host.call('terminal.create', { workspaceId, title, command })
-      void warnIfOmkMissing(terminalId).catch((error: unknown) => {
-        orca.log(`no pude leer la salida de ${title}: ${describeError(error)}`)
-      })
-      return running(command)
+  // Abre un terminal con `command` y lo sigue hasta que acaba (src/worker/actions.ts). `command`
+  // es siempre un literal o sale de `teamCommand` (ids validados): nunca se interpola texto libre
+  // del usuario ni de terceros en el terminal. Lanza si no hay workspace o si Orca falla.
+  const runOmk = async (title: string, command: string) => {
+    const workspaceId = await activeWorkspaceId()
+    const { terminalId } = await host.call('terminal.create', {
+      workspaceId,
+      title,
+      command: `${command} ${EXIT_MARKER_FLAG}`
     })
+    tracker.omk(terminalId, title)
+    return running(command)
+  }
 
-  const subcommand = (name: OmkSubcommand) => runOmk(`omk ${name}`, `omk ${name}`)
+  const subcommand = (name: OmkSubcommand) => () => runOmk(`omk ${name}`, `omk ${name}`)
 
-  const launchAgent = (label: string, agent: string, prompt: string, done: string) =>
-    guarded(label, async () => {
-      const workspaceId = await focusedWorkspaceId()
-      if (!workspaceId) {
-        notify('Orca Multiagent Kit', NO_WORKSPACE)
-        return NO_WORKSPACE
-      }
-      await host.call('agent.launch', { workspaceId, agent, prompt })
-      return done
-    })
+  // Lanza un agente con `prompt` y lo sigue. Lanza si no hay workspace o si Orca falla.
+  const launchAgent = async (title: string, agent: string, prompt: string, done: string) => {
+    const workspaceId = await activeWorkspaceId()
+    const { terminalId } = await host.call('agent.launch', { workspaceId, agent, prompt })
+    tracker.agent(terminalId, title)
+    return done
+  }
 
   const initProject = async () => {
     if (!isValidAgentId(initAgent)) {
-      const message = `El ajuste «Agente para inicializar» no es un id de agente válido: ${String(initAgent)}`
-      notify('Orca Multiagent Kit', message)
-      return message
+      throw invalidParams(`El ajuste «Agente para inicializar» no es un id de agente válido: ${String(initAgent)}`)
     }
     return launchAgent(
-      'inicializar proyecto',
+      `Inicializar proyecto · ${initAgent}`,
       initAgent,
       INIT_PROMPT,
       `Lanzado ${initAgent} con «${INIT_PROMPT}» (skill kit-init) en el workspace activo.`
-    )()
+    )
   }
 
   // Los hooks no deniegan nunca: si no aplican, el prompt o el lanzamiento pasan intactos. Un
@@ -341,16 +357,16 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     init: initProject
   }
 
-  orca.commands.register('kit.verify', actions.verify)
-  orca.commands.register('kit.update', actions.update)
-  orca.commands.register('kit.init', actions.init)
+  orca.commands.register('kit.verify', fromPalette('omk verify', actions.verify))
+  orca.commands.register('kit.update', fromPalette('omk update', actions.update))
+  orca.commands.register('kit.init', fromPalette('inicializar proyecto', actions.init))
   orca.commands.register('agents.status', async () => describeAgents(groupAgents(agents, workspaces.byId)))
 
   // El panel solo elige entre las acciones fijas de arriba; cualquier otro valor se rechaza.
   orca.panels.handle('kit.run', async (input) => {
     const action: unknown = input?.action
     if (!isKitAction(action)) throw invalidParams(`acción desconocida: ${String(action)}`)
-    return { message: await actions[action]() }
+    return fromPanel(`kit.run ${action}`, actions[action])
   })
   orca.panels.handle('agents.summary', () => agentsView())
 
@@ -369,21 +385,19 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     if (command === null) {
       throw invalidParams('el equipo no cabe en una orden de terminal: quita roles propios o acorta sus textos')
     }
-    return { message: await runOmk('omk team', command)() }
+    return fromPanel('team.apply', () => runOmk('omk team set', command))
   })
 
-  orca.panels.handle('team.show', async () => ({ message: await runOmk('omk team', 'omk team')() }))
+  orca.panels.handle('team.show', () => fromPanel('team.show', () => runOmk('omk team', 'omk team')))
 
   // Solo uno de los tres niveles llega a la orden: `autonomyCommand` no interpola nada más.
   orca.panels.handle('team.autonomy', async (input) => {
     const level: unknown = input?.autonomy
     if (!isAutonomy(level)) throw invalidParams(`autonomía desconocida: ${String(level)}`)
     const command = autonomyCommand(level)
-    const message = await runOmk('omk team', command)()
-    if (message === running(command)) {
-      bus.emit('action', { kind: 'autonomy', title: `Autonomía del proyecto → ${level}`, detail: null, agentKey: null, run: null, at: Date.now() })
-    }
-    return { message }
+    const result = await fromPanel('team.autonomy', () => runOmk(command, command))
+    bus.emit('action', { kind: 'autonomy', title: `Autonomía del proyecto → ${level}`, detail: null, agentKey: null, run: null, at: Date.now() })
+    return result
   })
 
   orca.panels.handle('team.orchestrate', async (input) => {
@@ -395,13 +409,11 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
       throw invalidParams(`falta la tarea, pasa de ${TASK_MAX} caracteres, o la entrada o la autonomía no existen`)
     }
     const done = `Lanzado ${agent} con la skill orca en el workspace activo.`
-    const message = await launchAgent('orquestar', agent, prompt, done)()
-    if (message === done) {
-      const task = cleanLabel(typeof input?.task === 'string' ? input.task : '', 120)
-      const title = isAutonomy(autonomy) ? `Repartir con ${agent} (autonomía ${autonomy})` : `Repartir con ${agent}`
-      bus.emit('action', { kind: 'orchestrate', title, detail: task, agentKey: null, run: null, at: Date.now() })
-    }
-    return { message }
+    const result = await fromPanel('team.orchestrate', () => launchAgent(`Repartir · ${agent}`, agent, prompt, done))
+    const task = cleanLabel(typeof input?.task === 'string' ? input.task : '', 120)
+    const title = isAutonomy(autonomy) ? `Repartir con ${agent} (autonomía ${autonomy})` : `Repartir con ${agent}`
+    bus.emit('action', { kind: 'orchestrate', title, detail: task, agentKey: null, run: null, at: Date.now() })
+    return result
   })
 
   orca.events.on('agent.status.changed', (event) => {
@@ -450,22 +462,6 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     renderStatus()
   })
 
-  const ctx: KitContext = {
-    host,
-    panels: orca.panels,
-    storage: orca.storage,
-    system: hostSystem.current,
-    log: (message) => orca.log(message),
-    notify: (title, body) => {
-      if (notifyEnabled) notify(title, body)
-    },
-    agents,
-    terminals,
-    workspaces: () => workspaces,
-    workspaceName,
-    refreshWorkspaces,
-    ...bus
-  }
   registerNotices(ctx)
   registerWorktrees(ctx)
   registerHistory(ctx)

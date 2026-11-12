@@ -1,7 +1,7 @@
 // El panel tal como lo dibuja Orca, con el worker sustituido por respuestas fijas.
 import { afterEach, assert, hostError, mockHost, mount, test, type TestPanel } from 'orca/testing'
 import type { Team } from './kit.ts'
-import type { AgentsView } from './protocol.ts'
+import type { ActionView, AgentsView } from './protocol.ts'
 import * as panel from './panel.tsx'
 
 const NO_AGENTS: AgentsView = { text: 'MAW', tone: 'neutral', tooltip: 'ninguno', groups: [] }
@@ -58,6 +58,9 @@ const open = async (options: { settings?: Record<string, string | boolean>; requ
       'notices.list': () => ({ items: [] }),
       'worktrees.list': () => ({ groups: [] }),
       'history.list': () => ({ items: [] }),
+      'kit.action': () => ({ action: null }),
+      'kit.answer': answer('kit.answer'),
+      'kit.dismiss': answer('kit.dismiss'),
       'kit.run': (input: { action: string }) => {
         calls.push({ name: 'kit.run', input })
         return { message: `hecho: ${input.action}` }
@@ -218,14 +221,76 @@ test('muestra los ajustes guardados', async () => {
   assert.deepEqual(view.errors, [])
 })
 
-test('cada botón pide su acción al worker y enseña la respuesta', async () => {
+test('cada botón pide su acción al worker; lo lanzado no se da por hecho', async () => {
   const { view, calls } = await open()
   await tab(view, 'kit')
   await view.press({ text: 'Verificar instalación' })
   await view.press({ text: 'Inicializar proyecto' })
   await view.press({ text: 'Actualizar kit' })
   assert.deepEqual(calls.map((c) => c.input), [{ action: 'verify' }, { action: 'init' }, { action: 'update' }])
-  assert.ok(view.find({ text: 'hecho: update' }))
+  // Su estado lo cuenta la tarjeta de la acción en curso: un «Hecho» aquí sería mentira.
+  assert.equal(/Callout/.test(view.summary().join(' ')), false)
+  assert.deepEqual(view.warnings, [])
+})
+
+const ACTION: ActionView = {
+  id: 'a1',
+  kind: 'omk',
+  title: 'omk update',
+  state: 'running',
+  detail: null,
+  startedAt: 1,
+  endedAt: null,
+  lines: ['  ✓ Fuente única en ~/.agents', '  ⠋ Claude Code…'],
+  canAnswer: false
+}
+
+test('la acción en curso sale encima de las pestañas con su estado y su salida', async () => {
+  const { view } = await open({ requests: { 'kit.action': () => ({ action: ACTION }) } })
+  // Se ve desde cualquier pestaña, sin ir a Kit.
+  assert.ok(view.find({ type: 'Card', label: 'omk update' }))
+  assert.match(text(view), /en curso/)
+  assert.match(text(view), /Fuente única en ~\/\.agents/)
+  assert.ok(view.find({ text: 'Dejar de seguir' }))
+  assert.equal(view.find({ text: 'Aprobar' }), null)
+
+  await view.post('action.changed', {
+    action: { ...ACTION, state: 'failed', detail: 'Terminó con errores (código 1): míralos en la salida.', endedAt: 2 }
+  })
+  assert.match(text(view), /falló/)
+  assert.match(text(view), /código 1/)
+  assert.ok(view.find({ text: 'Quitar' }))
+
+  await view.post('action.changed', { action: null })
+  assert.equal(view.find({ type: 'Card', label: 'omk update' }), null)
+  assert.deepEqual(view.errors, [])
+  assert.deepEqual(view.warnings, [])
+})
+
+test('si omk pregunta, se le contesta desde la tarjeta; quitarla la deja de seguir', async () => {
+  const asking: ActionView = { ...ACTION, state: 'asking', detail: 'omk pregunta antes de seguir.', canAnswer: true }
+  const { view, calls } = await open({ requests: { 'kit.action': () => ({ action: asking }) } })
+  await view.press({ text: 'Aprobar' })
+  await view.press({ text: 'Rechazar' })
+  await view.press({ text: 'Dejar de seguir' })
+  assert.deepEqual(calls, [
+    { name: 'kit.answer', input: { id: 'a1', approve: true } },
+    { name: 'kit.answer', input: { id: 'a1', approve: false } },
+    { name: 'kit.dismiss', input: { id: 'a1' } }
+  ])
+  assert.deepEqual(view.refusals, [])
+})
+
+test('una salida larga enseña el final y deja el resto plegado', async () => {
+  const lines = Array.from({ length: 40 }, (_, i) => `línea ${i + 1}`)
+  const { view } = await open({ requests: { 'kit.action': () => ({ action: { ...ACTION, lines } }) } })
+  const shown = () => view.findAll({ type: 'CodeView' }).map(({ props }) => String(props.code).split('\n').length)
+  assert.match(String(view.find({ type: 'CodeView' })?.props.code), /línea 40$/)
+  // Solo el final, que es donde está el resultado; el resto, al desplegar.
+  assert.deepEqual(shown(), [14])
+  await view.toggle({ label: 'Salida completa' })
+  assert.deepEqual(shown(), [14, 40])
+  assert.deepEqual(view.warnings, [])
 })
 
 test('un fallo del worker se enseña, no se calla', async () => {
@@ -245,7 +310,7 @@ test('un fallo del worker se enseña, no se calla', async () => {
 test('el resultado de una acción tiene título propio y se cierra', async () => {
   const { view } = await open()
   await tab(view, 'kit')
-  await view.press({ text: 'Verificar instalación' })
+  await view.toggle({ label: 'Avisos de agentes' })
   // Sin título, Orca pinta un Callout como un «Consejo» de Markdown.
   assert.match(view.summary().join(' '), /Callout success "Hecho"/)
   await view.press({ text: 'Cerrar' })

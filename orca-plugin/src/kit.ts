@@ -40,9 +40,10 @@ export function withContractHint(
 }
 
 export const ORCHESTRATE_HINT =
-  '[Orca Multiagent Kit] Antes de empezar, aplica la skill orca (~/.agents/skills/orca/SKILL.md) a esta ' +
-  'tarea: decide si compensa repartirla entre agentes y, si compensa, repártela. La entrada es este prompt ' +
-  '(adaptador de chat): no hace falta spec-kit. Si no compensa, hazla tú directamente.'
+  '[Orca Multiagent Kit] Antes de empezar, y antes de la primera edición, carga la skill orca ' +
+  '(~/.agents/skills/orca/SKILL.md) y escribe en el chat su veredicto en una línea `ORCA: …`: si la tarea tiene ' +
+  '2 o más entregables separables, repártela entre agentes. La entrada es este prompt (adaptador de chat): ' +
+  'no hace falta spec-kit. Si es un solo entregable, hazla tú directamente.'
 
 // Prompts que ya pasan por la skill orca (Repartir del panel, un despacho, el propio aviso) o que
 // son de kit-init: no se les añade nada. «orca-cli» u «orchestration» no cuentan como la skill orca.
@@ -69,28 +70,72 @@ export function isMissingCommand(lines: readonly string[], command = 'omk'): boo
   return lines.some((line) => name.test(line) && MISSING_COMMAND.test(line))
 }
 
-export type PollOptions = {
-  attempts: number
-  delayMs: number
-  sleep: (ms: number) => Promise<void>
+export const INSTALL_HINT =
+  'Instálalo con `npm install -g orca-multiagent-kit` o con el ejecutable de la última release (lo deja en el PATH), ' +
+  'reinicia Orca y vuelve a lanzar el comando.'
+
+/**
+ * Opción con la que `omk` escribe al salir una línea `[omk:fin] <comando> salida=<código>`
+ * (bin/omk.js): es como el plugin sabe que el comando de un terminal ha terminado y cómo.
+ */
+export const EXIT_MARKER_FLAG = '--exit-marker'
+
+const EXIT_MARKER = /\[omk:fin\] \S+ salida=(\d{1,3})(?!\d)/
+// Un omk anterior a la opción la rechaza: «Opcion desconocida: --exit-marker».
+const UNKNOWN_EXIT_MARKER = /desconocid[ao][^\n]*--exit-marker/i
+// La pregunta de aprobación de `omk` (bin/setup.js): «¿Apruebas este acceso? [s/N]».
+const YES_NO_PROMPT = /\[s\/N\]\s*$/
+
+export const OLD_OMK_HINT =
+  'El omk instalado es anterior a este plugin y no avisa cuando termina. Actualízalo en un terminal con ' +
+  '`npm install -g orca-multiagent-kit@latest` (o con el ejecutable de la última release) y repite.'
+
+/** El código con el que terminó `omk`, si su línea de cierre ya está en la salida; si no, `null`. */
+export function exitCodeOf(lines: readonly string[]): number | null {
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const code = EXIT_MARKER.exec(lines[i] ?? '')?.[1]
+    if (code !== undefined) return Number(code)
+  }
+  return null
 }
 
-/** Lee la salida hasta `attempts` veces, esperando `delayMs` antes de cada lectura. */
-export async function pollUntil(
-  read: () => Promise<readonly string[]>,
-  matches: (lines: readonly string[]) => boolean,
-  options: PollOptions
-): Promise<boolean> {
-  for (let attempt = 0; attempt < options.attempts; attempt += 1) {
-    await options.sleep(options.delayMs)
-    if (matches(await read())) return true
+/** Si la salida dice que este `omk` no conoce la opción de la línea de cierre. */
+export function lacksExitMarker(lines: readonly string[]): boolean {
+  return lines.some((line) => UNKNOWN_EXIT_MARKER.test(line))
+}
+
+/** Si lo último que hay en la salida es una pregunta de sí o no de `omk`. */
+export function isYesNoPrompt(lines: readonly string[]): boolean {
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i] ?? ''
+    if (line.trim() !== '') return YES_NO_PROMPT.test(line)
   }
   return false
 }
 
-export const INSTALL_HINT =
-  'Instálalo con `npm install -g orca-multiagent-kit` o con el ejecutable de la última release (lo deja en el PATH), ' +
-  'reinicia Orca y vuelve a lanzar el comando.'
+// Códigos de escape de terminal (CSI y OSC); se quitan antes que los demás caracteres de control.
+export const ANSI = /\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g
+
+export const OUTPUT_LINES = 80
+export const OUTPUT_LINE_MAX = 240
+
+/**
+ * La salida de un terminal lista para enseñarla: sin códigos de escape, caracteres de control ni
+ * de formato, sin la línea de cierre de `omk` ni huecos al final, con su sangría, y acotada a las
+ * últimas `max` líneas de hasta `OUTPUT_LINE_MAX` caracteres. De una línea repintada con retornos
+ * de carro (un spinner, si Orca da la salida acumulada y no la pantalla) queda lo último pintado.
+ */
+export function outputLines(lines: readonly string[], max = OUTPUT_LINES): string[] {
+  const clean: string[] = []
+  for (const line of lines) {
+    const painted = line.replace(ANSI, '').split('\r').filter((part) => part.trim() !== '')
+    const text = (painted[painted.length - 1] ?? '').replace(/[\p{Cc}\p{Cf}]/gu, ' ').trimEnd()
+    if (EXIT_MARKER.test(text)) continue
+    clean.push(text.length > OUTPUT_LINE_MAX ? `${text.slice(0, OUTPUT_LINE_MAX - 1)}…` : text)
+  }
+  while (clean.length > 0 && clean[clean.length - 1] === '') clean.pop()
+  return clean.slice(-max)
+}
 
 export type FocusedWorkspace = { branch: string; displayName: string }
 export type WorkspaceEntry = { id: string; name: string; branch: string | null }
