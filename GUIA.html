@@ -206,13 +206,15 @@ footer{margin-top:64px;color:var(--muted);font-size:13px;text-align:center}
   <p class="sub">Migra instalaciones anteriores automáticamente, con backup de todo lo que toca.</p>
   <div class="steps">
     <div class="step"><div><h3>Mira qué haría, sin tocar nada</h3>
-      <div class="cmd"><pre>cd ~/Documents/orca-multiagent-kit
-chmod +x install.sh
-./install.sh --dry-run</pre><button class="copy" type="button">Copiar</button></div></div></div>
+      <div class="cmd"><pre>npx orca-multiagent-kit setup --dry-run</pre><button class="copy" type="button">Copiar</button></div>
+      <p class="muted small">Sin Node: abre el ejecutable de la última release, o <code>curl -fsSL …/scripts/get.sh | bash</code>. Con el zip o un clon del kit: <code>./install.sh --dry-run</code> (solo reglas y skills).</p></div></div>
     <div class="step"><div><h3>Instala y verifica</h3>
-      <div class="cmd"><pre>./install.sh
-./install.sh --verify</pre><button class="copy" type="button">Copiar</button></div>
-      <p class="muted small">Al final imprime avisos (por ejemplo, la línea para pegar en las reglas de usuario de Cursor) y el comando <code>--restore</code> para deshacerlo todo.</p></div></div>
+      <div class="cmd"><pre>npx orca-multiagent-kit setup
+omk verify</pre><button class="copy" type="button">Copiar</button></div>
+      <p class="muted small">Un solo comando deja las reglas y las skills, <code>omk</code> en el PATH y, si usas Orca, su plugin. Al final imprime avisos (por ejemplo, la línea para pegar en las reglas de usuario de Cursor) y el comando <code>omk restore</code> para deshacerlo todo. Con el zip: <code>./install.sh</code> y <code>./install.sh --verify</code>.</p></div></div>
+    <div class="step"><div><h3>Para actualizar, otro</h3>
+      <div class="cmd"><pre>omk update</pre><button class="copy" type="button">Copiar</button></div>
+      <p class="muted small">Pone al día el kit, <code>~/.agents</code>, el proyecto de la carpeta en la que estés y el plugin de Orca.</p></div></div>
     <div class="step"><div><h3>Reinicia los agentes</h3><p class="muted small">Claude Code, Antigravity y los demás que uses. A partir de aquí todos leen <code>~/.agents</code>.</p></div></div>
     <div class="step"><div><h3>Opcional: comparte una skill externa con todos</h3>
       <div class="cmd"><pre>./install.sh --adopt ~/.gemini/config/plugins/user-workflows/skills/impeccable</pre><button class="copy" type="button">Copiar</button></div>
@@ -369,18 +371,18 @@ chmod +x install.sh
 <section id="problemas">
   <h2>Si algo falla</h2>
   <div class="glass pad">
-    <details><summary>Un agente no sigue las reglas</summary><p><code>./install.sh --verify</code> y reinicia el agente. En Claude, el bloque de <code>~/.claude/CLAUDE.md</code> tiene que contener <code>@~/.agents/AGENTS.md</code>. En sesiones de Cowork no se cargan imports de fuera de la carpeta de trabajo.</p></details>
+    <details><summary>Un agente no sigue las reglas</summary><p><code>omk verify</code> (o <code>./install.sh --verify</code>) y reinicia el agente. En Claude, el bloque de <code>~/.claude/CLAUDE.md</code> tiene que contener <code>@~/.agents/AGENTS.md</code>. En sesiones de Cowork no se cargan imports de fuera de la carpeta de trabajo.</p></details>
     <details><summary>Antigravity no ve las skills</summary><p>Comprueba los enlaces en <code>~/.gemini/config/skills/</code> con <code>--verify</code> y reinicia Antigravity. Si se queja del plugin <code>claude-session-rules</code>, desactívalo: su contenido ya está en el núcleo.</p></details>
     <details><summary>El agente orquesta tareas pequeñas</summary><p>Dile «hazlo inline». Si pasa a menudo, ajusta los umbrales en <code>rules/95-multi-agent.md</code>, en «Cuándo paralelizar».</p></details>
     <details><summary>Conflictos en <code>tasks.md</code> o en el plan</summary><p>Un worker lo editó. Revierte su cambio en ese fichero: solo el coordinador marca tareas.</p></details>
     <details><summary>Un worktree arranca sin dependencias o sin <code>.env</code></summary><p>El worker lo detecta al arrancar y se para con <code>BLOCKED: entorno</code>. Repite «inicializa el proyecto»: rellena el setup de <code>ORCHESTRATION.md</code> y <code>orca.yaml</code>. Lo que va en <code>.worktreeinclude</code> tiene que existir y estar en <code>.gitignore</code>. Solo <code>.env</code> de desarrollo: el instalador desactiva los que parecen de producción.</p></details>
     <details><summary>Ha salido un modelo nuevo</summary><p>No hay que hacer nada. Con Claude, los alias apuntan solos al modelo vigente. Con los demás, la skill lo ve en el siguiente run y, si es de una familia nueva, decide ella su nivel con lo que publica el proveedor y te lo dice en el plan de rondas. Para cambiarlo a mano, edita <code>~/.agents/models.md</code>.</p></details>
     <details><summary>Quedan worktrees o ramas de un run antiguo</summary><p>Di «limpia el run». El agente enseña el inventario y borra solo lo integrado y sin cambios pendientes, tras tu «sí».</p></details>
-    <details><summary>Quiero volver atrás</summary><p><code>./install.sh --restore &lt;fecha&gt;</code> con la fecha que imprimió la instalación. Los backups están en <code>~/.agents/backups/</code>.</p></details>
+    <details><summary>Quiero volver atrás</summary><p><code>omk restore &lt;fecha&gt;</code> (o <code>./install.sh --restore &lt;fecha&gt;</code>) con la fecha que imprimió la instalación. Los backups están en <code>~/.agents/backups/</code>.</p></details>
   </div>
 </section>
 
-<footer>Orca Multiagent Kit v1.0.0 · Esta guía está en <code>orca-multiagent-kit/GUIA.html</code> · Detalle técnico: <code>docs/MANUAL.md</code> · Para una IA: <code>AI_INSTALL.md</code></footer>
+<footer>Orca Multiagent Kit · Esta guía está en <code>orca-multiagent-kit/GUIA.html</code> · Detalle técnico: <code>docs/MANUAL.md</code> · Para una IA: <code>AI_INSTALL.md</code></footer>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

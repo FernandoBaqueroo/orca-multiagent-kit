@@ -63,14 +63,14 @@ h1.glitch .g{animation:glitch .35s steps(2) 1}
 @keyframes core{0%,100%{opacity:.2}50%{opacity:.7}}
 .core.flash .coreglow{animation:none;opacity:1}
 .info{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;margin-top:16px;border:2px dashed var(--line);padding:14px 16px;min-height:86px}
-.info h3{margin:0 0 4px;font-family:var(--pixel);font-size:11px;color:var(--lime)}
+.info h2{display:block;margin:0 0 4px;font-size:11px}
 .info p{margin:0;color:var(--muted);font-size:13px}
 .info code{color:var(--fg)}
 .sync{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:11px;color:var(--muted)}
 .bar{display:flex;gap:3px}
 .bar i{width:12px;height:12px;background:var(--dim)} .bar i.on{background:var(--lime);box-shadow:0 0 8px rgba(198,255,61,.6)}
 .hint{margin-top:10px;text-align:center;font-size:12px;color:var(--muted)}
-kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:3px;padding:1px 6px;color:var(--lime-hi)}
+kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:3px;padding:4px 8px;color:var(--lime-hi)}
 .win{position:absolute;inset:0;display:grid;place-items:center;background:rgba(5,6,5,.82);opacity:0;pointer-events:none;transition:opacity .3s}
 .win.show{opacity:1}
 .win p{font-family:var(--pixel);color:var(--lime);font-size:clamp(12px,2.4vw,20px);text-align:center;text-shadow:0 0 16px rgba(198,255,61,.7);line-height:2}
@@ -97,7 +97,7 @@ h2 img{width:24px;height:24px;image-rendering:pixelated}
 table{width:100%;border-collapse:collapse;font-size:14px}
 .tw{overflow-x:auto;border:2px solid var(--line);background:var(--panel)}
 th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-family:var(--pixel);font-size:9px;color:var(--lime-mid);letter-spacing:.06em}
+th{font-family:var(--pixel);font-size:11px;color:var(--lime-mid);letter-spacing:.06em}
 td code{color:var(--lime-hi)}
 tr:last-child td{border-bottom:0}
 .dl{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
@@ -133,7 +133,7 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
     <div class="win" id="win" aria-live="polite"><p>SYNC OK<br>5/5 AGENTES</p></div>
   </div>
   <div class="info" aria-live="polite">
-    <div id="info"><h3>PULSA UN AGENTE</h3><p>Cada agente lee las mismas reglas desde <code>~/.agents</code>. Tócalos para ver cómo se conectan.</p></div>
+    <div id="info"><h2>PULSA UN AGENTE</h2><p>Cada agente lee las mismas reglas desde <code>~/.agents</code>. Tócalos para ver cómo se conectan.</p></div>
     <div class="sync"><span id="count">0/5 sincronizados</span><div class="bar" id="bar"></div></div>
   </div>
   <p class="hint">Teclado: <kbd>1</kbd>–<kbd>5</kbd> elige agente · <kbd>Enter</kbd> sincroniza todos · <kbd>R</kbd> reinicia</p>
@@ -156,7 +156,7 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
     <div class="tabs" role="tablist" id="tabs"></div>
     <div class="screen" id="screen" role="tabpanel"><button class="copy" id="copy" type="button">COPIAR</button><span id="out"></span></div>
   </div>
-  <p class="muted" style="font-size:13px">Requisitos: macOS, Linux, WSL o Git Bash. Para <code>npx</code> y <code>omk</code>, Node 18 o superior. El instalador hace backup de todo lo que toca y se deshace con <code>omk restore</code>.</p>
+  <p class="muted" style="font-size:13px">Requisitos: macOS, Linux, WSL o Git Bash. Para <code>npx</code>, Node 18 o superior; el ejecutable y <code>curl</code> no lo necesitan. Un comando lo instala todo (reglas, skills, <code>omk</code> y el plugin de Orca) y <code>omk update</code> lo actualiza todo. Se hace backup de lo que se toca y se deshace con <code>omk restore</code>.</p>
 </section>
 
 <section id="comandos">
@@ -164,12 +164,14 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
   <div class="tw"><table>
     <thead><tr><th>COMANDO</th><th>QUÉ HACE</th></tr></thead>
     <tbody>
-      <tr><td><code>omk install</code></td><td>Instala o migra la fuente única para los agentes detectados. Admite <code>--dry-run</code> y <code>--agents claude,codex</code></td></tr>
-      <tr><td><code>omk init [ruta]</code></td><td>Prepara un proyecto: <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>STACK.md</code>, <code>ORCHESTRATION.md</code></td></tr>
+      <tr><td><code>omk setup</code></td><td>Lo instala todo: reglas y skills, <code>omk</code> en el PATH y, si usas Orca, su plugin y su panel. Admite <code>--dry-run</code> y <code>--yes</code></td></tr>
+      <tr><td><code>omk install</code></td><td>Solo la fuente única (<code>~/.agents</code>) para los agentes detectados. Admite <code>--dry-run</code> y <code>--agents claude,codex</code></td></tr>
+      <tr><td><code>omk init [ruta]</code></td><td>Prepara un proyecto: <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>STACK.md</code>, <code>ORCHESTRATION.md</code>, <code>orca.yaml</code>, <code>.worktreeinclude</code> y el hook de spec-kit</td></tr>
       <tr><td><code>omk verify</code></td><td>Comprueba enlaces, imports y que no queden copias divergentes</td></tr>
       <tr><td><code>omk adopt &lt;skill&gt;</code></td><td>Comparte una skill externa (por ejemplo, impeccable) con todos los agentes</td></tr>
       <tr><td><code>omk backups</code> · <code>omk restore &lt;fecha&gt;</code></td><td>Lista las copias de seguridad y deshace una instalación</td></tr>
-      <tr><td><code>omk update</code></td><td>Actualiza a la última versión y reinstala</td></tr>
+      <tr><td><code>omk update</code></td><td>Lo actualiza todo: el kit, <code>~/.agents</code>, el proyecto de la carpeta actual (con lo que estrenen las plantillas, sin tocar lo escrito) y el plugin de Orca</td></tr>
+      <tr><td><code>omk team</code> · <code>omk plugin</code></td><td>El equipo de roles del proyecto y el plugin de Orca</td></tr>
       <tr><td><code>omk where</code> · <code>omk version</code></td><td>Rutas y versión</td></tr>
     </tbody>
   </table></div>
@@ -227,7 +229,7 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
     var g=el('g',{class:'agent',tabindex:0,role:'button','aria-label':a.full+': sincronizar',style:'color:'+a.c});
     var bob=el('g',{class:'bob body',style:'animation-delay:'+(i*0.18)+'s'},g);
     BOT.forEach(function(row,r){row.split('').forEach(function(b,c){ if(b!=='0') el('rect',{x:x+c*px,y:40+r*px,width:px,height:px,fill:b==='1'?a.c:'#050605'},bob); });});
-    var t=el('text',{class:'lbl',x:cx,y:112,'text-anchor':'middle',fill:a.c,'font-family':'"Press Start 2P",monospace','font-size':10},g); t.textContent=a.n;
+    var t=el('text',{class:'lbl',x:cx,y:112,'text-anchor':'middle',fill:a.c,'font-family':'"Press Start 2P",monospace','font-size':11},g); t.textContent=a.n;
     g.addEventListener('mouseenter',function(){show(i)}); g.addEventListener('focus',function(){show(i)});
     g.addEventListener('click',function(){sync(i)});
     g.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();sync(i)}});
@@ -236,7 +238,7 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
   for(var b=0;b<15;b++){bar.appendChild(document.createElement('i'))}
   function show(i){
     wires.forEach(function(w,j){w.classList.toggle('hot',j===i)});
-    var a=AG[i]; info.innerHTML='<h3>'+a.full.toUpperCase()+(synced[i]?' · SINCRONIZADO':'')+'</h3><p>'+a.how+'</p>';
+    var a=AG[i]; info.innerHTML='<h2>'+a.full.toUpperCase()+(synced[i]?' · SINCRONIZADO':'')+'</h2><p>'+a.how+'</p>';
   }
   function packet(i,delay){
     var x=x0+i*gap+24, pts=[[x,120],[x,bus],[450,bus],[450,coreY]];
@@ -258,7 +260,7 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
   }
   function sync(i){ show(i); for(var k=0;k<3;k++)packet(i,k*160); synced[i]=true; setTimeout(function(){show(i);update()},900); }
   function syncAll(){ AG.forEach(function(_,i){ setTimeout(function(){sync(i)},i*260) }) }
-  function reset(){ synced={}; update(); info.innerHTML='<h3>PULSA UN AGENTE</h3><p>Cada agente lee las mismas reglas desde <code>~/.agents</code>. Tócalos para ver cómo se conectan.</p>'; wires.forEach(function(w){w.classList.remove('hot')}); }
+  function reset(){ synced={}; update(); info.innerHTML='<h2>PULSA UN AGENTE</h2><p>Cada agente lee las mismas reglas desde <code>~/.agents</code>. Tócalos para ver cómo se conectan.</p>'; wires.forEach(function(w){w.classList.remove('hot')}); }
   document.addEventListener('keydown',function(e){
     if(e.target.closest&&e.target.closest('input,textarea'))return;
     if(/^[1-5]$/.test(e.key)){nodes[+e.key-1].focus();sync(+e.key-1)}
@@ -277,10 +279,10 @@ footer{margin-top:72px;border-top:2px solid var(--line);padding-top:18px;font-si
 
   // terminal de instalación con pestañas
   var TABS=[
-    {id:'npx',label:'npx',cmd:'npx orca-multiagent-kit install',out:'[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,antigravity,cursor\n[kit] Fuente unica: ~/.agents · backup: ~/.agents/backups/20261107-091500\n[kit] Claude Code\n[kit] Antigravity\n[kit] Cursor (skills: nativo en ~/.agents/skills)\n[kit] Hecho. Comprueba con: ./install.sh --verify'},
-    {id:'npm',label:'npm -g',cmd:'npm install -g orca-multiagent-kit\nomk install\nomk init ~/Dev/mi-app',out:'added 1 package\n[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,antigravity\n[kit] Proyecto: ~/Dev/mi-app\n[kit]   STACK.md creado\n[kit]   ORCHESTRATION.md creado\n[kit]   Siguiente: en el agente, «ejecuta kit-init»'},
-    {id:'curl',label:'curl',cmd:'curl -fsSL https://raw.githubusercontent.com/FernandoBaqueroo/orca-multiagent-kit/main/scripts/get.sh | bash',out:'[omk] Descargando la última versión de FernandoBaqueroo/orca-multiagent-kit\n[omk] Kit v1.0.0 en ~/.local/share/orca-multiagent-kit\n[kit] Orca Multiagent Kit v1.0.0 · agentes: claude,codex\n[kit] Hecho.'},
-    {id:'zip',label:'zip',cmd:'curl -LO https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest/download/orca-multiagent-kit.zip\nunzip orca-multiagent-kit.zip && cd orca-multiagent-kit\n./install.sh --dry-run && ./install.sh',out:'  (dry) cp core/AGENTS.md ~/.agents/AGENTS.md\n  (dry) ln -s ~/.agents/AGENTS.md ~/.gemini/GEMINI.md\n[kit] Hecho.'}
+    {id:'npx',label:'npx',cmd:'npx orca-multiagent-kit setup',out:'  ◆ ORCA MULTIAGENT KIT\n    Claude Code · Antigravity · Cursor\n\n  ✓ Fuente única en ~/.agents\n  ✓ Claude Code\n  ✓ Antigravity\n  ✓ Cursor\n\n  ◆ Orca\n  ✓ Plugins de Orca encendidos\n  ✓ Plugin local.multiagent-kit instalado\n  ✓ Entorno de Orca listo'},
+    {id:'exe',label:'ejecutable',cmd:'# descarga el de tu sistema de la última release y ábrelo\nomk-windows-x64.exe',out:'  ◆ ORCA MULTIAGENT KIT\n  ✓ Fuente única en ~/.agents\n\n  ◆ omk en el PATH\n  ✓ omk copiado\n\n  ◆ Orca\n  ✓ Entorno de Orca listo'},
+    {id:'curl',label:'curl',cmd:'curl -fsSL https://raw.githubusercontent.com/FernandoBaqueroo/orca-multiagent-kit/main/scripts/get.sh | bash',out:'[omk] Descargando omk-linux-x64 de la última versión\n  ◆ ORCA MULTIAGENT KIT\n  ✓ Fuente única en ~/.agents\n  ✓ omk copiado en ~/.local/bin/omk\n  ✓ Entorno de Orca listo'},
+    {id:'update',label:'actualizar',cmd:'omk update',out:'  › Actualizando a la última versión\n  ✓ Fuente única en ~/.agents\n  ✓ Proyecto mi-app\n  ✓ ORCHESTRATION.md: 2 apartados nuevos (lo que ya tenías no se toca)\n  ✓ Plugin local.multiagent-kit instalado\n  ✓ Kit al día'}
   ];
   var tabs=document.getElementById('tabs'), out=document.getElementById('out'), copyBtn=document.getElementById('copy'), cur=0, typing=null;
   function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}

@@ -54,8 +54,8 @@ orca-multiagent-kit/
 ├── core/AGENTS.md            núcleo: precedencia, idioma, respuesta, stack, puerta de validez,
 │                             prohibiciones, multiagente, router
 ├── rules/                    00-router · 10-communication · 20-clean-code · 30-security ·
-│   └── lang/ (17)            31-security-audit · 40-testing · 50-done-gate · 60-git-workflow ·
-│                             70-performance · 75-reliability · 80-supply-chain ·
+│   └── lang/ (17)            31-security-audit · 32-ai-security · 40-testing · 50-done-gate ·
+│                             60-git-workflow · 70-performance · 75-reliability · 80-supply-chain ·
 │                             90-docs-comments · 95-multi-agent
 ├── skills/                   kit-init · csr-stack · csr-gate · csr-audit
 │                             orca (entrada única) · speckit-orca-implement (hook)
@@ -69,7 +69,9 @@ orca-multiagent-kit/
 
 ## 4. Instalación (y migración desde CSR / MAW sueltos)
 
-Con Node ≥ 18 lo más cómodo es el CLI: `npx orca-multiagent-kit install`, o `npm install -g orca-multiagent-kit` para tener `omk` siempre (`omk install`, `omk init`, `omk verify`, `omk adopt`, `omk restore`, `omk update`). Sin Node, con el zip o un clon:
+Lo normal es un solo comando, y los tres caminos acaban en `omk setup`: `npx orca-multiagent-kit setup` (Node ≥ 18; deja `omk` instalado con `npm install -g`), el ejecutable de la release (sin Node; se abre y ya) o `curl -fsSL https://raw.githubusercontent.com/FernandoBaqueroo/orca-multiagent-kit/main/scripts/get.sh | bash` (sin Node; baja ese ejecutable y comprueba su SHA-256). `omk setup` instala las reglas y las skills, deja `omk` en el PATH y, si usas Orca, instala su plugin y abre su panel. Después tienes `omk update` (lo actualiza todo), `omk init`, `omk verify`, `omk adopt`, `omk restore` y `omk team`. `omk install` hace solo la parte de `~/.agents`.
+
+Sin Node y sin ejecutable para tu sistema, con el zip o un clon se instalan las reglas y las skills (no hay `omk` ni plugin de Orca):
 
 ```bash
 cd ~/Documents/orca-multiagent-kit
@@ -99,6 +101,17 @@ Más opciones:
 7. **Proyecto** (`--project`): reescribe `AGENTS.md` y `CLAUDE.md` con el formato del kit y **migra tus "Overrides de este proyecto"** del bloque CSR antiguo. Crea `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude` y `.claude/settings.json` si faltan, y añade `.work/` al `.gitignore`. Si un `.env` del proyecto parece de producción, lo desactiva en el `.worktreeinclude` nuevo y te lo deja como pendiente.
 
 Reinstalar es idempotente: sirve también para actualizar después de editar el kit.
+
+### Actualizar (`omk update`)
+Un solo comando pone al día todo lo que el kit instala, en este orden:
+
+1. **El kit**, según cómo lo instalaste. Con npm, si hay una versión posterior publicada, la instala y sigue con ella. Con el ejecutable, descarga el de la última release junto a sí mismo, comprueba que su SHA-256 es el del `.sha256` publicado y solo entonces se sustituye. Una copia suelta (un clon, el zip) no se toca: se actualiza como la obtuviste. `--offline` se salta este paso y reaplica la versión que ya tienes.
+2. **`~/.agents`**: lo mismo que `omk install`.
+3. **El proyecto de la carpeta actual**, si está preparado con el kit (tiene `ORCHESTRATION.md` o el bloque del kit en `AGENTS.md`): lo mismo que `omk init` y, además, añade a `ORCHESTRATION.md` las secciones y los campos que la plantilla tiene y tu fichero no. Solo añade: lo que escribiste no se cambia, no se mueve y no se borra, y cada campo nuevo entra junto a su vecino con el valor de la plantilla, para que lo revises (o se lo pidas al agente con «inicializa el proyecto»). La versión anterior queda en `~/.agents/backups/` (`omk restore <fecha>`). Al final del fichero queda un sello (`<!-- omk:plantilla … -->`) con los apartados de la plantilla que ya se le han ofrecido: lo que borres a propósito no vuelve, y en adelante solo entra lo que la plantilla estrene. `STACK.md` recibe el mismo trato, salvo que la primera vez solo se sella, porque su plantilla pide borrar lo que no aplique. `orca.yaml` y `.worktreeinclude` no se tocan si existen. `--no-project` se salta este paso.
+4. **Los hooks de reparto de Claude Code**, si usas Claude Code: en `~/.claude/settings.json` y en el `.claude/settings.json` del proyecto quedan dos hooks del kit (`UserPromptSubmit` y `PostToolUse` sobre `ExitPlanMode`) que recuerdan al agente que un trabajo con 2 o más entregables pasa por la skill `orca` antes de editar. Es lo que hace que la orquestación se dispare con un prompt o un plan, y no solo con spec-kit. Se fusionan sin tocar tus otros hooks ni ajustes, con copia; un `settings.json` que no sea JSON válido no se toca. `--no-hooks` u `OMK_NO_HOOKS=1` los omiten.
+5. **El plugin de Orca**, si está instalado y Orca está abierto: lo deja en la versión del kit. Si la versión nueva necesita tu aprobación, la pide como `omk plugin install` (`--yes` la da de antemano; sin respuesta en 10 minutos cuenta como «no»). No abre Orca ni instala un plugin que no tenías: eso es `omk setup`. `--no-plugin` se salta este paso.
+
+`--dry-run` enseña lo que haría sin escribir nada. Desde Orca es el botón *Actualizar kit* del panel, que enseña la salida y te deja aprobar el plugin sin ir al terminal ([`PLUGIN-ORCA.md`](PLUGIN-ORCA.md#acción-en-curso)).
 
 ### Después de instalar
 - **Reinicia** Claude Code y Antigravity (y Codex o Copilot si los usas).
