@@ -62,6 +62,7 @@ const open = async (items: NoticeItem[], requests: Requests = {}) => {
     requests: {
       'agents.summary': { text: 'MAW', tone: 'neutral', tooltip: 'ninguno', groups: [] },
       'notices.list': { items },
+      'kit.action': { action: null },
       // Las demás pestañas también piden su lista al montar el panel.
       'worktrees.list': { groups: [] },
       'history.list': { items: [] },

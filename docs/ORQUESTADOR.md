@@ -59,7 +59,7 @@ Comprobado contra `orca skills get orchestration` y el `--help` de cada subcoman
 **Antes.** Cuatro condiciones cualitativas (≥2 unidades, `write` disjuntos, ≥15 min, verificables).
 
 **Ahora** (`rules/95-multi-agent.md`), además:
-- **Cuenta rápida**: ahorro por ronda (`Σ t − max t`) contra un coste de coordinación de 10 min por unidad y 10 min por ronda, con penalización por cada fichero `shared` que obligue a serializar. En caso de duda, secuencial.
+- **Cuenta rápida**: ahorro por ronda (`Σ t − max t`) contra un coste de coordinación de 5 min por unidad y 5 min por ronda (eran 10 y 10: con ellos dos unidades medianas nunca compensaban), con penalización por cada fichero `shared` que obligue a serializar. Ante un empate, se reparte.
 - **Presupuesto por talla** (S ≤15 min, M 20–60 min, L dividir) y campo opcional `budget` en la unidad. «Atascado» se define: sin progreso durante el doble del presupuesto.
 - **Reintentos**: como mucho uno automático por unidad, mismo agente si falló el entorno y otro proveedor si falló el razonamiento; después `BLOCKED`.
 - **Ficheros generados** (clientes de API, tipos de BD, lockfiles): no van en el `write` de ninguna unidad; los regenera el coordinador tras integrar.
@@ -102,6 +102,45 @@ Nueva sección en `rules/95-multi-agent.md` (aplica `30-security.md` §C12 a la 
 - Modo carrera con Orca: una tarea y un worktree por participante.
 - `setup.md` comprueba que Orca responde y que la orquestación está activada, y propone `orca skills install --skill orca-cli --skill orchestration` si faltan las skills.
 - Nuevo test en `tests/test_speckit.sh` (se ejecuta siempre, sin el CLI `specify`): el comando de la extensión y la skill `speckit-orca-implement` deben tener el mismo cuerpo. Antes podían divergir sin que nada lo detectara.
+
+## 9. Puerta de reparto: la orquestación se dispara en todas las entradas
+
+**Antes.** Solo spec-kit tenía un disparador que no dependía del criterio del agente: el hook `before_implement` carga la skill `orca` siempre, y la skill decide con `tasks.md` delante. En el resto de entradas (prompt de chat, plan nativo de Claude Code o Antigravity, plan en fichero, artefacto) el núcleo pedía usar la skill «por iniciativa propia» cuando la tarea tuviera «≥2 partes independientes de >15 min»: el agente tenía que estimar el resultado de la skill antes de cargarla, sin datos, y casi siempre concluía en silencio que no compensaba. Los adaptadores de plan nativo y de artefacto existían, pero nada los llamaba en el momento de «implementa el plan».
+
+**Ahora.**
+- **Regla comprobable** (`core/AGENTS.md` §6): antes de la primera edición de un trabajo con ≥2 entregables separables, se carga la skill y su veredicto queda escrito en el chat en una línea `ORCA: …`: con el plan de rondas y antes de editar si reparte; como tarde al empezar la respuesta final si es secuencial. El umbral de tiempo sale del disparador y se queda en la skill, que es quien tiene las unidades delante. Un solo entregable no pasa por la puerta ni lleva línea.
+- **El plan lleva su reparto**: todo plan que escribe el agente (modo plan, `implementation_plan.md`, `planes/*.md`, artefacto) termina con una sección `Reparto` con el veredicto. Lo ve quien aprueba el plan y sobrevive a un cambio de contexto o de agente. Es el mecanismo de Antigravity y Codex, donde el kit no instala hooks.
+- **Hooks de Claude Code** (`templates/claude-settings.json`, comprobados contra la referencia de hooks de Claude Code y con una sesión real):
+  | Evento | Qué hace |
+  |---|---|
+  | `UserPromptSubmit` | Su salida estándar se añade al contexto junto a cada mensaje: recuerda la puerta de reparto y sus excepciones |
+  | `PostToolUse` con `matcher: "ExitPlanMode"` | Devuelve `hookSpecificOutput.additionalContext`, que llega junto al resultado de aprobar el plan: antes de la primera edición, la skill `orca` con el adaptador de plan nativo |
+  Son un `echo` de texto fijo en ASCII: funcionan igual en bash y en PowerShell, sin dependencias, y también para quien clone el proyecto sin tener el kit.
+- `kit-init` crea `.claude/settings.json` desde la plantilla o le añade esos dos hooks sin tocar lo demás.
+- La description de la skill `orca` nombra las entradas («implementa el plan», plan aprobado, plan en fichero, artefacto), y cada adaptador dice cuándo se usa.
+
+- **Puerta obligatoria en Claude Code** (`hooks/orca-gate.cjs`, en la configuración global; `omk gate on|off|status`). Recordar no bastaba: la línea `ORCA: secuencial` visible solo salía en 4 de 16 ensayos, y un reparto podía empezar sin esperar el «sí». El hook lo impone:
+  | Evento | Qué hace |
+  |---|---|
+  | `UserPromptSubmit` | Apunta cuándo escribe la persona (las notificaciones de tareas en segundo plano no cuentan) |
+  | `PostToolUse` sobre `Skill` | Apunta cuándo se carga la skill `orca` |
+  | `PreToolUse` sobre `Edit`, `Write`, `MultiEdit`, `NotebookEdit`, `Bash`, `PowerShell`, `Agent` | Apunta el veredicto cuando el agente lo registra con `echo "ORCA: …"`. Tras cargar la skill, deniega editar el proyecto (fuera de `.work/`) y escribir desde la shell hasta que haya veredicto; si reparte, deniega además lanzar subagentes hasta que la persona responda al plan |
+  - **Por qué `echo`**: Claude Code escribe el transcript con retraso (a veces al acabar el turno), así que el hook no ve a tiempo la línea del chat. La orden sí llega en su propia entrada. El agente escribe la línea en el chat y la registra con `echo`; el motivo de cada denegación le dice cómo.
+  - **Qué no toca**: una sesión sin la skill cargada; un encargo anterior (si la persona ha escrito después de cargar la skill sin veredicto); un worker (primer mensaje `UNIT:`); autonomía `auto`; repetir un plan ya confirmado. Un plan distinto tras «cambia X» vuelve a pedir confirmación.
+  - **Nunca bloquea por un fallo suyo**: sin estado o con una carga de la skill anterior a instalarlo (sesión ya abierta), sin transcript ni registro, o ante un error interno, deja pasar y lo avisa (`~/.agents/state/gate/errors.log`). Cuesta lo que tarda Node en arrancar (unos 170 ms en Windows) en cada edición u orden de shell.
+  - Va solo en la configuración global (`~/.claude/settings.json`), no en la del proyecto: así un repositorio clonado sin el kit no ejecuta un script que no tiene. Con el ejecutable autónomo y sin Node en el PATH, la orden es el propio `omk gate hook`.
+
+**Lo medido** (Claude Code en modo no interactivo, `claude -p`, sobre un repo de juguete; pocos ensayos, sirven de orientación y no de garantía):
+| Qué | Sin la puerta | Con la puerta |
+|---|---|---|
+| La skill `orca` se carga antes de la primera edición con un encargo de 2 o más entregables | 19 de 19 | 6 de 6 |
+| El veredicto queda a la vista (chat o `echo`) antes de la primera edición | 4 de 16 | 6 de 6, sin una sola denegación de más |
+| Un reparto espera al «sí» antes de editar o lanzar workers | 1 de 2 | 2 de 2; tras el «sí», la primera edición pasa |
+| Un cambio de un solo fichero no pasa por la puerta | 3 de 3 | 1 de 1 |
+| El plan del modo plan termina en `Reparto`, y el hook de `ExitPlanMode` se ejecuta al aprobarlo | 2 de 2 y 1 de 1 | — |
+| Antigravity (`agy --print`): primera lectura la skill, respuesta que empieza por `ORCA:` | 2 de 2 | (sin hook) |
+
+**Límites.** En Antigravity y Codex no hay puerta obligatoria: manda la regla. Una skill cargada leyendo su `SKILL.md` (sin la herramienta Skill) solo se detecta cuando llega al transcript. Con `claude -p --no-session-persistence` no hay transcript y la puerta solo usa lo que apuntan sus hooks. Un hook de contexto no ejecuta la skill: se la recuerda al agente en el momento justo, igual que el hook de spec-kit es una instrucción que `/speckit.implement` lee. En Antigravity y Codex existen hooks propios, pero el kit no los instala todavía; ahí manda la regla del núcleo y la sección `Reparto` del plan.
 
 ## Compatibilidad
 

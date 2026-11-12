@@ -7,7 +7,7 @@ err(){ printf '  FAIL  %s\n' "$1"; FAIL=1; }
 ok(){ printf '  ok    %s\n' "$1"; }
 
 echo "== sintaxis bash"
-for f in bin/*.js scripts/*.js tests/fixtures/*.js; do
+for f in bin/*.js hooks/*.cjs scripts/*.js tests/fixtures/*.js; do
   node --check "$f" 2>/dev/null && ok "$f" || { command -v node >/dev/null && err "$f"; }
 done
 for f in install.sh scripts/*.sh tests/*.sh; do bash -n "$f" && ok "$f" || err "$f"; done
@@ -26,6 +26,8 @@ for f in skills/*/SKILL.md; do
   [ -n "$desc" ] || err "$f: sin description"
   [ "${#desc}" -le 1024 ] || err "$f: description > 1024 caracteres"
   case "$desc" in *'<'*|*'>'*) err "$f: description con < o >";; esac
+  # La description es un escalar YAML sin comillas: «: » o « #» dentro la rompen y el agente se queda sin ella.
+  case "$desc" in *': '*|*' #'*) err "$f: description con «: » o « #» (rompe el YAML del frontmatter)";; esac
 done
 ok "$(ls -d skills/*/ | wc -l | tr -d ' ') skills revisadas"
 

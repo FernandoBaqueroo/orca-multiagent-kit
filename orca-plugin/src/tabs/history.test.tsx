@@ -29,6 +29,7 @@ const open = async (items: HistoryEntry[]) => {
   const host = mockHost({
     requests: {
       'agents.summary': () => NO_AGENTS,
+      'kit.action': () => ({ action: null }),
       // Las demás pestañas también piden su lista al montar el panel.
       'notices.list': () => ({ items: [] }),
       'worktrees.list': () => ({ groups: [] }),

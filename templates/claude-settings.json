@@ -23,5 +23,30 @@
       "Bash(git push --force:*)",
       "Bash(curl:* | bash)"
     ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Orca Multiagent Kit] Puerta de reparto (~/.agents/AGENTS.md 6): si este mensaje pide implementar algo con 2 o mas entregables separables, carga la skill orca y, antes del primer Edit/Write, escribe en el chat una linea visible que empiece por ORCA: con su veredicto (secuencial con su motivo, o N unidades seguida del plan de rondas y espera la respuesta del usuario) y registrala ejecutando echo con esa misma linea. En modo plan va como ultima seccion del plan. No aplica a preguntas, a un solo entregable, a un worker (UNIT:), a /speckit.implement ni si ya hay un veredicto ORCA: para este trabajo.'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[Orca Multiagent Kit] Plan aprobado. Antes de la primera edicion: si el plan tiene 2 o mas entregables separables, carga la skill orca (entrada: plan nativo, references/adapters/native-plan.md) y escribe su veredicto en una linea que empiece por ORCA: (y registrala ejecutando echo con esa misma linea). Con un solo entregable, implementalo directamente, sin esa linea.\"}}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }

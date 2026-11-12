@@ -101,7 +101,35 @@ export type WorktreeItem = {
 /** Los worktrees de un mismo run del kit o, sin run, los demás que ha creado la orquestación. */
 export type WorktreeGroup = { run: string | null; title: string; worktrees: WorktreeItem[] }
 
+/**
+ * Cómo va la acción que el panel sigue: en curso, esperando a la persona, terminada bien,
+ * terminada con fallo, o sin seguimiento (su terminal se cerró o tardó demasiado).
+ */
+export type ActionState = 'running' | 'asking' | 'done' | 'failed' | 'lost'
+
+/**
+ * La última acción lanzada desde el panel o la paleta, seguida en su terminal: un comando `omk`
+ * (verificar, actualizar, equipo) o un agente (inicializar, repartir).
+ */
+export type ActionView = {
+  /** Cambia con cada acción: el panel lo devuelve para responder o dejar de seguirla. */
+  id: string
+  kind: 'omk' | 'agent'
+  /** «omk update», «Inicializar proyecto · claude». */
+  title: string
+  state: ActionState
+  /** Una línea que explica el estado: el código de salida, qué falta o dónde seguir. */
+  detail: string | null
+  startedAt: number
+  endedAt: number | null
+  /** Las últimas líneas de su terminal, limpias y acotadas. */
+  lines: string[]
+  /** Si espera un sí o un no que el panel puede escribir en su terminal. */
+  canAnswer: boolean
+}
+
 export type HistoryKind =
+  | 'kit'
   | 'dispatch'
   | 'state'
   | 'outcome'
@@ -131,6 +159,15 @@ declare module 'orca' {
   interface PluginRequests {
     /** Ejecuta una acción del kit en el workspace activo y responde qué ha hecho. */
     'kit.run': { input: { action: KitAction }; output: Message }
+    /** La acción que se está siguiendo o la última que terminó; `null` si no hay ninguna. */
+    'kit.action': { output: { action: ActionView | null } }
+    /**
+     * Contesta la pregunta de sí o no de la acción `id` escribiendo `s` o `n` e Intro en su
+     * terminal. Solo vale mientras `canAnswer`.
+     */
+    'kit.answer': { input: { id: string; approve: boolean }; output: Message }
+    /** Deja de seguir la acción `id` y la quita del panel; su terminal sigue como esté. */
+    'kit.dismiss': { input: { id: string }; output: Message }
     /** Los agentes activos, como los cuenta la barra de estado. */
     'agents.summary': { output: AgentsView }
     /** Muestra el workspace de un agente (`id` de una `AgentLine`). */
@@ -172,6 +209,8 @@ declare module 'orca' {
   interface PluginPanelEvents {
     /** Se envía a los paneles abiertos cuando cambia lo que cuentan los agentes. */
     'agents.changed': AgentsView
+    /** La acción seguida cambió de estado o de salida, o se dejó de seguir (`null`). */
+    'action.changed': { action: ActionView | null }
     'notices.changed': { items: NoticeItem[] }
     'worktrees.changed': { groups: WorktreeGroup[] }
     'history.changed': { items: HistoryEntry[] }

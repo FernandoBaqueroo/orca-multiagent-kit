@@ -14,6 +14,7 @@ const FILTERS: readonly { value: Filter; label: string }[] = [
 ]
 
 const KIND_LABEL: Record<HistoryKind, string> = {
+  kit: 'Kit',
   dispatch: 'Despacho',
   state: 'Estado',
   outcome: 'Final',

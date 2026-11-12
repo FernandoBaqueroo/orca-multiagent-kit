@@ -32,6 +32,10 @@ jobs:
         run: bash tests/test_team.sh
       - name: Pruebas de omk setup y omk plugin (doble de Orca)
         run: bash tests/test_orca.sh
+      - name: Pruebas de omk update (proyecto, plantilla y plugin)
+        run: bash tests/test_update.sh
+      - name: Pruebas de la puerta de reparto (hook de Claude Code)
+        run: bash tests/test_gate.sh
       - name: Empaquetado
         run: bash scripts/build-release.sh
 

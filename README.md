@@ -66,34 +66,31 @@ npx orca-multiagent-kit install
 <a id="instalar"></a>
 ## <img src="assets/icons/download.svg" width="22" height="22" alt=""> Instalar
 
-Cinco formas. Todas instalan lo mismo, hacen backup de lo que tocan y se deshacen con `omk restore`.
+**Un comando lo instala todo y otro lo actualiza todo**, llegue el kit como llegue. `omk setup` deja las reglas y las skills en `~/.agents`, cada agente enlazado a ellas, `omk` en el PATH y, si usas Orca, su plugin y su panel (te enseña lo que pide y te pregunta antes de aprobarlo). `omk update` pone al día el kit, `~/.agents`, el proyecto de la carpeta actual y el plugin. Todo se hace con backup y se deshace con `omk restore`.
 
-**0. Ejecutable, para Orca** (sin Node): descarga el de tu sistema desde la [última release](https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest) (`omk-windows-x64.exe`, `omk-macos-arm64`, `omk-linux-x64`) y ábrelo. Prepara Orca entero: instala el kit, enciende los plugins, instala el plugin del kit (te enseña lo que pide y te pregunta antes de aprobarlo), abre su panel y deja `omk` en el PATH. Con el kit ya instalado por npm, lo mismo es `omk setup`. Detalle: [`docs/EJECUTABLE.md`](docs/EJECUTABLE.md).
-
-**1. npx** (Node ≥ 18, sin instalar nada global)
+**1. npx** (Node ≥ 18)
 ```bash
-npx orca-multiagent-kit install --dry-run   # qué haría
-npx orca-multiagent-kit install
+npx orca-multiagent-kit setup --dry-run   # qué haría
+npx orca-multiagent-kit setup
 ```
+Deja `omk` instalado (`npm install -g`), porque el plugin de Orca lo usa desde el PATH. Es lo mismo que `npm install -g orca-multiagent-kit && omk setup`.
 
-**2. npm global**: deja el comando `omk` disponible siempre
-```bash
-npm install -g orca-multiagent-kit
-omk install
-```
+**2. Ejecutable** (sin Node): descarga el de tu sistema desde la [última release](https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest) (`omk-windows-x64.exe`, `omk-macos-arm64`, `omk-linux-x64`) y ábrelo: hace `omk setup`. Con `omk update` se descarga a sí mismo la versión nueva, comprobando su SHA-256. Detalle: [`docs/EJECUTABLE.md`](docs/EJECUTABLE.md).
 
-**3. curl** (sin Node)
+**3. curl** (sin Node): baja ese mismo ejecutable, comprueba su SHA-256 y hace `omk setup`
 ```bash
 curl -fsSL https://raw.githubusercontent.com/FernandoBaqueroo/orca-multiagent-kit/main/scripts/get.sh | bash
 ```
 
-**4. ZIP**
+**4. ZIP o clon** (sin Node y sin ejecutable para tu sistema): instala las reglas y las skills; no hay `omk` ni plugin de Orca, y se actualiza repitiéndolo
 ```bash
 curl -LO https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest/download/orca-multiagent-kit.zip
 unzip orca-multiagent-kit.zip && cd orca-multiagent-kit
 ./install.sh --dry-run && ./install.sh
 ```
-Cada [release](https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases) publica `orca-multiagent-kit-vX.Y.Z.zip` y `SHA256SUMS`. Para comprobar la integridad: `shasum -a 256 -c SHA256SUMS`.
+Cada [release](https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases) publica `orca-multiagent-kit-vX.Y.Z.zip` con `SHA256SUMS` y cada ejecutable con su `.sha256`. Para comprobar la integridad: `shasum -a 256 -c SHA256SUMS`.
+
+¿Solo las reglas y las skills, sin tocar Orca? `omk install` (o `npx orca-multiagent-kit install`).
 
 Después, reinicia tus agentes y escribe en cada proyecto **«inicializa el proyecto»**. La skill `kit-init` detecta el stack leyendo el repo, crea `AGENTS.md`, `STACK.md` y `ORCHESTRATION.md`, y te hace como mucho 4 preguntas.
 
@@ -104,19 +101,20 @@ Requisitos: macOS, Linux, WSL o Git Bash, con bash ≥ 3.2.
 
 | Comando | Qué hace |
 |:--|:--|
-| `omk setup [--yes] [--dry-run]` | Prepara Orca entero: kit, plugins encendidos, plugin del kit y su panel |
-| `omk install [--agents a,b] [--dry-run]` | Instala o migra la fuente única para los agentes detectados |
+| `omk setup [--yes] [--dry-run]` | **Lo instala todo**: reglas y skills en `~/.agents`, `omk` en el PATH, plugins de Orca encendidos, plugin del kit y su panel |
+| `omk install [--agents a,b] [--dry-run]` | Solo la fuente única (`~/.agents`) para los agentes detectados; si el plugin de Orca ya está instalado, lo deja en la versión del kit |
 | `omk plugin install\|status\|uninstall` | El plugin de Orca del kit; `install` pide tu aprobación (o `--yes`) |
+| `omk gate on\|off\|status` | La puerta de reparto obligatoria de Claude Code: tras cargar la skill `orca`, no se edita hasta que su veredicto esté registrado y, si reparte, hasta que respondas al plan |
 | `omk team` · `omk team set …` | Enseña o cambia el equipo de roles del proyecto (`ORCHESTRATION.md` §1): proveedores, revisión cruzada y proveedor por rol |
 | `omk init [ruta]` | Prepara un proyecto (por defecto, la carpeta actual) |
 | `omk verify` | Comprueba enlaces, imports y que no queden copias divergentes |
 | `omk adopt <carpeta-skill>` | Comparte una skill externa (p. ej. impeccable) con todos los agentes |
 | `omk backups` | Lista las copias de seguridad |
 | `omk restore <fecha>` | Deshace una instalación |
-| `omk update` | Actualiza a la última versión y reinstala |
+| `omk update [--yes] [--offline]` | **Lo actualiza todo**: el kit (npm, o el ejecutable, que se descarga a sí mismo), `~/.agents`, el proyecto de la carpeta actual (bloques de `AGENTS.md`/`CLAUDE.md`, ficheros que falten y lo que estrenen las plantillas de `ORCHESTRATION.md` y `STACK.md`, sin tocar lo escrito) y el plugin de Orca. `--offline` reaplica esta versión sin descargar nada |
 | `omk where` · `omk version` · `omk help` | Rutas, versión y ayuda |
 
-Sin Node, cada comando tiene su equivalente en `./install.sh` (`--verify`, `--project`, `--adopt`, `--restore`, `--dry-run`).
+Con el zip o un clon, `install`, `init`, `verify`, `adopt` y `restore` tienen su equivalente en `./install.sh` (`--project-only`, `--verify`, `--adopt`, `--restore`, `--dry-run`); `setup`, `update`, `plugin` y `team` necesitan `omk`.
 
 <a id="agentes"></a>
 ## <img src="assets/icons/agents.svg" width="22" height="22" alt=""> Agentes soportados
@@ -152,7 +150,7 @@ Solo tienes que conocer dos frases. El resto lo deciden los agentes.
 
 Convive con skills externas como **impeccable**, **supabase**, **spec-kit** y las de la app **Orca**: cada una manda en su terreno, y la puerta de validez y las prohibiciones se aplican siempre.
 
-**Plugin de Orca** (opcional, Orca ≥ 1.4.248): `omk verify`, «inicializa el proyecto» y `omk update` en la paleta de comandos y en un panel lateral, *Multiagent Kit*, que además enseña los agentes con nombre y su ficha (unidad, rol, rama, estado…), configura el equipo de roles (también roles propios), reparte una tarea entre agentes (sin necesidad de spec-kit) y cambia los ajustes del plugin (los mismos de *Settings → Plugins*); el contrato del worker añadido a cada despacho de orquestación del kit, avisos de agentes bloqueados y de runs terminados, y los agentes activos en la barra de estado. Se instala con `omk plugin install` (o `omk setup`). Detalle, permisos que pide y cómo desactivarlo: [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md).
+**Plugin de Orca** (opcional, Orca ≥ 1.4.248): `omk verify`, «inicializa el proyecto» y `omk update` en la paleta de comandos y en un panel lateral, *Multiagent Kit*, que enseña el estado y la salida de cada acción mientras corre y además los agentes con nombre y su ficha (unidad, rol, rama, estado…), configura el equipo de roles (también roles propios), reparte una tarea entre agentes (sin necesidad de spec-kit) y cambia los ajustes del plugin (los mismos de *Settings → Plugins*); el contrato del worker añadido a cada despacho de orquestación del kit, avisos de agentes bloqueados y de runs terminados, y los agentes activos en la barra de estado. Se instala con `omk plugin install` (o `omk setup`). Detalle, permisos que pide y cómo desactivarlo: [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md).
 
 <a id="flujo"></a>
 ## <img src="assets/icons/flow.svg" width="22" height="22" alt=""> Flujo de trabajo
@@ -189,12 +187,12 @@ flowchart LR
 
 ```text
 orca-multiagent-kit/
-├── bin/                    CLI omk (npm / npx / ejecutable), sin dependencias: omk · setup · orca · sea
+├── bin/                    CLI omk (npm / npx / ejecutable), sin dependencias: omk · setup · update · fetch · sync · team · orca · ui · sea
 ├── core/AGENTS.md          núcleo siempre cargado (~80 líneas)
 ├── rules/                  00-router … 95-multi-agent  +  lang/ (17 lenguajes)
 ├── skills/                 kit-init · orca · speckit-orca-implement · csr-*
 ├── speckit-extension/      extensión de spec-kit (hook before_implement)
-├── templates/              AGENTS.md · CLAUDE.md · STACK.md · ORCHESTRATION.md · orca.yaml · .worktreeinclude · models.md
+├── templates/              AGENTS.md · CLAUDE.md · STACK.md · ORCHESTRATION.md · orca.yaml · .worktreeinclude · claude-settings.json · models.md
 ├── output-styles/          csr-minimal (Claude Code)
 ├── orca-plugin/            plugin de Orca: comandos y panel del kit, contrato del worker, barra de estado
 ├── install.sh              instala · migra · verifica · restaura · adopta
@@ -202,7 +200,7 @@ orca-multiagent-kit/
 ├── site/                   web interactiva (GitHub Pages)
 ├── docs/MANUAL.md          manual completo
 ├── AI_INSTALL.md           instrucciones para que una IA lo instale
-├── tests/                  pruebas del instalador, del CLI, de omk setup (doble de Orca) y del ejecutable
+├── tests/                  pruebas del instalador, del CLI, de omk team, de omk setup y plugin (doble de Orca), de omk update, de spec-kit y del ejecutable
 ├── scripts/                check.sh · build-release.sh · build-exe.js · get.sh · banner.py
 └── .github/                CI (Linux + macOS; ejecutable también en Windows), releases con zip y ejecutables, web, plantillas
 ```
@@ -227,7 +225,7 @@ orca-multiagent-kit/
 Las contribuciones son bienvenidas. Lee [`CONTRIBUTING.md`](CONTRIBUTING.md): principios, cómo añadir skills o reglas, versionado y releases. Antes de abrir un PR:
 
 ```bash
-npm test     # check.sh + pruebas del instalador + pruebas del CLI
+npm test     # check.sh y todas las pruebas de tests/ menos la del ejecutable
 ```
 
 [Código de conducta](CODE_OF_CONDUCT.md) · [Seguridad](SECURITY.md) · [Soporte](SUPPORT.md)

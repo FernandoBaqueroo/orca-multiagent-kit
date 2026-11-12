@@ -10,7 +10,7 @@ export const HISTORY_MAX = 200
 const TITLE_MAX = 120
 const DETAIL_MAX = 200
 
-const KINDS: readonly HistoryKind[] = ['dispatch', 'state', 'outcome', 'run', 'plan', 'orchestrate', 'reply', 'model', 'autonomy']
+const KINDS: readonly HistoryKind[] = ['kit', 'dispatch','state', 'outcome', 'run', 'plan', 'orchestrate', 'reply', 'model', 'autonomy']
 const TONES: readonly Tone[] = ['neutral', 'accent', 'success', 'warning', 'danger']
 
 const text = (value: unknown, max: number): string | null => (typeof value === 'string' ? cleanLabel(value, max) : null)
@@ -153,11 +153,11 @@ export function registerHistory(ctx: KitContext): void {
     record(at, { kind: 'run', tone: 'success', title: notice.title, detail: notice.body, run })
   )
 
-  ctx.on('action', ({ kind, title, detail, agentKey, run, at }) => {
+  ctx.on('action', ({ kind, tone, title, detail, agentKey, run, at }) => {
     const tracked = agentKey === null ? undefined : ctx.agents.get(agentKey)
     record(at, {
       kind,
-      tone: 'accent',
+      tone: tone ?? 'accent',
       title,
       detail,
       run: run ?? tracked?.unit?.run ?? null,

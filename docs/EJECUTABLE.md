@@ -6,7 +6,9 @@
 
 | Paso | Qué pasa | Si falla |
 |---|---|---|
-| 1. Kit | `omk install` (con backup, como siempre; acepta `--agents` y `--dry-run`) | Se para con el código de `install.sh` |
+| 0. Solo con npx | El kit corre desde una caché que npm borra cuando quiere: instala `omk` de forma permanente (`npm install -g orca-multiagent-kit@<versión>`) y sigue desde ahí | Dice cómo hacerlo a mano y sale con error |
+| 1. Kit | Reglas y skills en `~/.agents` (con backup, como siempre; acepta `--agents` y `--dry-run`) | Se para con el código de `install.sh` |
+| 1b. Reparto en Claude Code | Si usas Claude Code, fusiona en `~/.claude/settings.json` los hooks que recuerdan la puerta de reparto y la puerta obligatoria (`--no-hooks` para omitirlo). Sin Node en el PATH, la puerta se ejecuta con el propio `omk` (`omk gate hook`) | Un `settings.json` que no es JSON no se toca, y lo dice |
 | 2. `omk` en el `PATH` (solo el ejecutable) | Se copia a sí mismo a `%LOCALAPPDATA%\Programs\orca-multiagent-kit\omk.exe` (Windows) o `~/.local/bin/omk`, y en Windows añade esa carpeta al `Path` de tu usuario | No pisa un `omk` que no sea el del kit; lo dice y sale con error |
 | 3. Orca | Busca su CLI (`PATH`, o donde lo deja el instalador de Orca; `OMK_ORCA` para indicar otro) y comprueba que su versión cumple `engines.orca` del plugin | Dice qué falta (instalar o actualizar Orca) y sale con error |
 | 4. App | Si Orca no está abierto, `orca open` y espera a que arranque | Sale con error |
@@ -39,7 +41,7 @@ Es un [Node SEA](https://nodejs.org/api/single-executable-applications.html): el
 
 - Solo extrae cuando cambia la build (sello `.omk-build` con el SHA-256 del kit embebido). Extrae en `<carpeta>.new` y la cambia por la anterior al final: una extracción a medias no deja un kit roto.
 - No pisa una carpeta que no sea una copia del kit (sin `VERSION` e `install.sh`). En macOS y Linux es la misma carpeta que usa `scripts/get.sh`: la versión que quede es la del último que se ejecutó.
-- `omk update` en el ejecutable no descarga nada: te da el enlace de la última release y vuelve a aplicar la instalación de su versión.
+- `omk update` en el ejecutable se actualiza a sí mismo: mira cuál es la última release, descarga el ejecutable de tu sistema junto al que está en marcha (`omk.new`), comprueba que su SHA-256 es el del `.sha256` publicado y solo entonces lo cambia (en Windows renombra el que está en marcha a `omk.exe.old`, que se borra en la siguiente actualización). Después el ejecutable nuevo extrae su kit y pone al día `~/.agents`, el proyecto de la carpeta actual y el plugin de Orca. Si la descarga o la comprobación fallan, el ejecutable queda como estaba. Solo descarga por HTTPS de GitHub. `omk update --offline` no descarga nada.
 - Sigue necesitando bash para `install.sh`: en Windows, Git for Windows (Orca usa Git para los worktrees, así que suele estar ya).
 - Pesa ~90 MiB, porque lleva Node entero.
 
@@ -61,10 +63,9 @@ Pasos: empaqueta en `kit.json.gz` lo mismo que el zip de la release; genera el b
 ## Pruebas
 
 - `tests/test_orca.sh`: `omk setup` y `omk plugin` contra `tests/fixtures/fake-orca.js`, un doble del CLI de Orca (`OMK_ORCA` apunta siempre a él: las pruebas nunca hablan con tu Orca). Cubre la aprobación (sin `--yes` ni terminal no aprueba; con `--yes` usa la huella de Orca; una huella con formato inesperado se rechaza), cada estado del plugin, Orca ausente o antigua, y `setup` completo, en simulación y sin aprobación.
-- `tests/test_exe.sh`: el ejecutable (extracción, sello, carpeta ajena, `install --dry-run`, `update`, `setup` copiándose a `OMK_BIN_DIR` sin tocar el `PATH`, un `omk` ajeno que no se pisa).
+- `tests/test_exe.sh`: el ejecutable (extracción, sello, carpeta ajena, `install --dry-run`, `update --offline`, `setup` copiándose a `OMK_BIN_DIR` sin tocar el `PATH`, un `omk` ajeno que no se pisa, y la autoactualización de extremo a extremo: una «release» servida en la propia máquina (`OMK_RELEASE_BASE`, que solo admite HTTPS o HTTP contra `127.0.0.1`) de la que el ejecutable en marcha se descarga, se comprueba, se sustituye y sigue).
 - La CI ejecuta las dos en Linux, macOS y Windows (job `exe`).
 
 DEFERRED:
-- **Autoactualización del ejecutable**: `omk update` en el ejecutable da el enlace a la release, no descarga. Descargar y sustituir un binario en ejecución exige verificar su integridad (firma o checksum publicado) y en Windows renombrarlo en caliente; queda para otro PR.
 - **Firma de código** (Authenticode, notarización de Apple): necesita certificados del proyecto.
 - **Linux arm64 y macOS x64**: la release construye los runners por defecto de GitHub (`ubuntu-latest` x64, `macos-latest` arm64, `windows-latest` x64).

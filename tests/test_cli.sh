@@ -11,9 +11,15 @@ check(){ if eval "$2"; then ok "$1"; else bad "$1"; fi; }
 
 command -v node >/dev/null && command -v npm >/dev/null || { echo "  SKIPPED (sin node/npm)"; exit 0; }
 
+# omk install mira si hay un plugin de Orca que poner al día: aquí habla con el doble, nunca con la app real.
+wpath() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
+export OMK_ORCA FAKE_ORCA_STATE
+OMK_ORCA="$(wpath "$ROOT/tests/fixtures/fake-orca.js")"
+
 W="$(mktemp -d "${TMPDIR:-/tmp}/omk-cli.XXXXXX")"
 (cd "$ROOT" && npm pack --silent --pack-destination "$W" >/dev/null)
 TGZ="$(ls "$W"/orca-multiagent-kit-*.tgz)"
+FAKE_ORCA_STATE="$(wpath "$W/orca-state.json")"
 npm install --silent --prefix "$W/prefix" -g "$TGZ" >/dev/null 2>&1
 # npm -g deja el binario en <prefix>/bin en Unix y en <prefix> en Windows
 # shellcheck disable=SC2034  # se usa dentro de eval (check)

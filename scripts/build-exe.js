@@ -19,7 +19,7 @@ const POSTJECT = 'postject@1.0.0-alpha.6';
 const FUSE = 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2';
 // Lo mismo que lleva el zip de la release (scripts/build-release.sh).
 const CONTENT = ['README.md', 'LICENSE', 'CHANGELOG.md', 'AI_INSTALL.md', 'GUIA.html', 'VERSION', 'install.sh', 'package.json',
-  'bin', 'speckit-extension', 'core', 'rules', 'skills', 'templates', 'output-styles', 'docs', 'assets', 'orca-plugin'];
+  'bin', 'hooks', 'speckit-extension', 'core', 'rules', 'skills', 'templates', 'output-styles', 'docs', 'assets', 'orca-plugin'];
 const SKIP = new Set(['.orca', 'node_modules', '.DS_Store']);
 const PLATFORM = { win32: 'windows', darwin: 'macos', linux: 'linux' };
 

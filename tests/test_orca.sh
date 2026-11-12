@@ -64,6 +64,22 @@ check "desactivado por el usuario: se respeta"       'omk plugin install --yes &
 installed "$PV" pending "$PLUGIN_DIR"
 check "pendiente de aprobación: lo aprueba"          'omk plugin install --yes && called "plugin enable $KEY --approve ap1-0123456789abcdef"'
 
+echo "== omk install pone al día un plugin ya instalado"
+HI="$W/home-install"; mkdir -p "$HI/.claude"
+installed 0.0.1 running "$PLUGIN_DIR"
+check "otra versión instalada: la actualiza"         'HOME="$HI" omk install --agents claude && [ -f "$HI/.agents/AGENTS.md" ] && called "plugin update $KEY" && said "Plugin de Orca"'
+fresh
+check "sin plugin instalado no dice ni instala nada" 'HOME="$HI" omk install --agents claude && ! called "plugin install" && ! called "open" && ! said "Plugin de Orca"'
+installed 0.0.1 running "$PLUGIN_DIR"
+check "--no-plugin no habla con Orca"                'HOME="$HI" omk install --agents claude --no-plugin && [ ! -s "$STATE.calls" ]'
+check "--dry-run no actualiza el plugin"             'HOME="$HI" omk install --agents claude --dry-run && ! called "plugin update" && said "Simulación"'
+
+echo "== la pregunta de aprobación no espera para siempre"
+# shellcheck disable=SC2016  # el $ es de JavaScript
+ask() { node -e 'const {ask}=require(process.argv[1]);const {PassThrough}=require("node:stream");const input=new PassThrough();if(process.argv[2])input.end(process.argv[2]+"\n");ask("¿? ",{timeoutMs:Number(process.argv[3]),input}).then((yes)=>process.exit(yes?0:1))' "$ROOT/bin/setup.js" "$1" "$2" >"$OUT" 2>&1; }
+check "un sí aprueba y un no o un Intro no"           'ask s 5000 && ask YES 5000 && ! ask n 5000 && ! ask " " 5000'
+check "sin respuesta cuenta como no, y lo dice"       '! ask "" 30 && said "Sin respuesta" && said "no apruebo nada"'
+
 echo "== Orca ausente o antigua"
 fresh
 check "Orca antigua: no instala y dice qué versión"  '! FAKE_ORCA_VERSION=1.4.100 omk plugin install --yes && said "necesita >=" && ! called "plugin install"'

@@ -98,8 +98,9 @@ test('el ajuste off desactiva el hook', async () => {
 test('verificar abre un terminal con el literal omk verify en el workspace activo', async () => {
   const w = await start()
   const result = await w.command('kit.verify')
+  // `--exit-marker`: omk escribe al salir la línea con la que el plugin sabe que ha terminado.
   assert.deepEqual(w.host.callsOf('terminal.create'), [
-    { workspaceId: 'w1', title: 'omk verify', command: 'omk verify' }
+    { workspaceId: 'w1', title: 'omk verify', command: 'omk verify --exit-marker' }
   ])
   assert.equal(result, 'Ejecutando `omk verify` en un terminal nuevo del workspace activo.')
   assert.deepEqual(w.refusals, [])
@@ -108,7 +109,7 @@ test('verificar abre un terminal con el literal omk verify en el workspace activ
 test('actualizar usa omk update', async () => {
   const w = await start()
   await w.command('kit.update')
-  assert.equal((w.host.callsOf('terminal.create')[0] as { command: string }).command, 'omk update')
+  assert.equal((w.host.callsOf('terminal.create')[0] as { command: string }).command, 'omk update --exit-marker')
 })
 
 test('sin workspace identificable no ejecuta nada y lo avisa', async () => {
@@ -130,6 +131,20 @@ test('un fallo de Orca al crear el terminal se notifica, no se calla', async () 
   const result = await w.command('kit.verify')
   assert.match(String(result), /^omk verify: action_failed: sin pty/)
   assert.equal(w.host.callsOf('notifications.show').length, 1)
+})
+
+test('desde el panel, un fallo vuelve como error con su código, no como respuesta', async () => {
+  const w = await start({ results: { 'workspace.readContext': null } })
+  await assert.rejects(
+    w.request('kit.run', { action: 'verify' }),
+    (error: unknown) => (error as { code?: string }).code === 'unavailable' && /No identifico el workspace activo/.test(String(error))
+  )
+  const bad = await start({ settings: { initAgent: 'claude; rm -rf ~' } })
+  await assert.rejects(
+    bad.request('kit.run', { action: 'init' }),
+    (error: unknown) => (error as { code?: string }).code === 'invalid_params'
+  )
+  assert.equal(bad.host.callsOf('agent.launch').length, 0)
 })
 
 test('inicializar lanza el agente configurado con «inicializa el proyecto»', async () => {
@@ -326,18 +341,21 @@ test('aplicar el equipo ejecuta omk team set con el equipo en base64url', async 
   }
   await w.request('team.apply', { team })
   assert.deepEqual(w.host.callsOf('terminal.create'), [
-    { workspaceId: 'w1', title: 'omk team', command: `omk team set --data ${encodeTeam(team)}` }
+    { workspaceId: 'w1', title: 'omk team set', command: `omk team set --data ${encodeTeam(team)} --exit-marker` }
   ])
-  assert.match((w.host.callsOf('terminal.create')[0] as { command: string }).command, /^omk team set --data [A-Za-z0-9_-]+$/)
+  assert.match(
+    (w.host.callsOf('terminal.create')[0] as { command: string }).command,
+    /^omk team set --data [A-Za-z0-9_-]+ --exit-marker$/
+  )
   await w.request('team.show')
-  assert.equal((w.host.callsOf('terminal.create')[1] as { command: string }).command, 'omk team')
+  assert.equal((w.host.callsOf('terminal.create')[1] as { command: string }).command, 'omk team --exit-marker')
 })
 
 test('la autonomía del proyecto va con una orden literal y nada más', async () => {
   const w = await start()
   await w.request('team.autonomy', { autonomy: 'auto' })
   assert.deepEqual(w.host.callsOf('terminal.create'), [
-    { workspaceId: 'w1', title: 'omk team', command: 'omk team set --autonomy auto' }
+    { workspaceId: 'w1', title: 'omk team set --autonomy auto', command: 'omk team set --autonomy auto --exit-marker' }
   ])
   for (const autonomy of ['total', 'auto; rm -rf ~', '', null]) {
     await assert.rejects(

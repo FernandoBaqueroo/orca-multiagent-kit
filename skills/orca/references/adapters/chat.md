@@ -2,6 +2,8 @@
 
 Un prompt suelto rara vez trae lo que un worker necesita. Este adaptador lo convierte en un brief bueno antes de repartir.
 
+**Cuándo se usa**: el mensaje pide implementar y nombra ≥2 entregables separables (puerta de reparto, `~/.agents/AGENTS.md` §6). Para decidir `SKILL.md` §1 basta el esbozo de §3 (título + ficheros de cada parte); el brief completo de §1–§2 se escribe solo si se reparte.
+
 ## 1. Completa los huecos (sin preguntar lo deducible)
 Para cada hueco, primero intenta deducirlo del repo; solo si cambia el resultado y no se puede deducir, pregunta. Máximo **una** pregunta con hasta 3 sub-puntos.
 | Hueco | Dónde deducirlo |

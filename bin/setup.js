@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const readline = require('node:readline');
+const { applyHooks } = require('./hooks');
 const orcaCli = require('./orca');
 const { c, sym } = require('./ui');
 
@@ -20,23 +21,39 @@ const heading = (s) => { out(); out(`  ${c.lime('◆')} ${c.bold(s)}`); };
 
 /** Separa las opciones propias de omk setup/plugin de las que van a install.sh. */
 function parseOptions(args) {
-  const own = { yes: false, dryRun: false, noPlugin: false, noPath: false };
+  const own = { yes: false, dryRun: false, noPlugin: false, noPath: false, noHooks: false };
   const rest = [];
   for (const a of args) {
     if (a === '--yes' || a === '-y') own.yes = true;
     else if (a === '--no-plugin') own.noPlugin = true;
     else if (a === '--no-path') own.noPath = true;
+    else if (a === '--no-hooks') own.noHooks = true;
     else { if (a === '--dry-run') own.dryRun = true; rest.push(a); }
   }
   return { ...own, rest };
 }
 
-async function ask(question) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+// Una aprobación que nadie contesta no deja omk colgado para siempre: el plugin de Orca lo lanza en un
+// terminal que puede no estar a la vista.
+const APPROVAL_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** Pregunta de sí o no. Con `timeoutMs`, pasado ese tiempo sin respuesta cuenta como «no» y lo dice. */
+async function ask(question, { timeoutMs = 0, input = process.stdin } = {}) {
+  const rl = readline.createInterface({ input, output: process.stdout });
+  let timer = null;
   try {
-    const answer = await new Promise((resolve) => rl.question(question, resolve));
+    const answer = await new Promise((resolve) => {
+      rl.question(question, resolve);
+      if (timeoutMs > 0) timer = setTimeout(() => resolve(null), timeoutMs);
+    });
+    if (answer === null) {
+      out();
+      warn(`Sin respuesta en ${Math.max(1, Math.round(timeoutMs / 60000))} min: no apruebo nada.`);
+      return false;
+    }
     return /^(s|si|sí|y|yes)$/i.test(String(answer).trim());
   } finally {
+    clearTimeout(timer);
     rl.close();
   }
 }
@@ -52,7 +69,7 @@ const confirmWith = (yes) => async (grants, data) => {
     warn('Sin terminal interactivo no puedo preguntarte. Repite con --yes para aprobarlo.');
     return false;
   }
-  return ask(`  ${sym.todo} ¿Apruebas este acceso? [s/N] `);
+  return ask(`  ${sym.todo} ¿Apruebas este acceso? [s/N] `, { timeoutMs: APPROVAL_TIMEOUT_MS });
 };
 
 function listPlugin(orca) {
@@ -191,10 +208,13 @@ function addToWindowsPath(dir) {
   return r.stdout.trim();
 }
 
+/** Dónde queda el ejecutable autónomo instalado (lo usa también la puerta de reparto si no hay node). */
+const installedOmk = () => path.join(binDir(), process.platform === 'win32' ? 'omk.exe' : 'omk');
+
 /** Copia el ejecutable autónomo a binDir() y se asegura de que esa carpeta está en el PATH. */
 function installSelf({ noPath }) {
   const dir = binDir();
-  const target = path.join(dir, process.platform === 'win32' ? 'omk.exe' : 'omk');
+  const target = installedOmk();
   heading('omk en el PATH');
   if (!orcaCli.samePath(process.execPath, target)) {
     if (fs.existsSync(target) && !isKitExecutable(target)) {
@@ -229,10 +249,11 @@ function installSelf({ noPath }) {
  * omk setup: kit global, Orca abierto, plugins encendidos, plugin del kit instalado y su panel
  * abierto. Devuelve el código de salida.
  */
-async function setup({ kit, args, installer, standalone }) {
+async function setup({ kit, args, installer, standalone, agentsHome }) {
   const opts = parseOptions(args);
   const code = await installer(opts.rest);
   if (code !== 0) return code;
+  if (!applyHooks({ kit, agentsHome, dryRun: opts.dryRun, skip: opts.noHooks, omkBinary: standalone ? installedOmk() : null })) return 1;
   if (standalone && opts.dryRun) {
     heading('omk en el PATH');
     detail(`Simulación: copiaría omk a ${binDir()} y comprobaría que está en el PATH.`);
@@ -275,6 +296,58 @@ async function setup({ kit, args, installer, standalone }) {
   ]) out(`    ${c.grey(k.padEnd(10))} ${c.lime(v)}`);
   out();
   return 0;
+}
+
+/**
+ * Deja el plugin del kit en la versión de este kit si ya está instalado en Orca (con el mismo flujo
+ * de aprobación que setup). Es el paso de plugin de «omk update» y de «omk install». No abre Orca ni
+ * instala un plugin que no estaba: eso es de «omk setup». Con `quiet` no dice nada cuando no hay
+ * Orca, está cerrado o no hay plugin que actualizar. Devuelve `false` solo si algo falló.
+ */
+async function refreshPlugin({ kit, yes, dryRun, quiet = false }) {
+  let headed = false;
+  const head = () => { if (!headed) heading('Plugin de Orca'); headed = true; };
+  const dir = path.join(kit, 'orca-plugin');
+  const orca = orcaCli.findOrca();
+  if (!orca) {
+    if (process.env.OMK_ORCA) { head(); fail(`OMK_ORCA=${process.env.OMK_ORCA} no responde a «orca --version».`); return false; }
+    if (!quiet) { head(); detail('No encuentro el CLI de Orca: no hay plugin que actualizar.'); }
+    return true;
+  }
+  const status = orcaCli.runOrca(orca, ['status']);
+  const runtime = status.json && status.json.result && status.json.result.runtime;
+  if (!runtime || !runtime.reachable) {
+    if (!quiet) {
+      head();
+      warn('Orca está cerrado: su plugin no se ha comprobado.');
+      todo('Ábrelo y repite «omk update» (u «omk setup», que lo abre e instala el plugin).');
+    }
+    return true;
+  }
+  let installed;
+  try {
+    installed = listPlugin(orca);
+  } catch (e) {
+    head();
+    fail(e.message);
+    return false;
+  }
+  if (!installed) {
+    if (!quiet) {
+      head();
+      detail('El plugin del kit no está instalado en Orca.');
+      todo('Para instalarlo y abrir su panel: omk setup');
+    }
+    return true;
+  }
+  head();
+  const need = (orcaCli.readManifest(dir).engines || {}).orca;
+  if (!orcaCli.satisfies(orca.version, need)) {
+    warn(`Orca ${orca.version}: el plugin de este kit necesita ${need}. Actualiza Orca y repite «omk update».`);
+    return true;
+  }
+  const key = await ensurePlugin(orca, kit, { yes, dryRun });
+  return dryRun || key !== null;
 }
 
 /** omk plugin <install|status|uninstall>. Devuelve el código de salida. */
@@ -323,4 +396,4 @@ async function pauseIfAsked(code) {
   return code;
 }
 
-module.exports = { setup, plugin, pauseIfAsked, parseOptions, binDir };
+module.exports = { setup, plugin, refreshPlugin, pauseIfAsked, parseOptions, binDir, installedOmk, ask };

@@ -1,7 +1,8 @@
 // Panel lateral del kit en pestañas: lo que espera tu respuesta (Avisos), los agentes activos con
 // su ficha, los worktrees de la orquestación, repartir una tarea entre agentes, el historial, el
 // equipo de roles del proyecto y el kit (acciones y ajustes del plugin). Avisos, Worktrees e
-// Historial viven en src/tabs/; el estado que comparten todas, en src/panel-state.ts.
+// Historial viven en src/tabs/; el estado que comparten todas, en src/panel-state.ts. Encima de
+// las pestañas va la acción en curso (src/ui/action-card.tsx): lo que se lanza desde aquí se ve aquí.
 // Los ajustes son los mismos de Settings → Plugins → Orca Multiagent Kit: cambiarlos aquí o allí
 // es lo mismo, y el worker se entera por `settings.onDidChange`.
 // Orca transpila este fichero al cargarlo: no hay paso de build.
@@ -70,6 +71,7 @@ import { AutonomyCard, AutonomyOverride, runAutonomy } from './tabs/autonomy.tsx
 import { History, setupHistory } from './tabs/history.tsx'
 import { Notices, noticesLabel, setupNotices } from './tabs/notices.tsx'
 import { Worktrees, setupWorktrees } from './tabs/worktrees.tsx'
+import { ActionCard, setupAction } from './ui/action-card.tsx'
 import { AgentIcon } from './ui/agent-icon.tsx'
 
 type Preferences = {
@@ -95,9 +97,13 @@ const CONTRACT_OPTIONS: readonly { value: ContractHintMode; label: string }[] = 
 ]
 
 const ACTIONS: readonly { action: KitAction; label: string; hint: string }[] = [
-  { action: 'verify', label: 'Verificar instalación', hint: 'omk verify en un terminal nuevo' },
+  { action: 'verify', label: 'Verificar instalación', hint: 'omk verify: comprueba enlaces, imports y copias divergentes' },
   { action: 'init', label: 'Inicializar proyecto', hint: 'el agente de inicializar con «inicializa el proyecto»' },
-  { action: 'update', label: 'Actualizar kit', hint: 'omk update en un terminal nuevo' }
+  {
+    action: 'update',
+    label: 'Actualizar kit',
+    hint: 'omk update: el paquete, ~/.agents, este proyecto (con los apartados nuevos de ORCHESTRATION.md) y este plugin'
+  }
 ]
 
 const PRESET_OPTIONS: readonly { value: TeamPreset | 'custom'; label: string }[] = [
@@ -161,19 +167,25 @@ async function save(key: keyof Preferences, value: string | boolean): Promise<vo
   }
 }
 
-const run = (action: KitAction) => ask(action, () => plugin.request('kit.run', { action }))
+// Lo que lanzan estas peticiones se sigue en la tarjeta de la acción en curso, no en el aviso.
+const TRACKED = { tracked: true }
+
+const run = (action: KitAction) => ask(action, () => plugin.request('kit.run', { action }), TRACKED)
 
 const openAgent = (id: string) => ask('open', () => plugin.request('agents.open', { id }))
 
 async function orchestrate(): Promise<void> {
   const autonomy = read(runAutonomy)
-  const sent = await ask('orchestrate', () =>
-    plugin.request('team.orchestrate', {
-      agent: read(team).coordinator,
-      task: read(task),
-      source: read(source),
-      ...(autonomy ? { autonomy } : {})
-    })
+  const sent = await ask(
+    'orchestrate',
+    () =>
+      plugin.request('team.orchestrate', {
+        agent: read(team).coordinator,
+        task: read(task),
+        source: read(source),
+        ...(autonomy ? { autonomy } : {})
+      }),
+    TRACKED
   )
   if (sent) set(task, '')
 }
@@ -184,10 +196,10 @@ async function applyTeam(): Promise<void> {
     set(outcome, { tone: 'danger', text: 'El equipo no es válido: revisa los proveedores y los roles propios.' })
     return
   }
-  await ask('team', () => plugin.request('team.apply', { team: ready }))
+  await ask('team', () => plugin.request('team.apply', { team: ready }), TRACKED)
 }
 
-const showTeam = () => ask('team', () => plugin.request('team.show'))
+const showTeam = () => ask('team', () => plugin.request('team.show'), TRACKED)
 
 // Cualquier cambio a mano convierte el equipo en personalizado; el coordinador no cuenta.
 const editTeam = (patch: Partial<TeamDraft>) => set(team, { ...read(team), ...patch, preset: 'custom' })
@@ -227,6 +239,7 @@ export function setup(ctx: PanelContext): void {
   setupNotices(ctx)
   setupWorktrees(ctx)
   setupHistory(ctx)
+  setupAction(ctx)
   void plugin
     .request('agents.summary')
     .then((view) => set(agents, view))
@@ -507,7 +520,7 @@ function Team() {
 function Actions() {
   const current = read(busy)
   return (
-    <Card title="Acciones" description="Se ejecutan en el workspace activo.">
+    <Card title="Acciones" description="Se ejecutan en el workspace activo. Su estado y su salida salen arriba, sobre las pestañas.">
       <Stack gap="sm">
         {ACTIONS.map(({ action, label, hint }) => (
           <Button
@@ -574,6 +587,7 @@ export default function Panel() {
           </Stack>
         </Callout>
       ) : null}
+      <ActionCard />
       <Tabs label="Secciones" defaultValue="notices">
         <Tab value="notices" label={noticesLabel()} icon="bell">
           <Notices />
@@ -598,8 +612,10 @@ export default function Panel() {
             <Actions />
             <Settings />
             <Text muted size="xs">
-              Desde un terminal: <Code>omk setup</Code> prepara todo el entorno, <Code>omk team</Code> enseña el
-              equipo del proyecto y <Code>omk plugin status</Code> muestra el plugin.
+              «Actualizar kit» pone al día el paquete, <Code>~/.agents</Code>, el proyecto activo y este plugin; si
+              el plugin nuevo pide más acceso, te lo pregunta arriba. Desde un terminal: <Code>omk setup</Code>{' '}
+              prepara el entorno la primera vez, <Code>omk team</Code> enseña el equipo del proyecto y{' '}
+              <Code>omk plugin status</Code> muestra el plugin.
             </Text>
           </Stack>
         </Tab>

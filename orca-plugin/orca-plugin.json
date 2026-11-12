@@ -2,8 +2,8 @@
   "manifestVersion": 2,
   "id": "multiagent-kit",
   "name": "Orca Multiagent Kit",
-  "version": "0.6.0",
-  "description": "Comandos del kit en la paleta; un panel con los avisos que esperan tu respuesta (plan de rondas incluido), los agentes por nombre y con su icono, los worktrees de la orquestación y su modelo, el historial de runs, el equipo de roles y la autonomía, orquestar una tarea, las acciones y los ajustes; el contrato del worker en cada despacho del kit; avisos de agentes bloqueados y de runs terminados, y los agentes activos en la barra de estado.",
+  "version": "0.7.0",
+  "description": "Comandos del kit en la paleta; un panel con los avisos que esperan tu respuesta (plan de rondas incluido), los agentes por nombre y con su icono, los worktrees de la orquestación y su modelo, el historial de runs, el equipo de roles y la autonomía, orquestar una tarea, las acciones (verificar, inicializar, actualizar) con su estado y su salida en el propio panel, y los ajustes; el contrato del worker en cada despacho del kit; avisos de agentes bloqueados y de runs terminados, y los agentes activos en la barra de estado.",
   "author": {
     "name": "Fernando Baquero y Necro-Coder",
     "url": "https://github.com/FernandoBaqueroo/orca-multiagent-kit"

@@ -5,6 +5,42 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+### Añadido
+- **Puerta de reparto obligatoria en Claude Code** (`hooks/orca-gate.cjs`, `omk gate on|off|status`). Recordar la regla no bastaba: el veredicto secuencial solo llegaba al chat en 4 de 16 ensayos y un reparto podía empezar sin esperar el «sí». Ahora, tras cargar la skill `orca`, Claude Code no edita el proyecto, no escribe desde la shell y no lanza workers hasta que el veredicto esté registrado (`echo "ORCA: …"`, porque el transcript le llega tarde al hook) y, si reparte, hasta que la persona responda al plan. Medido: 6 de 6 encargos con el veredicto antes de editar, sin denegaciones de más, y 2 de 2 repartos que esperan al «sí». Nunca bloquea por un fallo suyo. `omk setup`, `install` y `update` lo instalan en `~/.agents/hooks` y lo registran en `~/.claude/settings.json`; con el ejecutable y sin Node, lo ejecuta el propio `omk`. Pruebas en `tests/test_gate.sh`.
+- **La orquestación se dispara también fuera de spec-kit.** Hasta ahora solo `/speckit.implement` tenía un disparador que no dependiera del criterio del agente (su hook `before_implement`); con un prompt normal, un plan nativo o un artefacto, casi siempre lo hacía todo un único agente. Ahora:
+  - **Puerta de reparto** en el núcleo (`core/AGENTS.md` §6, «YOU MUST»): antes de la primera edición de un trabajo con 2 o más entregables separables se carga la skill `orca` y su veredicto queda en el chat en una línea `ORCA: …` (con el plan de rondas y antes de editar, si reparte). En los ensayos la skill se cargó siempre y los encargos grandes se repartieron; lo que no es fiable es que la línea `ORCA: secuencial` de los encargos pequeños llegue al chat (cifras en `docs/ORQUESTADOR.md` §9). El agente ya no tiene que estimar de memoria si «compensa» antes de cargarla: lo decide la skill, que ahora esboza las unidades aunque no haya `tasks.md`.
+  - **Hooks de Claude Code** (`templates/claude-settings.json`): `UserPromptSubmit` recuerda la puerta en cada mensaje y `PostToolUse` sobre `ExitPlanMode`, al aprobar un plan. `omk setup`, `omk install` y `omk update` los fusionan en `~/.claude/settings.json` (y `omk init` / `omk update` / `kit-init`, en el `.claude/settings.json` del proyecto) sin tocar lo demás y con copia. `--no-hooks` u `OMK_NO_HOOKS=1` para que no los pongan.
+  - Todo plan que escribe el agente (modo plan, `implementation_plan.md`, `planes/*.md`, artefacto) termina con una sección `Reparto`, que es lo que se ejecuta con «implementa el plan».
+  - La cuenta de «¿compensa?» era demasiado cara para trabajos pequeños: con 10 min por unidad y 10 por ronda, dos unidades medianas nunca compensaban. Ahora son 5 y 5, y ante un empate se reparte (`rules/95-multi-agent.md`).
+  - En Antigravity y Codex no hay hook: les aplica la regla del núcleo. Detalle y tabla de disparadores en `docs/ORQUESTADOR.md` §9.
+- **Plugin v0.7.0 — acción en curso**: lo que lanzas desde el panel o la paleta (verificar, actualizar, inicializar, *Repartir* y los `omk team` de *Equipo*) se ve en el panel, encima de las pestañas: en curso, esperando tu respuesta, terminado o fallido, con las últimas líneas de su terminal. Antes solo decía que había abierto un terminal, y la API de plugins no deja traerlo al frente. Si `omk update` pide aprobar el plugin nuevo, se contesta con «Aprobar» o «Rechazar» desde la tarjeta. El seguimiento sobrevive al reinicio del plugin que provoca la propia actualización. Detalle en [`docs/PLUGIN-ORCA.md`](docs/PLUGIN-ORCA.md#acción-en-curso).
+- **Un comando lo instala todo y otro lo actualiza todo, se instale como se instale**:
+  - `npx orca-multiagent-kit setup` deja `omk` instalado (`npm install -g`) antes de seguir: el plugin de Orca lo usa desde el PATH y la copia de npx es temporal.
+  - `curl … get.sh | bash` baja el ejecutable de tu sistema, comprueba su SHA-256 y hace `omk setup`; donde no hay ejecutable, sigue con el zip e `install.sh` y dice qué falta.
+  - `omk update` sabe cómo llegó el kit: con npm instala la versión posterior; **el ejecutable se actualiza a sí mismo** (descarga el de la última release, comprueba su SHA-256 con el `.sha256` publicado y solo entonces se sustituye; solo HTTPS); una copia suelta (clon, zip) no se toca.
+  - Después pone al día `~/.agents`, el proyecto de la carpeta actual y el plugin de Orca si está instalado. Ya no hace falta `omk setup` después de actualizar. Opciones: `--offline` (sin descargar nada), `--yes`, `--no-project`, `--no-plugin`, `--dry-run`, `--force`. Pruebas en `tests/test_update.sh`.
+- **Plantillas de proyecto al día**: `omk update` añade a `ORCHESTRATION.md` las secciones y los campos que la plantilla tiene y el fichero no, sin tocar lo escrito y con copia en `~/.agents/backups/`. Al final deja un sello (`<!-- omk:plantilla … -->`) con los apartados ya ofrecidos: lo que borres a propósito no vuelve, y en adelante solo entra lo que la plantilla estrene. `STACK.md` recibe el mismo trato, salvo que la primera vez solo se sella.
+- `omk install` también deja el plugin de Orca en la versión del kit si ya estaba instalado (`--no-plugin` para que no lo mire). Quien actualiza desde un `omk` anterior, que al acabar solo llama a `omk install`, se lleva así el plugin nuevo.
+- `omk <comando> --exit-marker` escribe al salir `[omk:fin] <comando> salida=<código>`: es como el plugin sabe que un comando ha terminado y cómo.
+- Escenarios del panel para `orca plugin check` y `orca plugin shot --scenario` (`orca-plugin/src/panel.check.ts`).
+
+### Corregido
+- `omk update` reinstalaba la versión de npm aunque fuera **anterior** a la que tenías (una copia de desarrollo o una versión aún sin publicar): ahora solo actualiza a una posterior, y una copia que no viene de npm no se sustituye por la de npm.
+- `omk update` ya no enseña el aviso `DEP0190` de Node al llamar a npm en Windows, y sigue con el `omk` recién instalado por su ruta en vez de buscarlo en el PATH.
+- `omk` ya no depende de lo que imprimen `npm root -g` y `npm prefix -g` para encontrar la carpeta global: npm tapa con «***» los tramos de una ruta que le parecen un secreto (un UUID, por ejemplo), y con una ruta así fallaban el arranque desde npx y la comprobación de permisos. Ahora usa primero el prefijo que npm pasa por el entorno.
+- Plugin: un fallo al lanzar una acción desde el panel (sin workspace activo, agente de inicializar no válido, error de Orca) salía como «Hecho». Ahora sale como error.
+- La pregunta de aprobación del plugin (`omk setup`, `omk plugin install`, `omk update`) ya no espera para siempre en un terminal que nadie mira: sin respuesta en 10 minutos cuenta como «no».
+- Los mensajes del instalador nombran el comando que tienes: `omk …` con npm, npx o el ejecutable (con npx, `npx orca-multiagent-kit …`) y la ruta de `install.sh` con el zip, un clon o curl. Antes mezclaban `omk install` y `./install.sh --verify` sin mirar cómo se había lanzado.
+- Documentación al día con lo que hace el código: la instalación por IA (`AI_INSTALL.md`) copiaba una instalación incompleta y esperaba un texto que `verify` no imprime; la guía visual solo conocía `./install.sh`; la web enseñaba una salida y unos comandos que ya no existen; al manual le faltaba una regla, y el README prometía en `install.sh` equivalentes de comandos que solo tiene `omk`.
+- Web: cabeceras de tabla y etiquetas por debajo de 11 px, `kbd` sin aire y un salto de nivel de encabezado en la portada.
+
+### Cambiado
+- El plugin lanza `omk` con `--exit-marker`: necesita un `omk` de esta versión o posterior. Con uno anterior, la tarjeta lo explica y dice cómo actualizarlo.
+- Viniendo de la 1.6.0: el botón *Actualizar kit* del plugin antiguo instala el `omk` nuevo, que ya actualiza también el plugin. Si Orca pide aprobar la versión nueva, la pregunta sale en el terminal de esa actualización (el plugin antiguo no la enseña): contéstala ahí, o ejecuta `omk update` en un terminal. A partir de ahí, el botón lo hace todo y la aprobación se contesta desde el panel.
+- Los marcadores de los bloques de proyecto (`AGENTS:BEGIN project`, `AGENTS:BEGIN project-claude`) ya no llevan una versión escrita a mano, que se había quedado en v1.0.0.
+- El gate de dependencias se llama `deps-audit` en todas partes (antes, `deps` en el núcleo y en el ejemplo del reporte).
+- `omk init` dice «se conserva» en vez de «no se toca» de los ficheros que ya existían.
+
 ## [1.6.0] - 2026-11-12
 
 ### Añadido
