@@ -52,20 +52,24 @@ echo "== omk team set --data (el panel del plugin)"
 data() { node -e 'process.stdout.write(Buffer.from(process.argv[1]).toString("base64url"))' "$1"; }
 HERMES='{"name":"Hermes","work":"Textos | <b>UI</b>","level":"bajo","review":"argos","guard":"","provider":"codex"}'
 IRIS='{"name":"Iris","work":"Accesibilidad","level":"medio","review":"cross","guard":"WCAG AA","provider":null}'
-TEAM="{\"v\":1,\"providers\":[\"claude\",\"codex\"],\"cross\":\"todas\",\"roles\":{\"casandra\":\"codex\"},\"custom\":[$HERMES,$IRIS]}"
+# Los JSON van entre comillas simples: el bash 3.2 de macOS expande las llaves de un JSON con \" dentro de "$(…)".
+# Se exportan porque los usan los check (eval), que ShellCheck no ve.
+export TEAM='{"v":1,"providers":["claude","codex"],"cross":"todas","roles":{"casandra":"codex"},"custom":['"$HERMES,$IRIS"']}'
+export EMPTY='{"v":1,"providers":["claude"],"cross":"nunca","roles":{},"custom":[]}'
 fresh
 check "escribe proveedores, revisión, roles y roles propios" 'team set --data "$(data "$TEAM")" && said "Roles propios        Hermes (bajo)" && has "- Revisión cruzada (otro proveedor revisa el diff): todas"'
 check "los roles propios van a su tabla, sin | ni < >"      'line "  | **Hermes** | Textos b UI /b | bajo | Argos |  | <!-- omk team -->" && line "  | **Iris** | Accesibilidad | medio | \`cross\` | WCAG AA | <!-- omk team -->"'
 check "un rol propio con proveedor lleva su excepción"      'line "  | Rol Hermes | Hermes / codex | equipo (omk team) |" && ! has "Rol Iris"'
 check "repetir lo mismo no cambia nada"                     'cp "$F" "$W/antes" && team set --data "$(data "$TEAM")" && said "Sin cambios" && cmp -s "$F" "$W/antes"'
 check "--role no borra los roles propios"                   'team set --role argos=claude && has "Rol Hermes" && has "**Iris**" && has "Rol Argos"'
-check "un equipo sin roles propios los quita"              'team set --data "$(data "{\"v\":1,\"providers\":[\"claude\"],\"cross\":\"nunca\",\"roles\":{},\"custom\":[]}")" && ! has "omk team -->" && [ "$(rows)" = 0 ]'
+check "un equipo sin roles propios los quita"              'team set --data "$(data "$EMPTY")" && ! has "omk team -->" && [ "$(rows)" = 0 ]'
 cp "$F" "$W/antes"
+ARIADNA='{"v":1,"providers":["claude"],"cross":"todas","roles":{},"custom":[{"name":"Ariadna","work":"x","level":"alto","review":"propia","guard":"","provider":null}]}'
+HERMES_SIN_CODEX='{"v":1,"providers":["claude"],"cross":"todas","roles":{},"custom":['"$HERMES"']}'
+IRIS_REPETIDA='{"v":1,"providers":["claude"],"cross":"todas","roles":{},"custom":['"$IRIS,$IRIS"']}'
+MAYUSCULA='{"v":1,"providers":["Claude"],"cross":"todas","roles":{},"custom":[]}'
 for bad in 'no-es-base64!' "$(data '{"v":2}')" "$(data 'no es json')" \
-  "$(data "{\"v\":1,\"providers\":[\"claude\"],\"cross\":\"todas\",\"roles\":{},\"custom\":[{\"name\":\"Ariadna\",\"work\":\"x\",\"level\":\"alto\",\"review\":\"propia\",\"guard\":\"\",\"provider\":null}]}")" \
-  "$(data "{\"v\":1,\"providers\":[\"claude\"],\"cross\":\"todas\",\"roles\":{},\"custom\":[$HERMES]}")" \
-  "$(data "{\"v\":1,\"providers\":[\"claude\"],\"cross\":\"todas\",\"roles\":{},\"custom\":[$IRIS,$IRIS]}")" \
-  "$(data "{\"v\":1,\"providers\":[\"Claude\"],\"cross\":\"todas\",\"roles\":{},\"custom\":[]}")"; do
+  "$(data "$ARIADNA")" "$(data "$HERMES_SIN_CODEX")" "$(data "$IRIS_REPETIDA")" "$(data "$MAYUSCULA")"; do
   check "rechaza --data ${bad:0:24}…"                      "! team set --data \"$bad\" && cmp -s \"\$F\" \"\$W/antes\""
 done
 
