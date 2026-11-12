@@ -48,7 +48,7 @@ function parseShared(text) {
   const shared = [];
   let inSection = false;
   let inFence = false;
-  for (const line of String(text).replace(/^﻿/, '').split(/\r?\n/)) {
+  for (const line of String(text).replace(/^\uFEFF/, '').split(/\r?\n/)) {
     if (!inFence && /^##\s+2\.\s*Shared/i.test(line)) { inSection = true; continue; }
     if (!inSection) continue;
     if (/^\s*```/.test(line)) {
