@@ -14,6 +14,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
   - *Equipo*: equipos predefinidos (Solo Claude, Claude + Codex revisor, Codex + Claude revisor) o personalizado; proveedores con casillas, un proveedor por rol de Olimpo y roles propios (nombre, qué hace, nivel, revisión, guardarraíl, proveedor). «Aplicar al proyecto» ejecuta `omk team set --data`.
   - Los agentes (inicializar, coordinador, proveedores) se eligen de una lista con el catálogo de Orca, no se escriben.
   - Avisos (ajuste *Avisos de agentes*) cuando un agente se bloquea y cuando terminan todas las unidades lanzadas de un run. El tooltip de la barra nombra a los agentes.
+- **Plugin v0.6.0**: pestañas *Avisos*, *Worktrees* e *Historial*, iconos de agente y autonomía.
+  - *Avisos*: la tarjeta del plan de rondas del coordinador, en colores, con «Sí, lánzalo» y «Pedir cambio», que se escriben en su terminal; y los agentes bloqueados o esperando, con las últimas líneas de su terminal y una caja para responderles. La skill `orca` escribe el plan en `.work/runs/<run>/plan.json` (`references/plan-card.md`) y el plugin lo lee del hook `agent.tool.after`.
+  - *Worktrees*: los worktrees de la orquestación por run, con sus agentes, estado y modelo (de `--model`), y «Cambiar modelo» (`/model`) para un Claude Code que espera.
+  - *Historial*: despachos, bloqueos, finales de unidad, runs terminados y lo que haces desde el panel; las 200 últimas entradas, guardadas en el plugin.
+  - Iconos de Claude, Codex, Gemini, Antigravity, Copilot y Grok (simple-icons, CC0) junto a cada agente; un robot para los demás.
+  - Autonomía: en *Equipo*, la del proyecto (`ORCHESTRATION.md` §0); en *Repartir*, otra solo para ese run.
+- **`omk team set --autonomy manual|semi|auto`**: cambia la línea `- Nivel:` de `ORCHESTRATION.md` §0; `omk team` la enseña.
 
 ### Corregido
 - Plugin: el resultado de cada acción salía como «Consejo» (Orca pinta así un aviso sin título). Ahora dice «Hecho» o «No se pudo» y se puede cerrar.
@@ -21,6 +28,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 - El plugin pide `workspace:write` (abrir el workspace de un agente) y observa el hook `agent.launch.before`; hay que volver a aprobarlo (`omk plugin install`).
+- La v0.6.0 del plugin pide además `storage:own` (historial) y observa `agent.tool.after` (tarjeta del plan): otra aprobación.
 
 ## [1.5.0] - 2026-11-11
 

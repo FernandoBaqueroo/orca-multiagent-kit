@@ -32,7 +32,7 @@ ${bold('Comandos')}
   ${lime('init')}     [ruta]                       Prepara un proyecto (por defecto, la carpeta actual)
   ${lime('verify')}                                Comprueba enlaces, imports y copias divergentes
   ${lime('plugin')}   install|status|uninstall     El plugin de Orca del kit (install pide tu aprobación)
-  ${lime('team')}     [set …]                      Enseña o cambia el equipo de roles de ORCHESTRATION.md
+  ${lime('team')}     [set …]                      Enseña o cambia el equipo de roles y la autonomía de ORCHESTRATION.md
   ${lime('adopt')}    <carpeta-skill>              Comparte una skill externa con todos los agentes
   ${lime('backups')}                               Lista las copias de seguridad
   ${lime('restore')}  <fecha>                      Deshace una instalación (fecha de "omk backups")

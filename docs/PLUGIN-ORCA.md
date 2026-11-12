@@ -13,8 +13,11 @@ Requisitos: Orca ≥ 1.4.248 (hooks y barra de estado) con los plugins activados
 | **Orca Multiagent Kit: inicializar proyecto** | Un agente nuevo en el workspace activo con el prompt «inicializa el proyecto» (skill `kit-init`) | `agent.launch`; el agente sale del ajuste *Agente para inicializar* (por defecto `claude`) |
 | **Orca Multiagent Kit: estado de los agentes** | Una línea por agente activo: nombre, estado, agente y workspace | Lo que ha ido contando la barra de estado |
 | **Panel *Multiagent Kit* · Agentes** (barra lateral derecha, icono de robot) | Los agentes activos con nombre, agrupados por run del kit o por workspace, los bloqueados primero (y abiertos). Cada uno se despliega en su ficha: estado y desde cuándo, agente, unidad, rol y nivel, run, título en Orca, workspace, rama, carpeta, si corre en un terminal o en un chat de Orca y cómo acabó su último turno; y un botón para ir a su workspace | Ver [Nombres de los agentes](#nombres-de-los-agentes) |
-| **Panel · Repartir** | Repartir una tarea entre agentes: eliges de dónde sale el trabajo (lo que escribes, un plan del repo o spec-kit) y el coordinador | Ver [Repartir una tarea](#repartir-una-tarea) |
-| **Panel · Equipo** | Quién hace cada rol en el proyecto activo: equipo predefinido o personalizado, proveedores activos (casillas), revisión cruzada, un proveedor por rol de Olimpo y roles propios del proyecto | «Aplicar al proyecto» abre un terminal con `omk team set --data …`; «Ver el del proyecto», con `omk team`. Ver [Equipo](#equipo) |
+| **Panel · Avisos** (la etiqueta dice cuántos hay) | Lo que espera tu respuesta: la **tarjeta del plan de rondas** del coordinador (cabecera, rondas, cada unidad con su rol, nivel, agente con su icono, modelo y recurso en colores, notas) con «Sí, lánzalo» y «Pedir cambio»; y cada agente bloqueado o esperando, con las últimas líneas de su terminal, una caja para responderle, «Ir a su workspace» y «Descartar» | Ver [Avisos y tarjeta del plan](#avisos-y-tarjeta-del-plan) |
+| **Panel · Worktrees** | Los worktrees de la orquestación agrupados por run (los demás con agentes, en «Otros»), con su rama y unidad, sus agentes con icono, estado y modelo, «Abrir worktree» y, para un Claude Code que espera, «Cambiar modelo» (opus, sonnet, haiku) | El modelo sale de `--model` en la orden de arranque (hook `agent.launch.before`); el cambio escribe `/model <alias>` + Intro en su terminal |
+| **Panel · Historial** | Despachos, bloqueos y finales de unidad, runs terminados, planes, respuestas, cambios de modelo, repartos y autonomía, lo más reciente primero, con filtro y «Vaciar historial» (dos pasos) | Las 200 últimas entradas, en el almacenamiento del plugin (`storage:own`, clave `history.v1`) |
+| **Panel · Repartir** | Repartir una tarea entre agentes: eliges de dónde sale el trabajo (lo que escribes, un plan del repo o spec-kit), el coordinador y, si quieres, otra autonomía solo para ese run | Ver [Repartir una tarea](#repartir-una-tarea) |
+| **Panel · Equipo** | La autonomía del proyecto (manual, semi, auto) y quién hace cada rol: equipo predefinido o personalizado, proveedores activos (casillas), revisión cruzada, un proveedor por rol de Olimpo y roles propios del proyecto | «Guardar en el proyecto» abre un terminal con `omk team set --autonomy <nivel>`; «Aplicar al proyecto», con `omk team set --data …`; «Ver el del proyecto», con `omk team`. Ver [Equipo](#equipo) |
 | **Panel · Kit** | Botones de verificar, inicializar y actualizar y los cuatro ajustes del plugin (los agentes se eligen de una lista, no se escriben) | El panel pide las acciones al worker (`kit.run`, solo esas tres) y lee y escribe los ajustes con `settings` |
 | **Avisos** | «U2 · Ariadna — Pagos: bloqueado» al bloquearse un agente; «RUN …: unidades terminadas» cuando acaban todas las unidades lanzadas de un run | Transiciones de `agent.status.changed`; se apagan con *Avisos de agentes* |
 | **Repartir siempre** | Todo agente que Orca arranca con una tarea (al crear un worktree con tarea, en una pestaña nueva, desde una issue) pasa primero por la skill `orca`: decide si compensa repartir y, si compensa, reparte. Sin spec-kit | Hook `agent.prompt.before` con `inputKind: "launch"`. Ver [Repartir siempre](#repartir-siempre) |
@@ -79,7 +82,16 @@ Equipos predefinidos: *Solo Claude* (sin roles fijados; la revisión cruzada la 
 omk team                                                    # el equipo del proyecto
 omk team set --provider claude --provider codex --cross todas --role casandra=codex
 omk team set --role casandra=auto                           # vuelve a decidirlo el coordinador
+omk team set --autonomy auto                                # §0: manual, semi o auto
 ```
+
+La tarjeta *Autonomía* de la misma pestaña cambia la línea `- Nivel:` de `ORCHESTRATION.md` §0 (`omk team set --autonomy manual|semi|auto`; el terminal solo recibe uno de esos tres literales). En *Repartir*, «Autonomía de este run» la cambia solo para el coordinador que lanzas: va en su prompt y no toca el fichero.
+
+### Avisos y tarjeta del plan
+
+- **Tarjeta del plan**: antes de pedir la confirmación 1, la skill `orca` escribe el plan en `.work/runs/<run>/plan.json` ([formato](../skills/orca/references/plan-card.md)). El plugin lo ve en el hook `agent.tool.after` (la herramienta `Write` de Claude Code, con su contenido), lo valida campo a campo (hasta 60 unidades, 10 notas y 200 caracteres por texto; lo que no encaja se descarta y queda en `orca plugin logs`) y lo pinta en *Avisos*, con una notificación. «Sí, lánzalo» escribe `sí` en el terminal del coordinador; «Pedir cambio», `cambia: <lo que pidas>`. Es lo mismo que escribirlo tú en su chat.
+- **Agentes que esperan**: un agente bloqueado (pide permiso) o esperando instrucciones sale con las 12 últimas líneas de su terminal, sin códigos de escape ni caracteres de control. La respuesta va a **su** terminal (el worker no acepta un terminal que venga del panel), en una sola línea de hasta 2000 caracteres, sin saltos ni caracteres de control, y con Intro.
+- Un aviso desaparece al responderlo, al descartarlo o cuando el agente vuelve a trabajar; uno descartado no vuelve hasta que el agente cambie de estado.
 
 ### Por qué el contrato del worker
 
@@ -98,16 +110,17 @@ Es un plugin `trusted-worker`: Orca ejecuta `src/worker.ts` en un proceso Node a
 |---|---|---|
 | `workspace:read` | Saber qué workspace está enfocado y cómo se llama cada uno (`workspace.readContext` + `workspace.list`) y enterarse de los que se eliminan | Los comandos no saben dónde ejecutarse y los agentes salen sin workspace |
 | `workspace:write` | Abrir el workspace de un agente al pulsarlo en el panel (`workspace.open`). El plugin no renombra workspaces ni ejecuta comandos de Orca | Pulsar un agente no hace nada |
-| `terminal:send` | Abrir un terminal con `omk verify`, `omk update` u `omk team` (`terminal.create`) | No hay comandos de verificar ni actualizar, ni se aplica el equipo |
-| `terminal:read` | Leer la salida de **ese** terminal para detectar que `omk` no existe y avisar | El fallo se ve en el terminal, pero no llega la notificación |
+| `terminal:send` | Abrir un terminal con `omk verify`, `omk update` u `omk team` (`terminal.create`); escribir tu respuesta de *Avisos* o `/model <alias>` en el terminal de un agente que sigue el plugin (`terminal.sendText`) | No hay comandos de verificar ni actualizar, no se aplican el equipo ni la autonomía, y no se puede responder ni cambiar el modelo desde el panel |
+| `terminal:read` | Leer la salida de **ese** terminal para detectar que `omk` no existe y avisar, y las últimas líneas del terminal de un agente que espera, para su aviso | El fallo se ve en el terminal, pero no llega la notificación, y los avisos salen sin contexto |
 | `agent:launch` | Lanzar el agente de «inicializar proyecto» y el coordinador de *Repartir* (`agent.launch`) | No hay comando de inicializar ni botón de repartir |
 | `agent:read` | Contar y nombrar agentes para la barra, el panel y los avisos (`agents.list`, `agent.status.changed`) | La barra se queda en `MAW` |
 | `notifications:show` | Avisos accionables (sin `omk`, sin workspace, fallos de Orca, agente bloqueado, run terminado) | Los avisos solo quedan en `orca plugin logs` |
 | `settings:own` | Leer los cuatro ajustes del plugin, y cambiarlos desde el panel | Se usan los valores por defecto y el panel no puede guardarlos |
+| `storage:own` | Guardar el historial (las 200 últimas entradas, clave `history.v1`) | El historial solo dura hasta que se reinicia el plugin |
 
-Además observa el hook `agent.launch.before`: solo lee qué agente se lanza y en qué terminal; nunca cambia ni deniega el lanzamiento.
+Además observa dos hooks sin cambiar ni denegar nada: `agent.launch.before` (qué agente se lanza, en qué terminal y con qué `--model`) y `agent.tool.after` (solo le interesa un `Write` de `.work/runs/<run>/plan.json`; el resto de llamadas se descartan en el acto y no se guardan).
 
-Lo que **no** hace: no envía al terminal texto libre de un usuario, de un agente o de un fichero. `omk verify` y `omk update` son literales fijos, y `omk team set --data` solo lleva base64url (letras, números, `-` y `_`) de un equipo que el worker ya validó entero (ids con `^[a-z0-9][a-z0-9-]{0,39}$`, roles, niveles y revisiones de listas cerradas, texto de los roles propios sin `|`, `<`, `>` ni caracteres de control); `omk team` lo valida otra vez. El id de agente se valida igual antes de pasarlo a `agent.launch`. La tarea de *Repartir* va como prompt al agente que eliges, nunca a un terminal. No usa red, secretos ni el almacenamiento del plugin (el borrador del equipo es estado del panel), no lee ficheros del proyecto y no importa módulos de Node (`fs`, `child_process`…): todo pasa por la API de Orca y sus capacidades.
+Lo que **no** hace: no envía a un **shell** texto libre de un usuario, de un agente o de un fichero. `omk verify` y `omk update` son literales fijos, `omk team set --autonomy` lleva uno de tres literales, y `omk team set --data` solo lleva base64url (letras, números, `-` y `_`) de un equipo que el worker ya validó entero (ids con `^[a-z0-9][a-z0-9-]{0,39}$`, roles, niveles y revisiones de listas cerradas, texto de los roles propios sin `|`, `<`, `>` ni caracteres de control); `omk team` lo valida otra vez. El id de agente se valida igual antes de pasarlo a `agent.launch`. La tarea de *Repartir* va como prompt al agente que eliges. Lo único que se escribe en el terminal de un agente es lo que tú escribes en *Avisos* (una línea, sin caracteres de control) y `/model <id>` con un id de modelo validado, y solo en terminales de agentes que el plugin sigue. No usa red ni secretos, no lee ficheros del proyecto y no importa módulos de Node (`fs`, `child_process`…): todo pasa por la API de Orca y sus capacidades.
 
 ## Instalar
 
@@ -156,12 +169,15 @@ Sin plugin, el kit sigue funcionando igual. Solo se pierden la paleta, la barra 
 - **Barra de estado**: al arrancar solo conoce los agentes del workspace enfocado (`agents.list` no da más); los de los demás aparecen con su siguiente cambio de estado. Un agente que Orca solo identifica por su panel (sin `terminalId`) no recibe el nombre de su despacho. Un agente cuyo terminal se cierra sin pasar a `done` sigue contando hasta que se elimina su workspace o se reinicia el plugin (`orca plugin restart local.multiagent-kit`).
 - **Detección de `omk` ausente**: es heurística. Busca durante ~15 s el mensaje de "comando no encontrado" de bash, zsh, fish, cmd y PowerShell, en inglés y español. Con otros idiomas o shells, el error se ve en el terminal pero no llega la notificación.
 - En un workspace remoto (SSH), `omk` se ejecuta en ese host, que es donde se usa el kit en ese workspace.
+- **Chats de Orca**: un agente que corre como chat de Orca (sin terminal; es lo que lanza Orca para los workers si así lo tienes en sus ajustes de pestañas de agente) sale en *Avisos* y *Worktrees*, pero la API de plugins no puede escribir en un chat: se le responde y se le cambia el modelo desde su chat («Ir a su workspace»). Con el coordinador en un terminal, los botones de la tarjeta del plan funcionan.
+- **Tarjeta del plan**: la lee del `Write` de Claude Code (hook `agent.tool.after`). Otros agentes nombran distinto su herramienta de escritura, y Orca aún no engancha agentes por SSH o WSL: con ellos el plan sale solo en el chat.
+- **Cambiar el modelo**: solo Claude Code (`/model`), y solo mientras espera instrucciones: trabajando, el texto acabaría en su turno; bloqueado, en el diálogo de permiso.
 
 DEFERRED:
 - **Progreso del run en la barra** (`ronda 1 · 2/3 unidades`): exige leer `.work/runs/<run>/units.md`, y la API de Orca no da acceso a ficheros a los workers. Hoy el coordinador lo deja en el comentario del worktree (`orca worktree set --comment`).
 - **Instalación desde Git** (`orca plugin install FernandoBaqueroo/orca-multiagent-kit`): la ayuda de `orca plugin install` (1.4.252) no documenta instalar desde una subcarpeta del repositorio. Haría falta un repo propio para el plugin o confirmar que Orca acepta una URL `tree/<ref>/orca-plugin`.
 - **Preparar worktrees nuevos** (`workspace.create.after`): ya lo hacen `orca.yaml` (`scripts.setup`, `sharedDirectories`), `.worktreeinclude` y `worker-start --setup run`, que la skill pasa siempre; un hook duplicaría ese trabajo.
-- **Nivel de modelo en el panel**: el rol sale del despacho, pero el nivel y el modelo de cada unidad están en `.work/runs/<run>/run.md`, que el plugin no puede leer.
+- **Nivel de modelo en el panel**: el rol sale del despacho y el modelo de `--model` al arrancar, pero el nivel de cada unidad solo está en `.work/runs/<run>/run.md`, que el plugin no puede leer (sí en la tarjeta del plan, mientras espera confirmación).
 - **Leer el equipo del proyecto en el panel**: el plugin no lee ficheros; «Ver el del proyecto» lo enseña en un terminal con `omk team`.
 
 ## Probarlo
