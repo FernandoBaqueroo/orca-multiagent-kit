@@ -207,7 +207,7 @@ test('responder rechaza ids desconocidos, textos vacíos o largos y no textos', 
   await assert.rejects(w.request('notices.reply', { id: 't:otro', text: 'hola' }), /ya no existe/)
   await assert.rejects(w.request('notices.reply', { id: 't1', text: 'hola' }), /ya no existe/)
   for (const text of ['', '  \n\t ', '\u001b\u0007', 'x'.repeat(2001), 5 as never]) {
-    await assert.rejects(w.request('notices.reply', { id: 't:t1', text }), (error: { code?: string }) => error.code === 'invalid_params')
+    await assert.rejects(w.request('notices.reply', { id: 't:t1', text }), (error: unknown) => (error as { code?: string }).code === 'invalid_params')
   }
   assert.equal(w.host.callsOf('terminal.sendText').length, 0)
   assert.equal((await list(w)).length, 1)
