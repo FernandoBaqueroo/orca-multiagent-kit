@@ -59,6 +59,9 @@ const open = async (items: NoticeItem[], requests: Requests = {}) => {
     requests: {
       'agents.summary': { text: 'MAW', tone: 'neutral', tooltip: 'ninguno', groups: [] },
       'notices.list': { items },
+      // Las demás pestañas también piden su lista al montar el panel.
+      'worktrees.list': { groups: [] },
+      'history.list': { items: [] },
       'notices.reply': answer('notices.reply'),
       'notices.dismiss': answer('notices.dismiss'),
       'agents.open': answer('agents.open'),
@@ -168,4 +171,10 @@ test('si la lista no se puede leer sale el error', async () => {
   })
   assert.match(text(view), /Avisos no leídos/)
   assert.deepEqual(view.errors, [])
+})
+
+test('la pestaña dice cuántos avisos esperan', async () => {
+  const { view } = await open([PLAN])
+  assert.ok(text(view).includes('"label":"Avisos (1)"'))
+  clean(view)
 })

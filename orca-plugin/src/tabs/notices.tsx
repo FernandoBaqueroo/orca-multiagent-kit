@@ -43,6 +43,12 @@ const BLOCKED_BADGE: Record<NoticeItem['kind'], { tone: Tone; text: string }> = 
   waiting: { tone: 'accent', text: 'espera instrucciones' }
 }
 
+/** «Avisos» con cuántos esperan, para la etiqueta de su pestaña. */
+export function noticesLabel(): string {
+  const count = read(notices)?.length ?? 0
+  return count > 0 ? `Avisos (${count})` : 'Avisos'
+}
+
 export function setupNotices(ctx: PanelContext): void {
   ctx.subscriptions.push(
     plugin.on('notices.changed', ({ items }) => {

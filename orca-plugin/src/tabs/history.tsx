@@ -25,7 +25,7 @@ const KIND_LABEL: Record<HistoryKind, string> = {
   autonomy: 'Autonomía'
 }
 
-const RUN_KINDS: readonly HistoryKind[] = ['dispatch', 'state', 'outcome', 'run']
+const RUN_KINDS: readonly HistoryKind[] = ['dispatch', 'state', 'outcome', 'run', 'plan']
 
 const entries = atom<HistoryEntry[]>([])
 const filter = atom<Filter>('all')

@@ -67,7 +67,7 @@ import { ask, busy, describeError, outcome } from './panel-state.ts'
 import type { AgentsView } from './protocol.ts'
 import { AutonomyCard, AutonomyOverride, runAutonomy } from './tabs/autonomy.tsx'
 import { History, setupHistory } from './tabs/history.tsx'
-import { Notices, setupNotices } from './tabs/notices.tsx'
+import { Notices, noticesLabel, setupNotices } from './tabs/notices.tsx'
 import { Worktrees, setupWorktrees } from './tabs/worktrees.tsx'
 import { AgentIcon } from './ui/agent-icon.tsx'
 
@@ -567,7 +567,7 @@ export default function Panel() {
         </Callout>
       ) : null}
       <Tabs label="Secciones" defaultValue="agents">
-        <Tab value="notices" label="Avisos" icon="bell">
+        <Tab value="notices" label={noticesLabel()} icon="bell">
           <Notices />
         </Tab>
         <Tab value="agents" label="Agentes" icon="agent">

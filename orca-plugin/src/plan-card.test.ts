@@ -92,3 +92,8 @@ test('el run de la ruta de un plan.json, con / o con \\', () => {
     assert.equal(planPathRun(path), null, path)
   }
 })
+
+test('el número de ficheros vale también como número', () => {
+  assert.equal(parsePlan(plan({ units: [unit({ files: 7 })] }))?.units[0]?.files, '7')
+  assert.equal(parsePlan(plan({ units: [unit({ files: Number.NaN })] })), null)
+})

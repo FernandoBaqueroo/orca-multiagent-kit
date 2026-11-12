@@ -47,7 +47,8 @@ function parseUnit(value: unknown): PlanUnit | null {
   const role = optionalText(value.role)
   const level = optionalText(value.level)
   const model = optionalText(value.model)
-  const files = optionalText(value.files)
+  // La tabla del plan da un número de ficheros: se acepta también como número.
+  const files = optionalText(typeof value.files === 'number' && Number.isFinite(value.files) ? String(value.files) : value.files)
   const depends = optionalText(value.depends)
   if (!role.ok || !level.ok || !model.ok || !files.ok || !depends.ok) return null
   return {

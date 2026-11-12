@@ -37,8 +37,8 @@ afterEach(async () => {
   worker = undefined
 })
 
-const start = async () => {
-  worker = await mountWorker(main, { host: mockHost({ results: RESULTS, settings: {} }) })
+const start = async (results: Record<string, unknown> = {}) => {
+  worker = await mountWorker(main, { host: mockHost({ results: { ...RESULTS, ...results }, settings: {} }) })
   return worker
 }
 
@@ -167,4 +167,11 @@ test('publica worktrees.changed solo cuando cambia y quita el workspace borrado'
   await w.emit('workspace.removed', { workspaceId: 'w3', kind: 'worktree', path: '/repo/u2-pagos' })
   assert.equal(count(), before + 1)
   assert.deepEqual((await list(w))[0]?.worktrees.map((item) => item.name), ['u1-login'])
+})
+
+test('si el terminal no acepta el cambio de modelo, se dice y no se apunta', async () => {
+  const w = await start({ 'terminal.sendText': { accepted: false } })
+  await twoUnits(w)
+  await assert.rejects(w.request('worktrees.model', { id: 't:t2', model: 'opus' }), /no aceptó/)
+  assert.notEqual((await list(w))[0]?.worktrees[1]?.agents[0]?.model, 'opus')
 })

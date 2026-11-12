@@ -169,7 +169,10 @@ export function registerWorktrees(ctx: KitContext): void {
     if (agent.state !== 'waiting') throw invalidParams('espera a que termine su turno')
     if (!isModelId(model)) throw invalidParams('modelo no válido')
     const title = groupAgents([[id, agent]], ctx.workspaces().byId)[0]?.agents[0]?.title ?? 'agente'
-    await ctx.host.call('terminal.sendText', { terminalId, text: `/model ${model}`, enter: true })
+    const { accepted } = await ctx.host.call('terminal.sendText', { terminalId, text: `/model ${model}`, enter: true })
+    if (!accepted) {
+      throw Object.assign(new Error('el terminal no aceptó el cambio: puede que ya se haya cerrado'), { code: 'unavailable' })
+    }
     rememberModel(terminalId, model)
     ctx.emit('action', {
       kind: 'model',
