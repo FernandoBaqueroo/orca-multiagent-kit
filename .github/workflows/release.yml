@@ -84,9 +84,10 @@ jobs:
 
           ### Instalar
           \`\`\`bash
-          npx orca-multiagent-kit@$VERSION install
+          npx orca-multiagent-kit@$VERSION setup
           \`\`\`
-          O descarga \`orca-multiagent-kit-v$VERSION.zip\`, descomprime y ejecuta \`./install.sh\`. Integridad: \`SHA256SUMS\`.
+          Instala las reglas y las skills, deja \`omk\` en el PATH y, si usas Orca, su plugin. Para actualizar después: \`omk update\`.
+          O descarga \`orca-multiagent-kit-v$VERSION.zip\`, descomprime y ejecuta \`./install.sh\` (solo reglas y skills). Integridad: \`SHA256SUMS\`.
 
           Sin Node: descarga el ejecutable de tu sistema (\`omk-windows-x64.exe\`, \`omk-macos-arm64\`, \`omk-linux-x64\`) y ábrelo: prepara el kit y Orca entero (\`omk setup\`). Integridad: su \`.sha256\`.
           NOTES

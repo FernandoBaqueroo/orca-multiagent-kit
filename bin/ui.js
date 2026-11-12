@@ -3,6 +3,10 @@
 'use strict';
 
 const readline = require('node:readline');
+const { isTransientCopy } = require('./fetch');
+
+// Cómo se llama a omk desde donde corre: con npx no hay un «omk» en el PATH.
+const CLI = isTransientCopy(__dirname) ? 'npx orca-multiagent-kit' : 'omk';
 
 const tty = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR && process.env.TERM !== 'dumb';
 const truecolor = /truecolor|24bit/i.test(process.env.COLORTERM || '');
@@ -70,12 +74,12 @@ function footer(kind, stamp, dry, todos, infos, started) {
   if (kind === 'restore') { out(`  ${sym.ok} ${c.bold('Restaurado')} ${c.grey('en ' + secs + ' s')}`); out(); return; }
   out(`  ${sym.ok} ${c.bold(todos.length ? 'Hecho, con ' + todos.length + ' pendiente' + (todos.length > 1 ? 's' : '') : 'Hecho')} ${c.grey('en ' + secs + ' s')}`);
   if (kind === 'global') {
-    rows.push(['comprobar', 'omk verify']);
-    rows.push(['proyectos', 'omk init   ' + c.grey('(dentro de cada proyecto)')]);
+    rows.push(['comprobar', `${CLI} verify`]);
+    rows.push(['proyectos', `${CLI} init   ` + c.grey('(dentro de cada proyecto)')]);
   } else {
     rows.push(['siguiente', 'en el agente: «inicializa el proyecto»']);
   }
-  if (stamp) rows.push(['deshacer', 'omk restore ' + stamp]);
+  if (stamp) rows.push(['deshacer', `${CLI} restore ${stamp}`]);
   for (const [k, v] of rows) out(`    ${c.grey(k.padEnd(10))} ${c.lime(v)}`);
   out();
 }
@@ -150,7 +154,7 @@ function render(child) {
         case 'result':
           out();
           if (checks.fail === 0) out(`  ${sym.ok} ${c.bold('Todo correcto')} ${c.grey(checks.ok + ' comprobaciones')}`);
-          else out(`  ${sym.fail} ${c.bold(c.red(checks.fail + (checks.fail > 1 ? ' fallos' : ' fallo')))}  ${c.grey('repáralos con')} ${c.lime('omk install')}`);
+          else out(`  ${sym.fail} ${c.bold(c.red(checks.fail + (checks.fail > 1 ? ' fallos' : ' fallo')))}  ${c.grey('repáralos con')} ${c.lime(`${CLI} install`)}`);
           out();
           break;
         case 'footer': await endPhase(); footer(f[0], f[1], f[2], todos, infos, started); break;

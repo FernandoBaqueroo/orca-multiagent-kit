@@ -26,6 +26,8 @@ for f in skills/*/SKILL.md; do
   [ -n "$desc" ] || err "$f: sin description"
   [ "${#desc}" -le 1024 ] || err "$f: description > 1024 caracteres"
   case "$desc" in *'<'*|*'>'*) err "$f: description con < o >";; esac
+  # La description es un escalar YAML sin comillas: «: » o « #» dentro la rompen y el agente se queda sin ella.
+  case "$desc" in *': '*|*' #'*) err "$f: description con «: » o « #» (rompe el YAML del frontmatter)";; esac
 done
 ok "$(ls -d skills/*/ | wc -l | tr -d ' ') skills revisadas"
 

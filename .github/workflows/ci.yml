@@ -32,6 +32,8 @@ jobs:
         run: bash tests/test_team.sh
       - name: Pruebas de omk setup y omk plugin (doble de Orca)
         run: bash tests/test_orca.sh
+      - name: Pruebas de omk update (proyecto, plantilla y plugin)
+        run: bash tests/test_update.sh
       - name: Empaquetado
         run: bash scripts/build-release.sh
 

@@ -49,7 +49,8 @@ check "no pisa una carpeta que no es del kit"    '! OMK_HOME="$(wpath "$W/ajena"
 
 echo "== comandos del kit"
 check "install --dry-run no escribe"             'run install --dry-run --agents claude && [ ! -e "$H/.agents/AGENTS.md" ]'
-check "update explica cómo actualizar"           'run update --agents claude && said "ejecutable autónomo" && [ -f "$H/.agents/AGENTS.md" ]'
+# Sin --offline descargaría el ejecutable de la última release de GitHub: eso se prueba en tests/test_update.sh contra un servidor local.
+check "update --offline reaplica esta versión"   'run update --offline --agents claude && said "Kit al día" && [ -f "$H/.agents/AGENTS.md" ]'
 
 echo "== omk setup desde el ejecutable"
 check "deja omk en OMK_BIN_DIR"                  'run setup --yes --no-path --agents claude && [ -x "$W/bin/$EXE_NAME" ] && said "omk copiado en"'
@@ -60,6 +61,30 @@ check "instala el plugin desde el kit extraído"  'grep -qF "plugin install $KIT
 check "con su carpeta ya en el PATH no lo toca" 'PATH="$W/bin:$PATH" run setup --yes --no-plugin --agents claude && said "ya está en el PATH"'
 rm -rf "${W:?}/bin"; mkdir -p "$W/bin"; echo "otra herramienta" > "$W/bin/$EXE_NAME"
 check "no pisa otro omk que no es el del kit"    '! run setup --yes --no-path --no-plugin --agents claude && said "no es el ejecutable del kit" && [ "$(cat "$W/bin/$EXE_NAME")" = "otra herramienta" ]'
+
+echo "== omk update desde el ejecutable: se descarga y se sustituye a sí mismo"
+# Una «release» v99.0.0 servida en esta máquina cuyo ejecutable es este mismo: lo que se prueba es que el que
+# está en marcha se descarga, se comprueba, se sustituye (en Windows, renombrándose) y sigue el nuevo.
+mkdir -p "$W/self"; cp "$OMK_EXE" "$W/self/$EXE_NAME"
+# shellcheck disable=SC2016  # el $ es de JavaScript
+node -e '
+const fs = require("node:fs");
+const [exe, portFile, mode] = process.argv.slice(1);
+const body = fs.readFileSync(exe);
+const sum = require("node:crypto").createHash("sha256").update(mode === "bad" ? "otro" : body).digest("hex");
+require("node:http").createServer((req, res) => {
+  if (req.url === "/releases/latest") { res.writeHead(302, { location: "/releases/tag/v99.0.0" }); res.end(); }
+  else if (/^\/releases\/download\/v99\.0\.0\/omk-[\w.-]+\.sha256$/.test(req.url)) res.end(sum + "  omk\n");
+  else if (/^\/releases\/download\/v99\.0\.0\/omk-[\w.-]+$/.test(req.url)) res.end(body);
+  else { res.writeHead(404); res.end(); }
+}).listen(0, "127.0.0.1", function () { fs.writeFileSync(portFile, String(this.address().port)); });
+' "$(wpath "$OMK_EXE")" "$(wpath "$W/port")" "${RELEASE_MODE:-}" &
+SERVER=$!; trap 'kill "$SERVER" 2>/dev/null || true; rm -rf "$W"' EXIT
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do [ -s "$W/port" ] && break; sleep 0.5; done
+self() { HOME="$H" USERPROFILE="$WH" OMK_RELEASE_BASE="http://127.0.0.1:$(cat "$W/port")" "$W/self/$EXE_NAME" "$@" </dev/null >"$OUT" 2>&1; }
+check "descarga la versión nueva, la comprueba y sigue con ella" 'self update --agents claude --no-plugin --no-project --no-hooks && said "Actualizando" && said "99.0.0" && said "Sigue el ejecutable nuevo" && said "Kit al día"'
+check "el ejecutable sigue funcionando y no deja restos a medias" '[ "$("$W/self/$EXE_NAME" version)" = "$(cat "$ROOT/VERSION")" ] && [ ! -e "$W/self/$EXE_NAME.new" ]'
+check "--offline no descarga nada"                    'self update --offline --agents claude --no-plugin --no-project --no-hooks && ! said "Actualizando" && said "Kit al día"'
 
 printf '\n%s ok · %s fallos\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

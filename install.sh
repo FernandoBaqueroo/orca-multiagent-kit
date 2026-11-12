@@ -45,6 +45,16 @@ DEVIN_DIR="$HOME/.config/devin"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BK="$AG/backups/$STAMP"
 VERSION="$(cat "$SRC/VERSION")"
+# Cómo se le dice cada cosa a quien lo lee: con omk (npm, npx o el ejecutable, que ponen OMK_CLI) o con
+# este mismo script (zip, clon o curl, donde no hay omk).
+SELF="$SRC/install.sh"
+# shellcheck disable=SC2088  # es texto para enseñar, no una ruta que se vaya a expandir
+case "$SELF" in "$HOME"/*) SELF="~/${SELF#"$HOME"/}" ;; esac
+if [ -n "${OMK_CLI:-}" ]; then
+  K_INSTALL="omk install"; K_VERIFY="omk verify"; K_INIT="omk init <ruta>"; K_RESTORE="omk restore"; K_BACKUPS="omk backups"
+else
+  K_INSTALL="$SELF"; K_VERIFY="$SELF --verify"; K_INIT="$SELF --project-only <ruta>"; K_RESTORE="$SELF --restore"; K_BACKUPS="ls $AG/backups"
+fi
 KIT_SKILLS="kit-init orca speckit-orca-implement csr-stack csr-gate csr-audit"
 # Skills de versiones anteriores que esta versión retira (consolidadas en "orca")
 OLD_SKILLS="maw-route maw-brief maw-plan maw-dispatch maw-worker maw-integrate maw-race maw-setup"
@@ -99,10 +109,10 @@ footer() { # $1 global|project|both
   if [ "$DRY" -eq 1 ]; then printf '\n%sSimulación: no se ha escrito nada.%s\n\n' "$C_Y" "$C_0"; return 0; fi
   printf '\n%s✓ Hecho%s\n' "$C_L$C_B" "$C_0"
   case "$1" in
-    global) printf '  %scomprobar%s  ./install.sh --verify\n  %sproyecto%s   ./install.sh --project-only <ruta>\n' "$C_D" "$C_0" "$C_D" "$C_0" ;;
+    global) printf '  %scomprobar%s  %s\n  %sproyecto%s   %s\n' "$C_D" "$C_0" "$K_VERIFY" "$C_D" "$C_0" "$K_INIT" ;;
     *)      printf '  %ssiguiente%s  en el agente: «inicializa el proyecto»\n' "$C_D" "$C_0" ;;
   esac
-  [ -n "$st" ] && printf '  %sdeshacer%s   ./install.sh --restore %s\n' "$C_D" "$C_0" "$st"
+  [ -n "$st" ] && printf '  %sdeshacer%s   %s %s\n' "$C_D" "$C_0" "$K_RESTORE" "$st"
   printf '\n'; }
 NSK=0; for _s in $KIT_SKILLS; do NSK=$((NSK+1)); done
 # Cursor guarda las reglas de usuario en su base de datos de estado: basta con buscar la ruta del núcleo.
@@ -142,7 +152,7 @@ snapshot() {
   run mkdir -p "$BK/$(dirname "$rel")"
   run cp -a "$p" "$BK/$rel"
 }
-LINK_HELP="En Windows, activa el Modo de desarrollador (Configuracion > Sistema > Para programadores) o abre Git Bash como administrador, y repite. Lo ya movido esta en el backup: ./install.sh --restore $STAMP"
+LINK_HELP="En Windows, activa el Modo de desarrollador (Configuracion > Sistema > Para programadores) o abre Git Bash como administrador, y repite. Lo ya movido esta en el backup: $K_RESTORE $STAMP"
 # Deja $2 como enlace simbolico a $1. Si habia otra cosa, va al backup.
 link() {
   local target="$1" l="$2"
@@ -230,7 +240,7 @@ fi
 
 # ------------------------------------------------------------------ restore
 if [ -n "$RESTORE" ]; then
-  R="$AG/backups/$RESTORE"; [ -d "$R" ] || { echo "No existe la copia $R (consulta: omk backups)" >&2; exit 1; }
+  R="$AG/backups/$RESTORE"; [ -d "$R" ] || { echo "No existe la copia $R (consulta: $K_BACKUPS)" >&2; exit 1; }
   title "Restaurar" "copia $RESTORE"
   phase "Devolviendo ficheros a su sitio"
   N=0
@@ -303,7 +313,7 @@ if [ "$VERIFY" -eq 1 ]; then
   vinfo() { if [ -n "$EV" ]; then ev "check::info::$1"; else printf '  %s· %s%s\n' "$C_D" "$1" "$C_0"; fi; }
   chk_link() {
     if [ -L "$3" ] && [ "$(readlink "$3")" = "$2" ]; then vok "$1"
-    elif [ -e "$3" ] && [ ! -L "$3" ]; then vfail "$1: $(short "$3") es una copia, no un enlace (acabará divergiendo; ejecuta omk install)"
+    elif [ -e "$3" ] && [ ! -L "$3" ]; then vfail "$1: $(short "$3") es una copia, no un enlace (acabará divergiendo; ejecuta $K_INSTALL)"
     else vfail "$1: $(short "$3") no enlaza a $(short "$2")"; fi; }
   # Skills de un agente: separa las copias (divergen en silencio) de las que faltan o apuntan a otro sitio.
   chk_skills() { # $1 agente · $2 carpeta de skills
@@ -312,17 +322,17 @@ if [ "$VERIFY" -eq 1 ]; then
       if [ -L "$2/$s" ] && [ "$(readlink "$2/$s")" = "$AG/skills/$s" ]; then continue; fi
       if [ -e "$2/$s" ] && [ ! -L "$2/$s" ]; then cs="$cs $s"; else ms="$ms $s"; fi
     done
-    [ -n "$cs" ] && vfail "$1: skills copiadas en vez de enlazadas (acabarán divergiendo; ejecuta omk install):$cs"
+    [ -n "$cs" ] && vfail "$1: skills copiadas en vez de enlazadas (acabarán divergiendo; ejecuta $K_INSTALL):$cs"
     [ -n "$ms" ] && vfail "$1: skills sin enlazar:$ms"
     [ -z "$cs$ms" ] && vok "$1: skills enlazadas"; return 0; }
   title "Verificación" "$(agent_names)"
   [ "$CLAUDE_SKIP" -eq 1 ] && vfail "Claude Code: el perfil de Orca $(short "$ORCA_PROFILE") no importa ~/.claude/CLAUDE.md, así que Claude en Orca no ve el kit"
-  [ -f "$AG/AGENTS.md" ] && vok "núcleo en ~/.agents/AGENTS.md (v$(cat "$AG/AGENT_KIT_VERSION" 2>/dev/null || echo '?'))" || vfail "falta ~/.agents/AGENTS.md: ejecuta omk install"
+  [ -f "$AG/AGENTS.md" ] && vok "núcleo en ~/.agents/AGENTS.md (v$(cat "$AG/AGENT_KIT_VERSION" 2>/dev/null || echo '?'))" || vfail "falta ~/.agents/AGENTS.md: ejecuta $K_INSTALL"
   n=$(ls -1 "$AG/rules/lang"/*.md 2>/dev/null | wc -l | tr -d ' '); [ "$n" -ge 17 ] && vok "$n guías de lenguaje" || vfail "guías de lenguaje: $n de 17"
   ms=""; for s in $KIT_SKILLS; do [ -f "$AG/skills/$s/SKILL.md" ] || ms="$ms $s"; done
   [ -z "$ms" ] && vok "$NSK skills del kit" || vfail "faltan skills:$ms"
-  [ -f "$AG/skills/orca/references/olimpo.md" ] && vok "roles de Olimpo" || vfail "falta skills/orca/references/olimpo.md: ejecuta omk install"
-  [ -f "$AG/models.md" ] && vok "modelos por nivel en ~/.agents/models.md" || vfail "falta ~/.agents/models.md (qué modelo usa cada nivel): ejecuta omk install"
+  [ -f "$AG/skills/orca/references/olimpo.md" ] && vok "roles de Olimpo" || vfail "falta skills/orca/references/olimpo.md: ejecuta $K_INSTALL"
+  [ -f "$AG/models.md" ] && vok "modelos por nivel en ~/.agents/models.md" || vfail "falta ~/.agents/models.md (qué modelo usa cada nivel): ejecuta $K_INSTALL"
   [ -f "$AG/speckit-ext/orca/extension.yml" ] && vok "extensión de spec-kit" || vfail "falta la extensión de spec-kit (~/.agents/speckit-ext/orca)"
   for s in $OLD_SKILLS; do [ -e "$AG/skills/$s" ] && vfail "skill retirada sigue instalada: $s"; done
   if has_agent claude; then
@@ -345,7 +355,7 @@ if [ "$VERIFY" -eq 1 ]; then
   fi
   if [ -n "$EV" ]; then ev "result::$bad::$nok"; exit $((bad > 0)); fi
   if [ "$bad" -eq 0 ]; then printf '\n%s✓ Todo correcto%s  %s%s comprobaciones%s\n\n' "$C_L$C_B" "$C_0" "$C_D" "$nok" "$C_0"; exit 0; fi
-  printf '\n%s✗ %s fallos%s  %sejecuta «omk install» para repararlos%s\n\n' "$C_R$C_B" "$bad" "$C_0" "$C_D" "$C_0"; exit 1
+  printf '\n%s✗ %s fallos%s  %sejecuta «%s» para repararlos%s\n\n' "$C_R$C_B" "$bad" "$C_0" "$C_D" "$K_INSTALL" "$C_0"; exit 1
 fi
 
 # ------------------------------------------------------------------ global
@@ -465,8 +475,7 @@ if [ -n "$PROJECT" ]; then
   phase "Proyecto $PNAME"
   INSTALLED="$(cat "$AG/AGENT_KIT_VERSION" 2>/dev/null || true)"
   if [ "$PROJECT_ONLY" -eq 1 ] && [ "$INSTALLED" != "$VERSION" ]; then
-    if [ -n "${OMK_CLI:-}" ]; then FIX="omk install"; else FIX="./install.sh"; fi
-    todo "Instalación global: en ~/.agents hay ${INSTALLED:-una versión sin instalar} y este kit es v${VERSION}. Ejecuta «${FIX}» para tener las skills orca y kit-init."
+    todo "Instalación global: en ~/.agents hay ${INSTALLED:-una versión sin instalar} y este kit es v${VERSION}. Ejecuta «${K_INSTALL}» para tener las skills orca y kit-init."
   fi
   OV=""
   for f in "$PROJECT/CLAUDE.md" "$PROJECT/AGENTS.md"; do [ -f "$f" ] && OV="$OV$(extract_overrides "$f")
@@ -487,7 +496,7 @@ if [ -n "$PROJECT" ]; then
   rm -f "$TMP" "$REST"
   [ -e "$PROJECT/.worktreeinclude" ] && HADWI=1 || HADWI=0
   for f in STACK.md ORCHESTRATION.md orca.yaml .worktreeinclude; do
-    if [ -e "$PROJECT/$f" ]; then item keep "$f ya existía: no se toca"; else run cp "$SRC/templates/$f" "$PROJECT/$f"; item add "$f creado"; fi
+    if [ -e "$PROJECT/$f" ]; then item keep "$f ya existía: se conserva"; else run cp "$SRC/templates/$f" "$PROJECT/$f"; item add "$f creado"; fi
   done
   guard_worktreeinclude "$PROJECT" "$HADWI"
   if [ ! -e "$PROJECT/.claude/settings.json" ] && has_agent claude; then run mkdir -p "$PROJECT/.claude"; run cp "$SRC/templates/claude-settings.json" "$PROJECT/.claude/settings.json"; item add ".claude/settings.json creado"; fi

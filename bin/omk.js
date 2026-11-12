@@ -9,11 +9,12 @@ const path = require('node:path');
 
 const KIT = path.resolve(__dirname, '..');
 const VERSION = fs.readFileSync(path.join(KIT, 'VERSION'), 'utf8').trim();
-const REPO = 'orca-multiagent-kit';
 const AGENTS_HOME = process.env.AGENT_KIT_HOME || path.join(os.homedir(), '.agents');
-const RELEASES = 'https://github.com/FernandoBaqueroo/orca-multiagent-kit/releases/latest';
 // Ejecutable autónomo (Node SEA, bin/sea.js)
 const STANDALONE = require('./orca').isSea;
+// Con esta opción, omk escribe al salir «[omk:fin] <comando> salida=<código>». La pasa el plugin de
+// Orca, que lanza omk en un terminal y lee su salida: así sabe que ha terminado y cómo.
+const EXIT_MARKER = '--exit-marker';
 
 const color = process.stdout.isTTY && !process.env.NO_COLOR;
 const lime = (s) => (color ? `\x1b[38;5;154m${s}\x1b[0m` : s);
@@ -27,8 +28,9 @@ ${bold('Uso')}
   omk <comando> [opciones]
 
 ${bold('Comandos')}
-  ${lime('setup')}    [--yes] [--dry-run]          Prepara Orca entero: kit, plugins, plugin del kit y su panel
-  ${lime('install')}  [--agents a,b] [--dry-run]   Instala o migra la fuente única en ~/.agents
+  ${lime('setup')}    [--yes] [--dry-run]          Lo instala todo: reglas y skills, omk en el PATH, plugin de Orca y su panel
+           [--no-plugin] [--no-path] [--no-hooks]
+  ${lime('install')}  [--agents a,b] [--dry-run]   Solo la fuente única en ~/.agents (y el plugin de Orca, si ya lo tienes)
   ${lime('init')}     [ruta]                       Prepara un proyecto (por defecto, la carpeta actual)
   ${lime('verify')}                                Comprueba enlaces, imports y copias divergentes
   ${lime('plugin')}   install|status|uninstall     El plugin de Orca del kit (install pide tu aprobación)
@@ -36,7 +38,8 @@ ${bold('Comandos')}
   ${lime('adopt')}    <carpeta-skill>              Comparte una skill externa con todos los agentes
   ${lime('backups')}                               Lista las copias de seguridad
   ${lime('restore')}  <fecha>                      Deshace una instalación (fecha de "omk backups")
-  ${lime('update')}                                Actualiza a la última versión de npm y reinstala
+  ${lime('update')}   [--yes] [--offline]          Lo actualiza todo: el kit, ~/.agents, el proyecto de esta carpeta y el plugin de Orca
+           [--no-project] [--no-plugin] [--no-hooks] [--dry-run] [--force]
   ${lime('where')}                                 Muestra dónde está cada cosa
   ${lime('version')}                               Muestra la versión
   ${lime('help')}                                  Esta ayuda
@@ -44,11 +47,12 @@ ${bold('Comandos')}
 ${bold('Agentes')}  claude · antigravity · codex · copilot · cursor · devin (opcional)
 
 ${bold('Ejemplos')}
-  omk setup                     ${dim('todo de una vez; pregunta antes de aprobar el plugin')}
-  npx orca-multiagent-kit install --dry-run
-  omk install
+  npx orca-multiagent-kit setup ${dim('instalar todo de una vez; pregunta antes de aprobar el plugin')}
+  omk update                    ${dim('actualizar todo de una vez: kit, ~/.agents, el proyecto de esta carpeta y el plugin')}
+  omk install --dry-run
   omk init ~/Dev/mi-app
   omk team set --provider claude --provider codex --role casandra=codex
+  omk update --offline          ${dim('sin descargar nada: reaplica esta versión al kit, al proyecto y al plugin')}
   omk adopt ~/.gemini/config/plugins/user-workflows/skills/impeccable
 `;
 
@@ -108,12 +112,41 @@ function listBackups() {
   return fs.readdirSync(dir).filter((d) => /^\d{8}-\d{6}$/.test(d)).sort();
 }
 
-const [cmd = 'help', ...rest] = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const [cmd = 'help', ...rest] = argv.filter((a) => a !== EXIT_MARKER);
+
+if (argv.includes(EXIT_MARKER)) {
+  // En «exit» ya no corre nada asíncrono: la línea se escribe de forma síncrona o se pierde.
+  process.on('exit', (code) => {
+    const line = `\n[omk:fin] ${cmd.replace(/[^\w-]/g, '')} salida=${code}\n`;
+    try {
+      fs.writeSync(process.stdout.fd, line);
+    } catch {
+      // Una tubería que no admite escritura síncrona (EAGAIN): se deja en la cola normal de stdout.
+      process.stdout.write(line);
+    }
+  });
+}
 
 switch (cmd) {
-  case 'setup':
-    finish(require('./setup').setup({ kit: KIT, args: rest, installer, standalone: STANDALONE }));
+  case 'setup': {
+    const { isTransientCopy, installGlobal, REPO } = require('./fetch');
+    // Con npx el kit corre desde una caché que npm borra cuando quiere, y el plugin de Orca necesita
+    // omk en el PATH y una carpeta del kit que siga ahí: se instala de forma permanente y sigue desde ella.
+    if (!STANDALONE && isTransientCopy(KIT) && !rest.includes('--dry-run')) {
+      console.log(`${lime('›')} Dejo omk instalado (npm install -g ${REPO}@${VERSION}): el plugin de Orca lo usa desde el PATH.`);
+      let entry;
+      try {
+        entry = installGlobal(VERSION);
+      } catch (e) {
+        die(e.message);
+      }
+      const r = spawnSync(process.execPath, [entry, 'setup', ...rest], { stdio: 'inherit' });
+      process.exit(r.status === null ? 1 : r.status);
+    }
+    finish(require('./setup').setup({ kit: KIT, args: rest, installer, standalone: STANDALONE, agentsHome: AGENTS_HOME }));
     break;
+  }
 
   case 'plugin':
     finish(require('./setup').plugin({ kit: KIT, args: rest }));
@@ -125,14 +158,32 @@ switch (cmd) {
     break;
 
   case 'install':
-  case 'i':
-    runInstaller(rest);
+  case 'i': {
+    // ~/.agents, los hooks de reparto de Claude Code y, si el plugin de Orca ya está instalado, su
+    // versión de este kit: quien actualiza desde un omk anterior (que al acabar solo llama a
+    // «omk install») también se lleva el plugin.
+    const { parseOptions, refreshPlugin } = require('./setup');
+    const { applyHooks } = require('./hooks');
+    const opts = parseOptions(rest);
+    finish(installer(opts.rest).then(async (code) => {
+      if (code !== 0) return code;
+      const hooked = applyHooks({ kit: KIT, agentsHome: AGENTS_HOME, dryRun: opts.dryRun, skip: opts.noHooks });
+      if (opts.noPlugin) return hooked ? 0 : 1;
+      return (await refreshPlugin({ kit: KIT, yes: opts.yes, dryRun: opts.dryRun, quiet: true })) && hooked ? 0 : 1;
+    }));
     break;
+  }
 
   case 'init': {
     const target = path.resolve(rest[0] || process.cwd());
     if (!fs.existsSync(target)) die(`no existe la carpeta ${target}`);
-    runInstaller(['--project-only', target, ...rest.slice(1)]);
+    // Un .claude/settings.json que ya existía no lo pisa el instalador: se le añaden los hooks de reparto.
+    finish(installer(['--project-only', target, ...rest.slice(1).filter((a) => a !== '--no-hooks')]).then((code) => {
+      if (code !== 0) return code;
+      const { applyHooks } = require('./hooks');
+      const dryRun = rest.includes('--dry-run');
+      return applyHooks({ kit: KIT, agentsHome: AGENTS_HOME, project: target, global: false, dryRun, skip: rest.includes('--no-hooks') }) ? 0 : 1;
+    }));
     break;
   }
 
@@ -159,44 +210,11 @@ switch (cmd) {
     runInstaller(['--restore', rest[0]]);
     break;
 
-  case 'update': {
-    if (STANDALONE) {
-      // El ejecutable no se actualiza solo: la versión nueva es otro binario que se descarga.
-      console.log(`${lime('›')} Este omk es el ejecutable autónomo v${VERSION}. La última versión está en ${RELEASES}`);
-      console.log(dim('  Descárgala y ejecútala (o «omk setup» con ella). Reaplicando ahora la instalación de esta versión…'));
-      runInstaller(rest.filter((a) => a !== '--force'));
-      break;
-    }
-    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const sh = { encoding: 'utf8', shell: process.platform === 'win32' };
-    const latest = (spawnSync(npm, ['view', REPO, 'version'], sh).stdout || '').trim();
-    if (!latest) die('no se pudo consultar npm. ¿Hay conexión?');
-    if (latest === VERSION && !rest.includes('--force')) {
-      console.log(`${lime('✓')} Ya tienes la última versión (${VERSION}). Reaplicando la instalación…`);
-    } else {
-      console.log(`${lime('›')} Actualizando ${dim(VERSION)} → ${lime(latest)}`);
-      const prefix = (spawnSync(npm, ['prefix', '-g'], sh).stdout || '').trim();
-      const libdir = process.platform === 'win32' ? prefix : path.join(prefix, 'lib', 'node_modules');
-      let writable = true;
-      try {
-        fs.accessSync(libdir, fs.constants.W_OK);
-        if (fs.existsSync(path.join(libdir, REPO))) fs.accessSync(path.join(libdir, REPO), fs.constants.W_OK);
-      } catch { writable = false; }
-      if (!writable) {
-        die(`no tienes permiso para escribir en ${libdir} (instalaste omk con sudo o Node está en una carpeta del sistema).
-
-  Rápido:       sudo npm i -g ${REPO}@latest && omk install
-  Recomendado:  que npm instale en tu carpeta de usuario, una sola vez:
-                  mkdir -p ~/.npm-global && npm config set prefix ~/.npm-global
-                  echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
-                  sudo npm rm -g ${REPO} && npm i -g ${REPO}`);
-      }
-      const u = spawnSync(npm, ['install', '-g', `${REPO}@latest`], { stdio: 'inherit', shell: sh.shell });
-      if (u.status !== 0) die('no se pudo actualizar con npm. Prueba: npx ' + REPO + '@latest install');
-    }
-    const r = spawnSync('omk', ['install', ...rest.filter((a) => a !== '--force')], { stdio: 'inherit', shell: process.platform === 'win32' });
-    process.exit(r.status === null ? 1 : r.status);
-  }
+  case 'update':
+    finish(require('./update').update({
+      kit: KIT, version: VERSION, args: rest, installer, standalone: STANDALONE, agentsHome: AGENTS_HOME,
+    }));
+    break;
 
   case 'where':
     console.log(`${bold('kit')}         ${KIT}`);
