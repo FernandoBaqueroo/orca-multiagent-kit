@@ -16,6 +16,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
   - Avisos (ajuste *Avisos de agentes*) cuando un agente se bloquea y cuando terminan todas las unidades lanzadas de un run. El tooltip de la barra nombra a los agentes.
 - **Plugin v0.6.0**: pestañas *Avisos*, *Worktrees* e *Historial*, iconos de agente y autonomía.
   - *Avisos*: la tarjeta del plan de rondas del coordinador, en colores, con «Sí, lánzalo» y «Pedir cambio», que se escriben en su terminal; y los agentes bloqueados o esperando, con las últimas líneas de su terminal y una caja para responderles. La skill `orca` escribe el plan en `.work/runs/<run>/plan.json` (`references/plan-card.md`) y el plugin lo lee del hook `agent.tool.after`.
+  - Con el coordinador como chat de Orca (sin terminal), la tarjeta también sale y se contesta: el plugin lee `plan.json` del disco cuando el coordinador espera, y manda la respuesta por el buzón del Run de Orca (`orcaRun` en la tarjeta, `orca orchestration send` sin shell). La skill solo acepta esas respuestas para la confirmación 1.
   - *Worktrees*: los worktrees de la orquestación por run, con sus agentes, estado y modelo (de `--model`), y «Cambiar modelo» (`/model`) para un Claude Code que espera.
   - *Historial*: despachos, bloqueos, finales de unidad, runs terminados y lo que haces desde el panel; las 200 últimas entradas, guardadas en el plugin.
   - El logo de cada agente, los mismos que usa Orca y a su tamaño (16 px), delante de cada agente y cada worktree; uno genérico para los que no tienen.

@@ -3,6 +3,7 @@
 // pestaña (src/worker/notices.ts, worktrees.ts, history.ts) se registra con `register(ctx)`.
 import type { JsonValue, OrcaWorkerApi } from 'orca/worker'
 import type { Notice, TrackedAgent, UnitInfo, WorkspaceIndex } from '../kit.ts'
+import type { KitSystem } from './system.ts'
 
 /** Lo que los hooks enseñan de un terminal antes, o además, de sus cambios de estado. */
 export type TerminalInfo = { agent?: string; unit?: UnitInfo; workspaceId?: string }
@@ -48,6 +49,8 @@ export type KitContext = {
   host: OrcaWorkerApi['host']
   panels: OrcaWorkerApi['panels']
   storage: OrcaWorkerApi['storage']
+  /** Disco y CLI de Orca, para los agentes que corren como chat (src/worker/system.ts). */
+  system: KitSystem
   log(message: string): void
   /** Notificación de escritorio, si la persona no desactivó «Avisos de agentes». */
   notify(title: string, body: string): void

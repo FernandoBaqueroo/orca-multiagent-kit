@@ -34,7 +34,7 @@ test('un plan válido sale tal cual, con lo que falte a null', () => {
   assert.deepEqual(parsed?.units[0], unit())
   assert.deepEqual(parsed?.notes, ['modelos: nuevo'])
   const minimal = parsePlan({ version: 1, run: 'r1', units: [] })
-  assert.deepEqual(minimal, { run: 'r1', source: null, autonomy: null, base: null, integration: null, merge: null, units: [], notes: [] })
+  assert.deepEqual(minimal, { run: 'r1', source: null, autonomy: null, base: null, integration: null, merge: null, units: [], notes: [], orcaRun: null })
 })
 
 test('limpia los textos y los acota a 200 caracteres', () => {

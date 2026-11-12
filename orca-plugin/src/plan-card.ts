@@ -2,6 +2,7 @@
 // Es un fichero que escribe un agente: se valida campo a campo y lo que no encaje se rechaza entero
 // con `null`, nunca se lanza.
 import { cleanLabel } from './kit.ts'
+import { ORCA_RUN } from './worker/system.ts'
 import type { PlanCard, PlanUnit } from './protocol.ts'
 
 export const PLAN_UNITS_MAX = 60
@@ -99,6 +100,8 @@ export function parsePlan(value: unknown): PlanCard | null {
     integration: integration.value,
     merge: merge.value,
     units,
-    notes
+    notes,
+    // Un id que no tiene la forma de uno de Orca se ignora: sin él, se responde en el chat.
+    orcaRun: typeof value.orcaRun === 'string' && ORCA_RUN.test(value.orcaRun) ? value.orcaRun : null
   }
 }

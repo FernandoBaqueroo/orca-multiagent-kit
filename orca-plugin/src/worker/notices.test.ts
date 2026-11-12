@@ -107,7 +107,7 @@ test('«sí» y «cambia: …» se escriben en el terminal del coordinador y qui
   await w.hooks.fire('agent.tool.after', write(PLAN_PATH, JSON.stringify(PLAN), 't7'))
   const result = await w.request('notices.reply', { id: 'plan:20261107-recargas', text: 'sí' })
   assert.deepEqual(w.host.callsOf('terminal.sendText'), [{ terminalId: 't7', text: 'sí', enter: true }])
-  assert.match(result.message, /Enviado a Plan de rondas/)
+  assert.match(result.message, /Enviado a su terminal: Plan de rondas/)
   assert.deepEqual(await list(w), [])
   await w.hooks.fire('agent.tool.after', write(PLAN_PATH, JSON.stringify(PLAN), 't7'))
   await w.request('notices.reply', { id: 'plan:20261107-recargas', text: 'cambia: sin la ronda 2' })
@@ -194,7 +194,7 @@ test('responder limpia el texto, quita el aviso y no lo deja volver con el mismo
   await w.emit('agent.status.changed', status('t1', 'blocked', 1000))
   const result = await w.request('notices.reply', { id: 't:t1', text: '  dale\u001b[31m\nahora\ty ya\r\n  ' })
   assert.deepEqual(w.host.callsOf('terminal.sendText'), [{ terminalId: 't1', text: 'dale[31m ahora y ya', enter: true }])
-  assert.equal(result.message, 'Enviado a agente t1.')
+  assert.equal(result.message, 'Enviado a su terminal: agente t1.')
   await w.emit('agent.status.changed', status('t1', 'blocked', 1500))
   assert.deepEqual(await list(w), [])
   await w.emit('agent.status.changed', status('t1', 'waiting', 2000))
@@ -262,4 +262,95 @@ test('notices.changed solo se publica cuando cambia lo que se ve', async () => {
   const before = changes()
   await w.emit('agent.status.changed', status('t1', 'blocked', 1000))
   assert.equal(changes(), before)
+})
+
+// Un coordinador que corre como chat de Orca: sin terminal ni hook de herramientas. El plan sale
+// del disco cuando se para, y la respuesta va al buzón de su run de Orca.
+const CHAT_PANE = 'structured-agent-session-claude_abc:1'
+const chatStatus = (state: 'working' | 'waiting', receivedAt: number) => ({ workspaceId: 'w1', paneKey: CHAT_PANE, state, receivedAt })
+
+const withSystem = (plans: { mtimeMs: number; content: string }[]) => {
+  const sent: { orcaRun: string; subject: string; body: string }[] = []
+  const reads: { path: string; since: number }[] = []
+  const previous = main.hostSystem.current
+  main.hostSystem.current = {
+    readPlans: async (path, since) => {
+      reads.push({ path, since })
+      return plans.filter((plan) => plan.mtimeMs > since).map((plan) => ({ path: `${path}/.work/runs/r1/plan.json`, ...plan }))
+    },
+    sendToRun: async (orcaRun, subject, body) => {
+      sent.push({ orcaRun, subject, body })
+    }
+  }
+  return { sent, reads, restore: () => (main.hostSystem.current = previous) }
+}
+
+test('con el coordinador en un chat, el plan sale del disco al pararse y «sí» va al buzón de su run', async () => {
+  const later = Date.now() + 60_000
+  const system = withSystem([{ mtimeMs: later, content: JSON.stringify({ ...PLAN, orcaRun: 'run_4fbb2d2e147c' }) }])
+  try {
+    const w = await start()
+    await w.emit('agent.status.changed', chatStatus('waiting', 1))
+    await settle()
+    const [plan, chat] = await list(w)
+    assert.equal(plan?.kind, 'plan')
+    assert.equal(plan?.via, 'run')
+    assert.equal(plan?.canReply, true)
+    assert.deepEqual(system.reads.map(({ path }) => path), ['/repo/app'])
+    // El chat del coordinador también se puede contestar: va al mismo buzón.
+    await w.emit('agent.status.changed', chatStatus('working', 2))
+    await w.emit('agent.status.changed', chatStatus('waiting', 3))
+    await settle()
+    assert.equal((await list(w)).find(({ kind }) => kind === 'waiting')?.via, 'run')
+    assert.ok(chat === undefined || chat.kind === 'waiting')
+    const result = await w.request('notices.reply', { id: plan?.id ?? '', text: 'sí' })
+    assert.match(result.message, /al chat del coordinador/)
+    assert.deepEqual(system.sent, [{ orcaRun: 'run_4fbb2d2e147c', subject: 'Respuesta desde el panel: Plan de rondas · 20261107-recargas', body: 'sí' }])
+    assert.equal(w.host.callsOf('terminal.sendText').length, 0)
+    // Pararse otra vez no lo saca de nuevo: ese plan.json ya se vio.
+    await w.emit('agent.status.changed', chatStatus('working', 4))
+    await w.emit('agent.status.changed', chatStatus('waiting', 5))
+    await settle()
+    assert.equal((await list(w)).filter(({ kind }) => kind === 'plan').length, 0)
+  } finally {
+    system.restore()
+  }
+})
+
+test('un plan.json de antes de arrancar el plugin no sale, y sin run de Orca el chat no se puede contestar', async () => {
+  const system = withSystem([{ mtimeMs: 1, content: JSON.stringify(PLAN) }])
+  try {
+    const w = await start()
+    await w.emit('agent.status.changed', chatStatus('waiting', 1))
+    await settle()
+    const items = await list(w)
+    assert.deepEqual(items.map(({ kind }) => kind), ['waiting'])
+    assert.equal(items[0]?.canReply, false)
+    assert.equal(items[0]?.via, null)
+    await assert.rejects(w.request('notices.reply', { id: items[0]?.id ?? '', text: 'hola' }), /no se le puede escribir/)
+    assert.deepEqual(system.sent, [])
+  } finally {
+    system.restore()
+  }
+})
+
+test('si Orca no entrega la respuesta, se dice y el aviso se queda', async () => {
+  const later = Date.now() + 60_000
+  const system = withSystem([{ mtimeMs: later, content: JSON.stringify({ ...PLAN, orcaRun: 'run_4fbb2d2e147c' }) }])
+  main.hostSystem.current = {
+    ...main.hostSystem.current,
+    sendToRun: async () => {
+      throw Object.assign(new Error('Orca no entregó el mensaje (runtime_unavailable: x)'), { code: 'unavailable' })
+    }
+  }
+  try {
+    const w = await start()
+    await w.emit('agent.status.changed', chatStatus('waiting', 1))
+    await settle()
+    const [plan] = await list(w)
+    await assert.rejects(w.request('notices.reply', { id: plan?.id ?? '', text: 'sí' }), /no entregó/)
+    assert.equal((await list(w))[0]?.kind, 'plan')
+  } finally {
+    system.restore()
+  }
 })

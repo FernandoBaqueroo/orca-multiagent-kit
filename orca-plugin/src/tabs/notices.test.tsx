@@ -13,6 +13,7 @@ const PLAN: NoticeItem = {
   since: 1000,
   context: [],
   canReply: true,
+  via: 'terminal',
   plan: {
     run: 'r1',
     source: 'spec-kit 003-recargas',
@@ -25,7 +26,8 @@ const PLAN: NoticeItem = {
       { round: 1, id: 'U2', title: 'recarga con tarjeta', role: 'Ariadna', level: 'medio', agent: 'claude', model: 'opus', resource: 'worker', files: '11', depends: 'U0' },
       { round: 1, id: 'U3', title: 'revisión', role: null, level: null, agent: 'codex', model: null, resource: 'manual', files: null, depends: null }
     ],
-    notes: ['modelos: nuevo en antigravity']
+    notes: ['modelos: nuevo en antigravity'],
+    orcaRun: null
   }
 }
 const BLOCKED: NoticeItem = {
@@ -38,9 +40,10 @@ const BLOCKED: NoticeItem = {
   since: 2000,
   context: ['Allow edit to src/pay.ts? (y/n)', '> '],
   canReply: true,
+  via: 'terminal',
   plan: null
 }
-const CHAT: NoticeItem = { ...BLOCKED, id: 'p:structured-agent-session-claude_a:1', kind: 'waiting', title: 'chat', context: [], canReply: false }
+const CHAT: NoticeItem = { ...BLOCKED, id: 'p:structured-agent-session-claude_a:1', kind: 'waiting', title: 'chat', context: [], canReply: false, via: null }
 
 type Requests = Record<string, (input: never) => unknown>
 let view: TestPanel | undefined

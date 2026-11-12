@@ -29,6 +29,7 @@ import { agentLabel } from '../kit.ts'
 // «sí» + `cambia: ` caben en las 2000 letras que admite el worker.
 const CHANGE_MAX = 1900
 const NO_REPLY = 'Responde en el chat del agente.'
+const VIA_RUN = 'Le llega al coordinador en su chat, por el buzón de su run de Orca.'
 
 const notices = atom<NoticeItem[] | null>(null)
 // Lo que se está escribiendo en la caja de cada aviso, por id; se vacía al enviar con éxito.
@@ -76,6 +77,16 @@ async function reply(id: string, text: string): Promise<void> {
 
 const dismiss = (id: string) => ask('dismiss', () => plugin.request('notices.dismiss', { id }))
 const openAgent = (id: string) => ask('open', () => plugin.request('agents.open', { id }))
+
+// Por dónde va la respuesta, cuando no es su terminal.
+function ReplyHint({ notice }: { notice: NoticeItem }) {
+  if (notice.via === 'terminal') return null
+  return (
+    <Text muted size="xs">
+      {notice.via === 'run' ? VIA_RUN : NO_REPLY}
+    </Text>
+  )
+}
 
 function UnitBox({ unit }: { unit: PlanUnit }) {
   const who = unit.model ? `${agentLabel(unit.agent)} · ${unit.model}` : agentLabel(unit.agent)
@@ -182,11 +193,7 @@ function PlanNotice({ notice, plan }: { notice: NoticeItem; plan: PlanCard }) {
             Descartar
           </Button>
         </Row>
-        {notice.canReply ? null : (
-          <Text muted size="xs">
-            {NO_REPLY}
-          </Text>
-        )}
+        <ReplyHint notice={notice} />
       </Stack>
     </Card>
   )
@@ -235,11 +242,7 @@ function AgentNotice({ notice }: { notice: NoticeItem }) {
             Descartar
           </Button>
         </Row>
-        {notice.canReply ? null : (
-          <Text muted size="xs">
-            {NO_REPLY}
-          </Text>
-        )}
+        <ReplyHint notice={notice} />
       </Stack>
     </Card>
   )

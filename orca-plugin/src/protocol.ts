@@ -43,6 +43,8 @@ export type PlanCard = {
   units: PlanUnit[]
   /** Líneas sueltas del plan: `modelos:`, `ficha:`, avisos. */
   notes: string[]
+  /** El run de Orca del coordinador (`run_…`): por su buzón le llega la respuesta si corre como chat. */
+  orcaRun: string | null
 }
 
 /**
@@ -64,8 +66,13 @@ export type NoticeItem = {
   since: number
   /** Las últimas líneas del terminal, limpias y acotadas: qué pregunta el agente. */
   context: string[]
-  /** Si se le puede escribir: tiene terminal y Orca lo sigue. Un chat de Orca no. */
+  /** Si se le puede escribir desde el panel. */
   canReply: boolean
+  /**
+   * Por dónde va la respuesta: a su terminal, o al buzón del run de Orca, que la entrega en el chat
+   * del coordinador. `null` si no hay camino (un chat que no es el coordinador de un run).
+   */
+  via: 'terminal' | 'run' | null
   plan: PlanCard | null
 }
 

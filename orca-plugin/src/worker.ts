@@ -42,6 +42,7 @@ import {
 } from './kit.ts'
 import type { AgentsView } from './protocol.ts'
 import { createBus, type KitContext, type TerminalInfo } from './worker/context.ts'
+import { createNodeSystem, type KitSystem } from './worker/system.ts'
 import { registerHistory } from './worker/history.ts'
 import { registerNotices } from './worker/notices.ts'
 import { registerWorktrees } from './worker/worktrees.ts'
@@ -68,6 +69,9 @@ const sleep = (ms: number) =>
     }, ms)
     pendingTimers.add(timer)
   })
+
+/** Disco y CLI de Orca que usan las pestañas; los tests ponen aquí un doble antes de montar el worker. */
+export const hostSystem: { current: KitSystem } = { current: createNodeSystem() }
 
 export function deactivate(): void {
   for (const timer of pendingTimers) clearTimeout(timer)
@@ -450,6 +454,7 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
     host,
     panels: orca.panels,
     storage: orca.storage,
+    system: hostSystem.current,
     log: (message) => orca.log(message),
     notify: (title, body) => {
       if (notifyEnabled) notify(title, body)
