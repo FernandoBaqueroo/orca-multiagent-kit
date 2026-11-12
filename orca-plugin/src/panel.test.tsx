@@ -81,6 +81,7 @@ const text = (v: TestPanel) => JSON.stringify(v.tree())
 
 test('cada agente tiene su ficha y un botón para ir a su workspace', async () => {
   const { view, calls } = await open({ requests: { 'agents.summary': () => TWO_AGENTS } })
+  await tab(view, 'agents')
   assert.match(text(view), /RUN r1/)
   // Los bloqueados salen abiertos: se ve su ficha sin pulsar nada.
   assert.match(text(view), /feat\/u2/)
@@ -93,6 +94,9 @@ test('cada agente tiene su ficha y un botón para ir a su workspace', async () =
 
 test('sin agentes activos lo dice', async () => {
   const { view } = await open()
+  // El panel abre en Avisos: lo que espera respuesta va primero.
+  assert.match(view.summary().join(' '), /Nada pendiente/)
+  await tab(view, 'agents')
   assert.match(view.summary().join(' '), /Ningún agente activo/)
 })
 

@@ -566,7 +566,7 @@ export default function Panel() {
           </Stack>
         </Callout>
       ) : null}
-      <Tabs label="Secciones" defaultValue="agents">
+      <Tabs label="Secciones" defaultValue="notices">
         <Tab value="notices" label={noticesLabel()} icon="bell">
           <Notices />
         </Tab>

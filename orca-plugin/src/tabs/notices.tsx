@@ -84,12 +84,9 @@ function UnitBox({ unit }: { unit: PlanUnit }) {
     (line): line is string => line !== null
   )
   return (
-    <Callout tone={LEVEL_TONE[level] ?? 'neutral'}>
+    // Con título propio: sin él, Orca pone el de su tono («Advertencia», «Importante»).
+    <Callout tone={LEVEL_TONE[level] ?? 'neutral'} title={`${unit.id} · ${unit.title}`}>
       <Box gap="xs">
-        <Row gap="xs" align="center" wrap>
-          <Badge tone="accent">{unit.id}</Badge>
-          <Text weight="semibold">{unit.title}</Text>
-        </Row>
         <Row gap="xs" align="center" wrap>
           {unit.role || unit.level ? (
             <Badge tone={LEVEL_TONE[level] ?? 'neutral'}>{[unit.role, unit.level].filter(Boolean).join(' · ')}</Badge>
