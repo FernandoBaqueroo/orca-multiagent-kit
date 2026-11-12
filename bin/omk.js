@@ -32,6 +32,7 @@ ${bold('Comandos')}
   ${lime('init')}     [ruta]                       Prepara un proyecto (por defecto, la carpeta actual)
   ${lime('verify')}                                Comprueba enlaces, imports y copias divergentes
   ${lime('plugin')}   install|status|uninstall     El plugin de Orca del kit (install pide tu aprobación)
+  ${lime('team')}     [set …]                      Enseña o cambia el equipo de roles de ORCHESTRATION.md
   ${lime('adopt')}    <carpeta-skill>              Comparte una skill externa con todos los agentes
   ${lime('backups')}                               Lista las copias de seguridad
   ${lime('restore')}  <fecha>                      Deshace una instalación (fecha de "omk backups")
@@ -47,6 +48,7 @@ ${bold('Ejemplos')}
   npx orca-multiagent-kit install --dry-run
   omk install
   omk init ~/Dev/mi-app
+  omk team set --provider claude --provider codex --role casandra=codex
   omk adopt ~/.gemini/config/plugins/user-workflows/skills/impeccable
 `;
 
@@ -115,6 +117,11 @@ switch (cmd) {
 
   case 'plugin':
     finish(require('./setup').plugin({ kit: KIT, args: rest }));
+    break;
+
+  case 'team':
+    // exitCode y no exit(): deja terminar de escribir la salida cuando va a una tubería.
+    process.exitCode = require('./team').main(rest);
     break;
 
   case 'install':

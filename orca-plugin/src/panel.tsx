@@ -1,36 +1,84 @@
-// Panel lateral del kit: las acciones de la paleta, los ajustes del plugin y los agentes activos.
+// Panel lateral del kit en cuatro pestañas: los agentes activos con su ficha, repartir una tarea
+// entre agentes, el equipo de roles del proyecto y el kit (acciones y ajustes del plugin).
 // Los ajustes son los mismos de Settings → Plugins → Orca Multiagent Kit: cambiarlos aquí o allí
 // es lo mismo, y el worker se entera por `settings.onDidChange`.
 // Orca transpila este fichero al cargarlo: no hay paso de build.
 import {
   atom,
+  Badge,
   Button,
   Callout,
   Card,
+  Checkbox,
   Code,
+  Collapsible,
   EmptyState,
   Heading,
   Input,
-  List,
-  ListItem,
+  KeyValue,
   plugin,
   read,
+  RelativeTime,
   Row,
   Select,
   set,
   settings,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   Text,
+  Textarea,
   type PanelContext
 } from 'orca'
-import { isValidAgentId, parseContractHintMode, type ContractHintMode, type KitAction } from './kit.ts'
+import {
+  CROSS_REVIEW,
+  CUSTOM_REVIEWS,
+  CUSTOM_ROLES_MAX,
+  ROLE_GUARD_MAX,
+  ROLE_LEVELS,
+  ROLE_WORK_MAX,
+  TASK_MAX,
+  TASK_SOURCES,
+  TEAM_PRESETS,
+  TEAM_ROLES,
+  agentLabel,
+  agentOptions,
+  draftFromPreset,
+  emptyCustomRole,
+  isValidAgentId,
+  isValidRoleName,
+  normalizeDraft,
+  parseContractHintMode,
+  teamFromDraft,
+  type AgentLine,
+  type ContractHintMode,
+  type CrossReview,
+  type CustomRole,
+  type KitAction,
+  type RoleId,
+  type TaskSource,
+  type TeamDraft,
+  type TeamPreset
+} from './kit.ts'
 import type { AgentsView } from './protocol.ts'
 
-type Preferences = { contractHint: ContractHintMode; statusBar: boolean; initAgent: string }
+type Preferences = {
+  contractHint: ContractHintMode
+  autoOrchestrate: boolean
+  statusBar: boolean
+  notify: boolean
+  initAgent: string
+}
 type Outcome = { tone: 'success' | 'danger'; text: string }
 
-const DEFAULTS: Preferences = { contractHint: 'kit', statusBar: true, initAgent: 'claude' }
+const DEFAULTS: Preferences = {
+  contractHint: 'kit',
+  autoOrchestrate: true,
+  statusBar: true,
+  notify: true,
+  initAgent: 'claude'
+}
 
 const CONTRACT_OPTIONS: readonly { value: ContractHintMode; label: string }[] = [
   { value: 'kit', label: 'Solo despachos del kit' },
@@ -44,11 +92,41 @@ const ACTIONS: readonly { action: KitAction; label: string; hint: string }[] = [
   { action: 'update', label: 'Actualizar kit', hint: 'omk update en un terminal nuevo' }
 ]
 
+const PRESET_OPTIONS: readonly { value: TeamPreset | 'custom'; label: string }[] = [
+  ...(Object.keys(TEAM_PRESETS) as TeamPreset[]).map((id) => ({ value: id, label: TEAM_PRESETS[id].label })),
+  { value: 'custom', label: 'Personalizado' }
+]
+
+const CROSS_LABEL: Record<CrossReview, string> = {
+  sensibles: 'Unidades L y sensibles',
+  todas: 'Todas las unidades',
+  nunca: 'Nunca'
+}
+const CROSS_OPTIONS = CROSS_REVIEW.map((value) => ({ value, label: CROSS_LABEL[value] }))
+const LEVEL_OPTIONS = ROLE_LEVELS.map((value) => ({ value, label: `Nivel ${value}` }))
+const REVIEW_OPTIONS = CUSTOM_REVIEWS.map(({ id, label }) => ({ value: id, label }))
+const SOURCE_OPTIONS = TASK_SOURCES.map(({ id, label }) => ({ value: id, label }))
+// Orca no admite una opción con valor vacío; este no puede ser un id de agente.
+const AUTO_ROLE = { value: '(auto)', label: 'Lo elige el coordinador' }
+
+const SOURCE_FIELD: Record<TaskSource, { label: string; placeholder: string }> = {
+  chat: { label: 'Qué quieres hacer', placeholder: 'Login con Google y su pantalla de ajustes' },
+  plan: { label: 'Qué plan (opcional)', placeholder: 'planes/sprint-3.md' },
+  speckit: { label: 'Qué feature (opcional)', placeholder: '003-recargas' }
+}
+
 const preferences = atom<Preferences>(DEFAULTS)
-const agentDraft = atom(DEFAULTS.initAgent)
 const agents = atom<AgentsView | null>(null)
-const running = atom<KitAction | null>(null)
+// Qué petición al worker está en curso: una cada vez.
+const busy = atom<string | null>(null)
 const outcome = atom<Outcome | null>(null)
+const team = atom<TeamDraft>('team', draftFromPreset('claude'), {
+  persist: 'plugin',
+  version: 2,
+  migrate: (stored) => normalizeDraft(stored)
+})
+const task = atom('')
+const source = atom<TaskSource>('chat')
 
 // Los errores del host llevan `code` (host-api §Errors); el tipo de `catch` no lo sabe.
 const describeError = (error: unknown) =>
@@ -57,16 +135,16 @@ const describeError = (error: unknown) =>
 function fromSettings(values: Record<string, unknown>): Preferences {
   return {
     contractHint: parseContractHintMode(values.contractHint),
+    autoOrchestrate: values.autoOrchestrate !== false,
     statusBar: values.statusBar !== false,
-    initAgent: typeof values.initAgent === 'string' ? values.initAgent : DEFAULTS.initAgent
+    notify: values.notify !== false,
+    initAgent: isValidAgentId(values.initAgent) ? values.initAgent : DEFAULTS.initAgent
   }
 }
 
 async function loadPreferences(): Promise<void> {
   try {
-    const next = fromSettings(await settings.get())
-    set(preferences, next)
-    set(agentDraft, next.initAgent)
+    set(preferences, fromSettings(await settings.get()))
   } catch (error) {
     set(outcome, { tone: 'danger', text: `No pude leer los ajustes: ${describeError(error)}` })
   }
@@ -82,26 +160,73 @@ async function save(key: keyof Preferences, value: string | boolean): Promise<vo
   }
 }
 
-async function saveInitAgent(): Promise<void> {
-  const value = read(agentDraft).trim()
-  if (!isValidAgentId(value)) {
-    set(outcome, { tone: 'danger', text: `«${value}» no es un id de agente válido (minúsculas, números y guiones).` })
-    return
-  }
-  await save('initAgent', value)
-}
-
-async function run(action: KitAction): Promise<void> {
-  set(running, action)
+/** Una petición al worker cada vez; su respuesta o su error quedan en el aviso de arriba. */
+async function ask(label: string, request: () => Promise<{ message: string }>): Promise<boolean> {
+  set(busy, label)
   try {
-    const { message } = await plugin.request('kit.run', { action })
+    const { message } = await request()
     set(outcome, { tone: 'success', text: message })
+    return true
   } catch (error) {
     set(outcome, { tone: 'danger', text: describeError(error) })
+    return false
   } finally {
-    set(running, null)
+    set(busy, null)
   }
 }
+
+const run = (action: KitAction) => ask(action, () => plugin.request('kit.run', { action }))
+
+const openAgent = (id: string) => ask('open', () => plugin.request('agents.open', { id }))
+
+async function orchestrate(): Promise<void> {
+  const sent = await ask('orchestrate', () =>
+    plugin.request('team.orchestrate', { agent: read(team).coordinator, task: read(task), source: read(source) })
+  )
+  if (sent) set(task, '')
+}
+
+async function applyTeam(): Promise<void> {
+  const ready = teamFromDraft(read(team))
+  if (!ready) {
+    set(outcome, { tone: 'danger', text: 'El equipo no es válido: revisa los proveedores y los roles propios.' })
+    return
+  }
+  await ask('team', () => plugin.request('team.apply', { team: ready }))
+}
+
+const showTeam = () => ask('team', () => plugin.request('team.show'))
+
+// Cualquier cambio a mano convierte el equipo en personalizado; el coordinador no cuenta.
+const editTeam = (patch: Partial<TeamDraft>) => set(team, { ...read(team), ...patch, preset: 'custom' })
+const setCoordinator = (coordinator: string) => {
+  if (isValidAgentId(coordinator)) set(team, { ...read(team), coordinator })
+}
+
+function choosePreset(value: string): void {
+  if (value === 'custom') set(team, { ...read(team), preset: 'custom' })
+  else if (value in TEAM_PRESETS) set(team, { ...draftFromPreset(value as TeamPreset), custom: read(team).custom })
+}
+
+function toggleProvider(id: string, on: boolean): void {
+  const { providers } = read(team)
+  const next = on ? [...providers, id] : providers.filter((provider) => provider !== id)
+  if (next.length > 0) editTeam({ providers: [...new Set(next)] })
+}
+
+function setRole(role: RoleId, provider: string): void {
+  const roles = { ...read(team).roles }
+  if (provider === AUTO_ROLE.value) delete roles[role]
+  else roles[role] = provider
+  editTeam({ roles })
+}
+
+function editCustom(index: number, patch: Partial<CustomRole>): void {
+  editTeam({ custom: read(team).custom.map((role, i) => (i === index ? { ...role, ...patch } : role)) })
+}
+
+const addCustom = () => editTeam({ custom: [...read(team).custom, emptyCustomRole()] })
+const removeCustom = (index: number) => editTeam({ custom: read(team).custom.filter((_, i) => i !== index) })
 
 export function setup(ctx: PanelContext): void {
   ctx.subscriptions.push(plugin.on('agents.changed', (view) => set(agents, view)))
@@ -113,8 +238,269 @@ export function setup(ctx: PanelContext): void {
     .catch((error: unknown) => set(outcome, { tone: 'danger', text: `Agentes no leídos: ${describeError(error)}` }))
 }
 
+function AgentCard({ agent }: { agent: AgentLine }) {
+  const working = read(busy) !== null
+  return (
+    <Collapsible
+      title={agent.title}
+      description={agent.detail ? `${agent.state} · ${agent.detail}` : agent.state}
+      defaultOpen={agent.blocked}
+    >
+      <Stack gap="sm">
+        <Row gap="xs" align="center" wrap>
+          <Badge tone={agent.blocked ? 'warning' : 'neutral'}>{agent.state}</Badge>
+          {agent.since === null ? null : (
+            <Text muted size="xs">
+              desde <RelativeTime at={agent.since} />
+            </Text>
+          )}
+        </Row>
+        {agent.facts.length > 0 ? <KeyValue label={`Datos de ${agent.title}`} items={agent.facts} /> : null}
+        {agent.canOpen ? (
+          <Button variant="outline" size="sm" icon="open-external" disabled={working} onPress={() => openAgent(agent.id)}>
+            Ir a su workspace
+          </Button>
+        ) : null}
+      </Stack>
+    </Collapsible>
+  )
+}
+
+function Agents() {
+  const view = read(agents)
+  return (
+    <Card title="Agentes activos" description={view && view.groups.length > 0 ? view.text : 'En todos los workspaces.'}>
+      {view === null ? (
+        <Text muted>Cargando…</Text>
+      ) : view.groups.length === 0 ? (
+        <EmptyState
+          icon="agent"
+          title="Ningún agente activo"
+          description="Aparecen aquí en cuanto uno trabaja, espera o se bloquea."
+        />
+      ) : (
+        <Stack gap="md">
+          {view.groups.map((group) => (
+            <Stack gap="xs">
+              <Text weight="semibold" size="sm">
+                {group.title}
+              </Text>
+              {group.agents.map((agent) => (
+                <AgentCard agent={agent} />
+              ))}
+            </Stack>
+          ))}
+        </Stack>
+      )}
+    </Card>
+  )
+}
+
+function Orchestrate() {
+  const text = read(task)
+  const from = read(source)
+  const { coordinator } = read(team)
+  const field = SOURCE_FIELD[from]
+  const working = read(busy) !== null
+  return (
+    <Card
+      title="Repartir una tarea entre agentes"
+      description="Abre un agente coordinador en el workspace activo con la skill orca. No necesita spec-kit."
+    >
+      <Stack gap="md">
+        <Text size="sm" muted>
+          El coordinador lee la tarea, decide si compensa repartirla, te enseña el plan de rondas para que lo
+          confirmes y lanza un agente por unidad, cada uno en su worktree y con su rol del equipo. Al terminar lo
+          integra y te pide confirmar el merge. Los agentes aparecen en la pestaña Agentes.
+        </Text>
+        <Text size="sm" muted>
+          No hace falta venir aquí: con el ajuste «Repartir al lanzar un agente con tarea» (pestaña Kit), cualquier
+          agente que Orca arranca con una tarea, por ejemplo al crear un worktree, pasa primero por la skill orca.
+        </Text>
+        <Select
+          label="De dónde sale el trabajo"
+          value={from}
+          options={SOURCE_OPTIONS}
+          onChange={(value) => {
+            const next = TASK_SOURCES.find(({ id }) => id === value)?.id
+            if (next) set(source, next)
+          }}
+        />
+        <Textarea
+          label={field.label}
+          rows={4}
+          maxLength={TASK_MAX}
+          value={text}
+          placeholder={field.placeholder}
+          onChange={(value) => set(task, value)}
+          onSubmit={() => orchestrate()}
+        />
+        <Select label="Coordinador" value={coordinator} options={agentOptions([coordinator])} onChange={setCoordinator} />
+        <Button icon="play" disabled={working || (from === 'chat' && text.trim() === '')} onPress={orchestrate}>
+          {read(busy) === 'orchestrate' ? 'Lanzando…' : 'Repartir'}
+        </Button>
+      </Stack>
+    </Card>
+  )
+}
+
+type CustomRoleEditorProps = { role: CustomRole; index: number; others: string[]; providers: string[] }
+
+function CustomRoleEditor({ role, index, others, providers }: CustomRoleEditorProps) {
+  const nameOk = isValidRoleName(role.name, others)
+  const providerOptions = [AUTO_ROLE, ...providers.map((id) => ({ value: id, label: agentLabel(id) }))]
+  return (
+    <Collapsible
+      title={role.name.trim() || 'Rol nuevo'}
+      description={role.work.trim() || 'Sin describir'}
+      defaultOpen={!nameOk || role.work.trim() === ''}
+    >
+      <Stack gap="sm">
+        <Input
+          label="Nombre del rol"
+          value={role.name}
+          maxLength={30}
+          placeholder="Hermes"
+          invalid={!nameOk}
+          onChange={(value) => editCustom(index, { name: value })}
+        />
+        <Input
+          label="Qué hace"
+          value={role.work}
+          maxLength={ROLE_WORK_MAX}
+          placeholder="Traducciones y textos de la interfaz"
+          invalid={role.work.trim() === ''}
+          onChange={(value) => editCustom(index, { work: value })}
+        />
+        <Select
+          label="Nivel de modelo"
+          value={role.level}
+          options={LEVEL_OPTIONS}
+          onChange={(value) => {
+            const level = ROLE_LEVELS.find((candidate) => candidate === value)
+            if (level) editCustom(index, { level })
+          }}
+        />
+        <Select
+          label="Revisión"
+          value={role.review}
+          options={REVIEW_OPTIONS}
+          onChange={(value) => {
+            const review = CUSTOM_REVIEWS.find((candidate) => candidate.id === value)?.id
+            if (review) editCustom(index, { review })
+          }}
+        />
+        <Select
+          label="Proveedor"
+          value={role.provider !== null && providers.includes(role.provider) ? role.provider : AUTO_ROLE.value}
+          options={providerOptions}
+          onChange={(value) => editCustom(index, { provider: value === AUTO_ROLE.value ? null : value })}
+        />
+        <Input
+          label="Guardarraíl (opcional)"
+          value={role.guard}
+          maxLength={ROLE_GUARD_MAX}
+          placeholder="No cambia textos legales sin revisión"
+          onChange={(value) => editCustom(index, { guard: value })}
+        />
+        <Button variant="ghost" tone="danger" size="sm" icon="delete" onPress={() => removeCustom(index)}>
+          Quitar rol
+        </Button>
+      </Stack>
+    </Collapsible>
+  )
+}
+
+function Team() {
+  const draft = read(team)
+  const { providers } = draft
+  const providerOptions = [AUTO_ROLE, ...providers.map((id) => ({ value: id, label: agentLabel(id) }))]
+  const fixed = TEAM_ROLES.filter(({ id }) => providers.includes(draft.roles[id] ?? '')).length
+  const working = read(busy) !== null
+  const ready = teamFromDraft(draft) !== null
+  return (
+    <Stack gap="md">
+      <Card
+        title="Equipo"
+        description="Quién hace cada rol. «Aplicar» lo escribe en ORCHESTRATION.md §1 del proyecto activo, que la skill orca lee al repartir."
+      >
+        <Stack gap="md">
+          <Select label="Equipo predefinido" value={draft.preset} options={PRESET_OPTIONS} onChange={choosePreset} />
+          <Collapsible title="Proveedores activos" description={providers.map(agentLabel).join(', ')}>
+            <Stack gap="xs">
+              {agentOptions(providers).map(({ value, label }) => (
+                <Checkbox
+                  label={label}
+                  checked={providers.includes(value)}
+                  disabled={providers.length === 1 && providers.includes(value)}
+                  onChange={(on) => toggleProvider(value, on)}
+                />
+              ))}
+            </Stack>
+          </Collapsible>
+          <Select
+            label="Revisión cruzada"
+            value={draft.cross}
+            options={CROSS_OPTIONS}
+            onChange={(value) => {
+              const cross = CROSS_REVIEW.find((mode) => mode === value)
+              if (cross) editTeam({ cross })
+            }}
+          />
+          <Collapsible
+            title="Roles de Olimpo"
+            description={fixed === 0 ? 'Todos los elige el coordinador' : `${fixed} de ${TEAM_ROLES.length} fijados`}
+          >
+            <Stack gap="sm">
+              {TEAM_ROLES.map((role) => {
+                const provider = draft.roles[role.id] ?? AUTO_ROLE.value
+                return (
+                  <Select
+                    label={`${role.name} · ${role.work} (nivel ${role.level})`}
+                    value={providers.includes(provider) ? provider : AUTO_ROLE.value}
+                    options={providerOptions}
+                    onChange={(value) => setRole(role.id, value)}
+                  />
+                )
+              })}
+            </Stack>
+          </Collapsible>
+        </Stack>
+      </Card>
+      <Card title="Roles propios" description="Roles de este proyecto que no están en Olimpo. Van a la tabla «Roles propios del proyecto».">
+        <Stack gap="sm">
+          {draft.custom.length === 0 ? (
+            <Text muted size="sm">
+              Ninguno todavía.
+            </Text>
+          ) : null}
+          {draft.custom.map((role, index) => (
+            <CustomRoleEditor
+              role={role}
+              index={index}
+              others={draft.custom.filter((_, i) => i !== index).map(({ name }) => name)}
+              providers={providers}
+            />
+          ))}
+          <Button variant="outline" icon="add" disabled={draft.custom.length >= CUSTOM_ROLES_MAX} onPress={addCustom}>
+            Añadir rol
+          </Button>
+        </Stack>
+      </Card>
+      <Row gap="xs" wrap>
+        <Button icon="check" disabled={working || !ready} onPress={applyTeam}>
+          {read(busy) === 'team' ? 'Aplicando…' : 'Aplicar al proyecto'}
+        </Button>
+        <Button variant="outline" icon="file-text" disabled={working} onPress={showTeam}>
+          Ver el del proyecto
+        </Button>
+      </Row>
+    </Stack>
+  )
+}
+
 function Actions() {
-  const busy = read(running)
+  const current = read(busy)
   return (
     <Card title="Acciones" description="Se ejecutan en el workspace activo.">
       <Stack gap="sm">
@@ -122,10 +508,10 @@ function Actions() {
           <Button
             icon={action === 'verify' ? 'check' : action === 'init' ? 'play' : 'refresh'}
             tooltip={hint}
-            disabled={busy !== null}
+            disabled={current !== null}
             onPress={() => run(action)}
           >
-            {busy === action ? `${label}…` : label}
+            {current === action ? `${label}…` : label}
           </Button>
         ))}
       </Stack>
@@ -135,7 +521,6 @@ function Actions() {
 
 function Settings() {
   const prefs = read(preferences)
-  const draft = read(agentDraft)
   return (
     <Card title="Ajustes" description="Los mismos que Settings → Plugins → Orca Multiagent Kit.">
       <Stack gap="md">
@@ -145,41 +530,22 @@ function Settings() {
           options={CONTRACT_OPTIONS}
           onChange={(value) => save('contractHint', parseContractHintMode(value))}
         />
+        <Switch
+          label="Repartir al lanzar un agente con tarea"
+          checked={prefs.autoOrchestrate}
+          onChange={(on) => save('autoOrchestrate', on)}
+        />
         <Switch label="Agentes en la barra de estado" checked={prefs.statusBar} onChange={(on) => save('statusBar', on)} />
-        <Row gap="xs" align="end">
-          <Input
-            label="Agente para inicializar"
-            value={draft}
-            maxLength={40}
-            placeholder={DEFAULTS.initAgent}
-            invalid={!isValidAgentId(draft.trim())}
-            onChange={(value) => set(agentDraft, value)}
-            onSubmit={() => saveInitAgent()}
-          />
-          <Button variant="outline" disabled={draft.trim() === prefs.initAgent} onPress={saveInitAgent}>
-            Guardar
-          </Button>
-        </Row>
+        <Switch label="Avisos de agentes" checked={prefs.notify} onChange={(on) => save('notify', on)} />
+        <Select
+          label="Agente para inicializar"
+          value={prefs.initAgent}
+          options={agentOptions([prefs.initAgent])}
+          onChange={(value) => {
+            if (isValidAgentId(value)) void save('initAgent', value)
+          }}
+        />
       </Stack>
-    </Card>
-  )
-}
-
-function Agents() {
-  const view = read(agents)
-  return (
-    <Card title="Agentes" description="En todos los workspaces.">
-      {view === null ? (
-        <Text muted>Cargando…</Text>
-      ) : view.agents.length === 0 ? (
-        <EmptyState icon="agent" title="Ningún agente activo" />
-      ) : (
-        <List label="Agentes activos">
-          {view.agents.map(({ title, state }) => (
-            <ListItem icon="agent" title={title} description={state} />
-          ))}
-        </List>
-      )}
     </Card>
   )
 }
@@ -190,16 +556,40 @@ export default function Panel() {
     <Stack gap="md">
       <Heading>Orca Multiagent Kit</Heading>
       {last ? (
-        <Callout tone={last.tone} icon={last.tone === 'success' ? 'check' : 'error'}>
-          <Text>{last.text}</Text>
+        <Callout
+          tone={last.tone}
+          icon={last.tone === 'success' ? 'check' : 'error'}
+          title={last.tone === 'success' ? 'Hecho' : 'No se pudo'}
+        >
+          <Stack gap="xs">
+            <Text>{last.text}</Text>
+            <Button variant="ghost" size="sm" icon="close" onPress={() => set(outcome, null)}>
+              Cerrar
+            </Button>
+          </Stack>
         </Callout>
       ) : null}
-      <Actions />
-      <Settings />
-      <Agents />
-      <Text muted size="xs">
-        Desde un terminal: <Code>omk setup</Code> prepara todo el entorno y <Code>omk plugin status</Code> muestra el plugin.
-      </Text>
+      <Tabs label="Secciones" defaultValue="agents">
+        <Tab value="agents" label="Agentes" icon="agent">
+          <Agents />
+        </Tab>
+        <Tab value="orchestrate" label="Repartir" icon="play">
+          <Orchestrate />
+        </Tab>
+        <Tab value="team" label="Equipo" icon="settings">
+          <Team />
+        </Tab>
+        <Tab value="kit" label="Kit" icon="wrench">
+          <Stack gap="md">
+            <Actions />
+            <Settings />
+            <Text muted size="xs">
+              Desde un terminal: <Code>omk setup</Code> prepara todo el entorno, <Code>omk team</Code> enseña el
+              equipo del proyecto y <Code>omk plugin status</Code> muestra el plugin.
+            </Text>
+          </Stack>
+        </Tab>
+      </Tabs>
     </Stack>
   )
 }

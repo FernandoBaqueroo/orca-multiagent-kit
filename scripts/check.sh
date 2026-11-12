@@ -76,6 +76,13 @@ for f in SKILL.md references/units.md references/ledger.md references/integrate.
   grep -q 'olimpo\|role\|cleanup' "skills/orca/$f" || err "skills/orca/$f no enlaza con Olimpo ni con la limpieza"
 done
 ok "$NROL roles · 3 niveles · sin versiones de modelo en el kit"
+# omk team y el panel Equipo del plugin llevan su propia lista de roles: debe ser la de Olimpo sin Hefesto.
+OLROLES="$(grep -E '^\| \*\*' "$OL" | sed -E 's/^\| \*\*([^*]+)\*\*.*/\1/' | grep -vx 'Hefesto' | sort | tr '\n' ' ')"
+TEAMROLES="$(grep -oE "\['[a-z]+', '[^']+'\]" bin/team.js | sed -E "s/.*, '([^']+)'\]/\1/" | sort | tr '\n' ' ')"
+PLUGROLES="$(grep -oE "name: '[^']+', work:" orca-plugin/src/kit.ts | sed -E "s/name: '([^']+)'.*/\1/" | sort | tr '\n' ' ')"
+[ "$TEAMROLES" = "$OLROLES" ] || err "bin/team.js (ROLES) no lista los roles de $OL: ${TEAMROLES}≠ ${OLROLES}"
+[ "$PLUGROLES" = "$OLROLES" ] || err "orca-plugin/src/kit.ts (TEAM_ROLES) no lista los roles de $OL: ${PLUGROLES}≠ ${OLROLES}"
+ok "omk team y el plugin conocen los mismos roles que Olimpo"
 
 echo "== rutas neutrales (sin ~/.claude/rules ni ~/.gemini/rules en reglas y skills)"
 # shellcheck disable=SC2088  # se busca el texto literal "~/", no una ruta
