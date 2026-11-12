@@ -5,6 +5,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-12
+
 ### Añadido
 - **`omk team`**: enseña y cambia el equipo de roles del proyecto en `ORCHESTRATION.md` §1 (proveedores activos, revisión cruzada, un proveedor fijo por rol de Olimpo y roles propios del proyecto) sin tocar lo escrito a mano. `--data` recibe el equipo entero en base64url (lo usa el panel). Pruebas en `tests/test_team.sh`.
 - **Plugin v0.5.0**: orquestación sin spec-kit. Todo agente que Orca arranca con una tarea (crear un worktree con tarea, pestaña nueva, issue) pasa primero por la skill `orca`, que decide si compensa repartir (ajuste *Repartir al lanzar un agente con tarea*, activado por defecto).
@@ -168,7 +170,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.3.0...v1.4.0
