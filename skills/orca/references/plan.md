@@ -30,7 +30,8 @@ Objetivo: <1–2 líneas> · Creado: AAAA-MM-DD · Estado: en curso
   - ...
 - Verificación:
 ```
-4. Al usuario: ruta del plan + tabla `sprint | depende | paralelo` (nada más). Pregunta una sola cosa: ¿sprint a sprint con visto bueno (modo 2) o en paralelo con orca (modo 3)?
+4. Cierra el fichero con la sección `## Reparto`: el veredicto de `SKILL.md` §1 (`ORCA: <N> unidades · <R> rondas` u `ORCA: secuencial — <motivo>`) y la tabla `sprint | depende | paralelo`. Quien implemente el plan después, en esta sesión o en otra, parte de ahí.
+5. Al usuario: ruta del plan + esa sección (nada más). Pregunta una sola cosa: ¿sprint a sprint con visto bueno (modo 2) o en paralelo con orca (modo 3)?
 
 ## MODO 2 — Ejecutar un sprint (secuencial, human-in-the-loop)
 Disparador: "comienza el Sprint N de planes/<feature>.md".

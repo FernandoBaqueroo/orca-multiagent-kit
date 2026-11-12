@@ -2,6 +2,8 @@
 
 Entrada visual o documental: mockup, captura, Figma/export, página HTML de referencia, artefacto de Claude, documento de requisitos, anotaciones de Orca Design Mode.
 
+**Cuándo se usa**: «implementa este diseño/documento/artefacto» con ≥2 pantallas, componentes o secciones separables, antes de la primera edición (puerta de reparto, `~/.agents/AGENTS.md` §6). Un plan escrito en un artefacto se trata como plan en fichero (`plan-file.md`).
+
 ## 1. Extrae requisitos verificables
 - **Estructura**: secciones/componentes, jerarquía, orden.
 - **Estados**: vacío, cargando, error, éxito, hover/focus, responsive (móvil/escritorio).

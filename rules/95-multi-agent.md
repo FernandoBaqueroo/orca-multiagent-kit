@@ -2,21 +2,31 @@
 
 > El núcleo (`~/.agents/AGENTS.md` §6) enuncia las invariantes. Este fichero añade criterio y casos. No las repite.
 
+## Puerta de reparto (cuándo se evalúa)
+La evaluación no es opcional ni depende de la vía de entrada: todo trabajo de implementación con ≥2 entregables separables pasa por la skill `orca` antes de la primera edición (núcleo §6) y deja una línea `ORCA: …`. Contar entregables es barato y se hace siempre; los criterios de abajo los aplica la skill, con las unidades delante, no el agente de memoria antes de cargarla.
+| Entrada | Qué la dispara |
+|---|---|
+| spec-kit | Hook `before_implement` de `/speckit.implement` (skill `speckit-orca-implement`) |
+| Prompt de chat, ticket, «implementa `planes/x.md`», artefacto | Núcleo §6; en Claude Code, además, el hook `UserPromptSubmit` del kit lo recuerda en cada mensaje |
+| Plan nativo aprobado | La sección `Reparto` del propio plan (núcleo §6); en Claude Code, además, el hook `PostToolUse` sobre `ExitPlanMode` |
+| Agente arrancado por Orca con una tarea | Plugin del kit en Orca («Repartir siempre») |
+Un entregable solo, una pregunta o un worker con su unidad no pasan por la puerta.
+
 ## Cuándo paralelizar (y cuándo no)
 Paraleliza solo si **todo** se cumple:
 - Hay ≥2 unidades sin dependencia entre sí.
 - Sus conjuntos de ficheros de escritura no se cortan (ver §Solapes).
-- Cada unidad tiene ≥ ~15 min de trabajo. Por debajo, el coste de worktree + revisión + merge supera la ganancia.
+- Cada unidad tiene ≥ ~15 min de trabajo. Por debajo, el coste de worktree + revisión + merge supera la ganancia. Mídelo por talla (§Tamaño de unidad), no a ojo: una unidad `M` o `L` cumple; una `S` no.
 - Puedes verificar cada unidad por separado (tests, build o comprobación visual concreta).
 Si falla cualquiera: secuencial en un solo agente (motor `inline`). Decláralo: `ORCA: secuencial — <motivo>`.
 
 ### Cuenta rápida (cuando dudes)
 ```
 ahorro  = Σ t(unidades de la ronda) − max t(unidad)          # lo que ganas por ronda
-coste   = 10 min × unidades  +  10 min × rondas              # brief + revisión + merge + gates del conjunto
+coste   = 5 min × unidades  +  5 min × rondas                # brief + revisión + merge + gates del conjunto
 compensa si  Σ ahorro  >  coste   y   ningún ahorro depende de una unidad L sin dividir
 ```
-Estimaciones en minutos de agente, no humanos. Penaliza (+10 min por fichero) cada fichero `shared` que obligue a serializar o a pasarlo a `U0`. Si el resultado es dudoso, secuencial: la orquestación fallida cuesta más que la que no se hizo.
+Estimaciones en minutos de agente, no humanos. Penaliza (+10 min por fichero) cada fichero `shared` que obligue a serializar o a pasarlo a `U0`. Con dos unidades `M` de ficheros disjuntos la cuenta sale a favor (30 + 30 min: ahorro 30, coste 15): se reparten. Secuencial solo si la cuenta sale en contra o si alguna condición de arriba falla; ante un empate, reparte.
 
 ## Tamaño de unidad
 | Talla | Orientación | Presupuesto orientativo | Qué hacer |

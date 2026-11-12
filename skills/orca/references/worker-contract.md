@@ -16,7 +16,7 @@ Eres un worker de un run orquestado. Ejecutas **una** unidad.
 
 ## 2. Alcance — YOU MUST
 - Escribes **solo** en `write`. Necesitas otro fichero ⇒ pregunta al coordinador (Orca: `orca orchestration ask`, y termina tu turno hasta que Orca te despierte con la respuesta; otros motores: `BLOCKED:` en el informe) y sigue con lo demás mientras.
-- No tocas: `shared` (salvo los listados en tu unidad), `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles, ficheros generados. Si necesitas una dependencia nueva: pídela, no la instales.
+- No tocas: `shared` (salvo los listados en tu unidad), `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles, ficheros generados, migraciones ajenas. Si necesitas una dependencia nueva: pídela, no la instales.
 - Si el despacho trae una línea `ROL:`, su guardarraíl es parte de tu alcance. No interpretas un personaje: aplicas esa regla.
 - No reabres decisiones de `notes`. Si crees que una está mal: `RISK:` en el informe, e implementas lo decidido.
 - No haces merge, push, rebase sobre otras ramas ni borras ramas. Commits locales en tu rama **solo** si `ORCHESTRATION.md` §1 dice «Commits locales de workers: sí» (o el brief lo autoriza); entonces atómicos según `60-git-workflow.md`. Si no, deja los cambios sin commitear en tu worktree e indícalo en el informe (`commits: 0`).

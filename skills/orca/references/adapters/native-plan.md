@@ -1,5 +1,11 @@
 # Adaptador: plan nativo del agente
 
+## Cuándo se usa
+En cuanto el usuario aprueba el plan o dice «implementa el plan», **antes de la primera edición** (puerta de reparto, `~/.agents/AGENTS.md` §6). En Claude Code lo recuerda además el hook `PostToolUse` sobre `ExitPlanMode` de `.claude/settings.json`; en Antigravity y el resto no hay hook: manda la regla.
+- Si el plan ya trae la sección `Reparto` (la escribe quien planifica), parte de su veredicto y de su tabla: compruébalos contra el repo y sigue en `SKILL.md` §2–§3.
+- Si no la trae, haz ahora `SKILL.md` §1 con los pasos del plan.
+- Si el contexto se ha vaciado al aprobar, el plan está en el fichero que el agente guardó (Claude Code lo escribe en disco antes de pedir la aprobación): léelo de ahí.
+
 ## Claude Code (modo plan)
 El plan aprobado está en la conversación (salida de plan mode). Pasos:
 1. Extrae los pasos numerados. Cada grupo de pasos que produce un incremento verificable = una unidad.

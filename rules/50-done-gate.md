@@ -59,7 +59,7 @@ build      | pnpm build           | PASS
 test       | pnpm test            | PASS 128/128
 coverage   | pnpm test:cov        | 86% cambiado
 sec-scan   | semgrep --config=auto| SKIPPED (no instalado: semgrep)
-deps       | npm audit            | SKIPPED (sin red)
+deps-audit | npm audit            | SKIPPED (sin red)
 RISK: <si aplica>
 DEFERRED: <si aplica>
 ```

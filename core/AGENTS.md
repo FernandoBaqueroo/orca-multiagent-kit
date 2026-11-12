@@ -39,7 +39,7 @@ Ningún código es válido hasta pasar, en orden y sin saltos (módulos en `~/.a
 4. **Autorrevisión adversarial**: `50-done-gate.md` §4.
 5. **Seguridad**: `30-security.md` siempre; `31-security-audit.md` si toca entrada de usuario, auth, autorización, cripto, ficheros, red, SQL, deserialización, procesos, secretos o dependencias; `32-ai-security.md` si llama a un LLM o define agentes, herramientas o servidores MCP.
 6. **Tests**: `40-testing.md`. Código nuevo sin test ⇒ no está hecho, salvo veto explícito del usuario.
-7. **Gates**: format → lint → typecheck → build → test → coverage → sec-scan → deps (comandos de `STACK.md`).
+7. **Gates**: format → lint → typecheck → build → test → coverage → sec-scan → deps-audit (comandos de `STACK.md`).
 8. **Reporte** (formato de `50-done-gate.md` §8): tabla `gate | cmd | PASS/FAIL/SKIPPED/N/A`. Nunca `PASS` de algo no ejecutado: `SKIPPED (motivo)`. Si un gate falla, arregla la causa y repite desde ese gate.
 
 ## 5. Prohibiciones duras — YOU MUST NOT
@@ -53,12 +53,12 @@ Ningún código es válido hasta pasar, en orden y sin saltos (módulos en `~/.a
 - Comandos destructivos (`rm -rf`, `push --force`, `DROP`, `reset --hard`, borrar ramas/tablas/buckets) sin confirmación explícita previa.
 - Concatenar entrada de usuario en SQL, shell, HTML, rutas o plantillas. Criptografía propia o parámetros no recomendados.
 
-## 6. Trabajo multiagente (Orca) — IMPORTANT
-- **Usa la skill `orca` por iniciativa propia**, sin esperar a que te lo pidan, cuando la tarea tenga ≥2 partes independientes de >15 min (varias user stories, sprints, módulos o pantallas) o el usuario mencione paralelo, Orca, worktrees o varios agentes. Ella decide si compensa y, si no, lo dice en una línea y sigues tú.
-- En proyectos con spec-kit, `/speckit.implement` llama a `orca` automáticamente (hook `before_implement`). No hace falta pedirlo.
-- Cambio único y claro ⇒ sin orquestar: hazlo y pasa `csr-gate`.
+## 6. Trabajo multiagente (Orca) — YOU MUST
+- **Puerta de reparto**: antes de la primera edición de todo trabajo de implementación —prompt de chat, plan aprobado (modo plan de Claude Code, `implementation_plan.md` de Antigravity), plan en fichero (`planes/*.md`), artefacto o ticket— cuenta sus entregables separables (user stories, sprints, módulos, pantallas, endpoints, secciones del plan). Con **≥2**, carga la skill `orca` (sin herramienta de skills: lee `~/.agents/skills/orca/SKILL.md`) antes de la primera edición y deja su veredicto escrito en el chat (texto visible: decidirlo solo en el razonamiento no cuenta) en una línea: `ORCA: <N> unidades · …`, seguida del plan de rondas y **antes de editar nada**, o `ORCA: secuencial — <motivo>`, como muy tarde en la primera línea de tu respuesta final. Editar un trabajo de ≥2 entregables sin haber cargado la skill, o empezar a editar un reparto antes de enseñar su plan, es un incumplimiento. Si compensa (tiempos, solapes) lo decide la skill con sus datos, no tú antes de cargarla. También la cargas si el usuario menciona paralelo, Orca, worktrees o varios agentes.
+- **Todo plan que escribas** (modo plan, `implementation_plan.md`, `planes/*.md`, artefacto) termina con una sección `Reparto` con ese veredicto y, si reparte, la tabla `unidad | ficheros | depende`: lo ve quien lo aprueba y no se pierde al cambiar de contexto. «Implementa el plan» ⇒ se ejecuta según esa sección; si falta, pasa la puerta antes de editar.
+- No pasan por la puerta (y no llevan línea `ORCA:`): preguntas, un solo entregable (hazlo y pasa `csr-gate`), un worker con su unidad (`UNIT:`) y `/speckit.implement`, que llama a `orca` con su hook `before_implement`.
 - Respeta la autonomía de `./ORCHESTRATION.md` (por defecto `semi`: el usuario confirma el plan de rondas, el merge final y la limpieza de worktrees y ramas; nada más, salvo decisiones de producto).
-- **Invariantes — YOU MUST**: (1) una unidad = un worktree = una rama; (2) los ficheros `shared` de `ORCHESTRATION.md` los toca una sola unidad por ronda o el coordinador; (3) un worker no edita `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles ni migraciones ajenas; (4) un worker no mergea, ni hace push, ni borra ramas; (5) todo worker entrega su informe; (6) salir del alcance ⇒ `BLOCKED:` y preguntar; (7) nunca merge a la rama por defecto ni push sin confirmación; (8) ningún worktree nace de una rama local sin contrastar con `origin`, y todo worktree integrado se ofrece para borrar al cerrar el run.
+- **Invariantes — YOU MUST**: (1) una unidad = un worktree = una rama; (2) los ficheros `shared` de `ORCHESTRATION.md` los toca una sola unidad por ronda o el coordinador; (3) un worker no edita `tasks.md`, `planes/*.md`, `ORCHESTRATION.md`, `STACK.md`, lockfiles, ficheros generados ni migraciones ajenas; (4) un worker no mergea, ni hace push, ni borra ramas; (5) todo worker entrega su informe; (6) salir del alcance ⇒ `BLOCKED:` y preguntar; (7) nunca merge a la rama por defecto ni push sin confirmación; (8) ningún worktree nace de una rama local sin contrastar con `origin`, y todo worktree integrado se ofrece para borrar al cerrar el run.
 Detalle: `~/.agents/rules/95-multi-agent.md`.
 
 ## 7. Router (leer bajo demanda, no todo a la vez)

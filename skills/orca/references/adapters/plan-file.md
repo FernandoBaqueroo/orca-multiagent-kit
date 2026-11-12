@@ -1,5 +1,7 @@
 # Adaptador: plan en fichero (`planes/*.md`, `.plans/*.md`, salida de `plan.md`)
 
+**Cuándo se usa**: «implementa/ejecuta/sigue `planes/x.md`» (o un plan pegado o adjunto) con ≥2 sprints pendientes, antes de la primera edición (puerta de reparto, `~/.agents/AGENTS.md` §6). «Comienza el Sprint N» es un solo entregable: va por `plan.md` modo 2, sin repartir.
+
 ## Formato esperado
 El de `plan.md` (sprints con `Archivos`, `Depende de`, `Paralelo`, `Criterios de aceptación`). Si el plan es del antiguo `planificar` (sin esos campos), dedúcelos de la descripción del sprint y márcalos con `ASSUMPTION:`.
 

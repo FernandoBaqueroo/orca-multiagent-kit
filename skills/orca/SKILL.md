@@ -1,11 +1,20 @@
 ---
 name: orca
-description: Política de desarrollo orquestado del kit - decide si una tarea compensa repartirla entre varios agentes, la divide en unidades y rondas, lanza un worker por unidad (Orca, subagentes o worktrees), revisa, integra y reanuda runs a medias. Úsala por iniciativa propia cuando una tarea tenga 2 o más partes independientes de más de 15 minutos cada una (varias user stories, sprints, módulos o pantallas), cuando el usuario pida paralelo, varios agentes, worktrees o una carrera, y siempre que la invoque el hook before_implement de spec-kit. Manda sobre el reparto y la integración; para los comandos exactos de Orca carga además la skill orchestration de Orca, que manda sobre la sintaxis. Si el usuario solo quiere delegar una tarea suelta a otro agente sin plan ni integración, usa orchestration u orca-cli directamente.
+description: Política de desarrollo orquestado del kit - decide si una tarea compensa repartirla entre varios agentes, la divide en unidades y rondas, lanza un worker por unidad (Orca, subagentes o worktrees), revisa, integra y reanuda runs a medias. Cárgala SIEMPRE antes de la primera edición al implementar algo con 2 o más entregables separables (user stories, sprints, módulos, pantallas, endpoints, secciones de un plan), venga de un prompt, de un plan aprobado (modo plan de Claude Code, implementation_plan.md de Antigravity), de un plan en fichero, de un artefacto o de un ticket; con «implementa el plan»; si el usuario pide paralelo, varios agentes, worktrees o una carrera; y desde el hook before_implement de spec-kit. Decide en una línea que empieza por ORCA si se reparte o va secuencial, así que no lo decidas sin cargarla. Para los comandos de Orca carga además la skill orchestration, que manda sobre la sintaxis. Para delegar una tarea suelta sin plan ni integración, usa orchestration u orca-cli.
 ---
 
 # orca — Desarrollo orquestado de principio a fin
 
 Un solo punto de entrada. El usuario no tiene que conocer fases ni comandos: tú decides si compensa repartir y, si compensa, llevas el ciclo completo. Detalle en `references/` (léelo solo cuando llegues a ese paso).
+
+**Lo primero que haces al cargar esta skill**: decidir §1 y dejar su veredicto **escrito en el chat**, en una línea que empieza por `ORCA:`. Es texto visible para el usuario, no razonamiento.
+- **Si reparte**: la línea y el plan de rondas (§3) van **antes de llamar a ninguna herramienta de edición**, también antes de la ronda 0: no se toca código hasta que el plan está enseñado (y confirmado, salvo en `auto`). No recortes el reparto porque la sesión vaya justa de presupuesto o de contexto: enseña el plan y dilo en un `RISK:`.
+- **Si es secuencial**: `ORCA: secuencial — <motivo>` como muy tarde en la primera línea de tu respuesta final.
+
+**Puerta de reparto** (`~/.agents/AGENTS.md` §6): se llega aquí antes de la primera edición de todo trabajo con ≥2 entregables separables, venga de un prompt, de un plan nativo aprobado, de un plan en fichero, de un artefacto, de un ticket o del hook de spec-kit. La salida mínima es siempre **una línea** `ORCA: …` (§1); sin ella no se edita.
+- **Sin `tasks.md` también se decide**: si la entrada no trae las partes hechas, esboza las unidades (título + ficheros que escribe cada una, buscados en el repo) con el adaptador de §2 y decide §1 con ese esbozo. No des «secuencial» por no tener el reparto hecho.
+- **En modo plan** (sin permiso de edición): haz solo §1 y el esbozo, y escríbelos como sección final `Reparto` del plan (veredicto `ORCA: …` y tabla `unidad | ficheros | depende`). El run (`.work/`, §3 en adelante) empieza cuando el plan se aprueba; aprobar el plan no es la confirmación 1: la tabla de §3 se enseña y se confirma igual.
+- **Eres un worker** (tu mensaje empieza por `UNIT:`): no repartas tu unidad; sigue `references/worker-contract.md`.
 
 ## 0. Configuración y estado
 Lee `./ORCHESTRATION.md` (si no existe, valores por defecto entre paréntesis):
@@ -42,7 +51,7 @@ Identifica la entrada y lee **solo** su adaptador:
 |---|---|
 | spec-kit (`specs/<feature>/tasks.md`, o vienes del hook) | `references/adapters/speckit.md` |
 | `planes/*.md` / `.plans/*.md` | `references/adapters/plan-file.md` |
-| Plan nativo (modo plan de Claude, `implementation_plan.md` de Antigravity) | `references/adapters/native-plan.md` |
+| Plan nativo recién aprobado o con «implementa el plan» (modo plan de Claude, `implementation_plan.md` de Antigravity) | `references/adapters/native-plan.md` |
 | Prompt de chat o ticket | `references/adapters/chat.md` (si es grande y vago, primero `references/plan.md`) |
 | Mockup, diseño, documento | `references/adapters/artifact.md` |
 Escribe las unidades con el formato de `references/units.md` en `.work/runs/<run>/units.md` (`.work/` en `.gitignore`).

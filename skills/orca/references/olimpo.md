@@ -1,7 +1,7 @@
 # Olimpo: roles, niveles de modelo y quién revisa a quién
 
 Lo lee el coordinador al repartir (`SKILL.md` §2). Decide **qué rol** hace cada unidad, **con qué nivel de modelo** y **quién la revisa**. No decide qué se reparte (`95-multi-agent.md`) ni cómo se integra (`integrate.md`).
-Origen de los nombres y fichas completas del equipo: `docs/OLIMPO.md` del kit (no hace falta leerlo para repartir).
+Origen de los nombres y fichas completas del equipo: `docs/OLIMPO.md` en el repositorio del kit (https://github.com/FernandoBaqueroo/orca-multiagent-kit/blob/main/docs/OLIMPO.md); no se instala en `~/.agents` ni hace falta leerlo para repartir.
 
 ## Cadena de decisión (una sola, en este orden)
 ```
