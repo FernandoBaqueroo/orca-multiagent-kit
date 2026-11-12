@@ -237,7 +237,7 @@ function readIncludes(root) {
     throw error;
   }
   if (!stat.isFile()) throw new RunError('.worktreeinclude no es un fichero regular: no lo sigo');
-  return fs.readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/)
+  return fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith('#'));
 }
