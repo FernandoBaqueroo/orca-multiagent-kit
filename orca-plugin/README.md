@@ -13,4 +13,4 @@ orca plugin inspect . --json      # qué aporta y qué acceso pide
 - `src/worker.ts`: el worker que Orca carga; solo habla con Orca por su API. Oye cada hook y evento una vez y lo reparte a `src/worker/{notices,worktrees,history}.ts` (`src/worker/context.ts`).
 - `src/panel.tsx`: el panel; las pestañas Avisos, Worktrees, Historial y la autonomía viven en `src/tabs/`.
 - `src/plan-card.ts`: valida el `plan.json` de la skill `orca` ([formato](../skills/orca/references/plan-card.md)).
-- `assets/agents/`: iconos de agente (PNG; los SVG son su fuente, ver su README).
+- `assets/logos/`: los logos de agente que usa Orca, a 16 px (ver su README).

@@ -293,6 +293,6 @@ test('cada agente lleva el icono de su proveedor', async () => {
     }))
   }
   const { view } = await open({ requests: { 'agents.summary': () => withAgent } })
-  assert.match(text(view), /assets\/agents\/openai\.png/)
+  assert.match(text(view), /assets\/logos\/codex\.png/)
   assert.deepEqual(view.warnings, [])
 })

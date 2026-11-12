@@ -8,6 +8,7 @@
 import {
   atom,
   Badge,
+  Box,
   Button,
   Callout,
   Card,
@@ -234,30 +235,37 @@ export function setup(ctx: PanelContext): void {
 
 function AgentCard({ agent }: { agent: AgentLine }) {
   const working = read(busy) !== null
+  // Como en la lista de worktrees de Orca: el logo del agente delante del nombre.
   return (
-    <Collapsible
-      title={agent.title}
-      description={agent.detail ? `${agent.state} · ${agent.detail}` : agent.state}
-      defaultOpen={agent.blocked}
-    >
-      <Stack gap="sm">
-        <Row gap="xs" align="center" wrap>
-          <AgentIcon agent={agent.agent} />
-          <Badge tone={agent.blocked ? 'warning' : 'neutral'}>{agent.state}</Badge>
-          {agent.since === null ? null : (
-            <Text muted size="xs">
-              desde <RelativeTime at={agent.since} />
-            </Text>
-          )}
-        </Row>
-        {agent.facts.length > 0 ? <KeyValue label={`Datos de ${agent.title}`} items={agent.facts} /> : null}
-        {agent.canOpen ? (
-          <Button variant="outline" size="sm" icon="open-external" disabled={working} onPress={() => openAgent(agent.id)}>
-            Ir a su workspace
-          </Button>
-        ) : null}
-      </Stack>
-    </Collapsible>
+    <Row gap="xs" align="start">
+      <Box paddingY="sm">
+        <AgentIcon agent={agent.agent} />
+      </Box>
+      <Box grow>
+        <Collapsible
+          title={agent.title}
+          description={agent.detail ? `${agent.state} · ${agent.detail}` : agent.state}
+          defaultOpen={agent.blocked}
+        >
+          <Stack gap="sm">
+            <Row gap="xs" align="center" wrap>
+              <Badge tone={agent.blocked ? 'warning' : 'neutral'}>{agent.state}</Badge>
+              {agent.since === null ? null : (
+                <Text muted size="xs">
+                  desde <RelativeTime at={agent.since} />
+                </Text>
+              )}
+            </Row>
+            {agent.facts.length > 0 ? <KeyValue label={`Datos de ${agent.title}`} items={agent.facts} /> : null}
+            {agent.canOpen ? (
+              <Button variant="outline" size="sm" icon="open-external" disabled={working} onPress={() => openAgent(agent.id)}>
+                Ir a su workspace
+              </Button>
+            ) : null}
+          </Stack>
+        </Collapsible>
+      </Box>
+    </Row>
   )
 }
 

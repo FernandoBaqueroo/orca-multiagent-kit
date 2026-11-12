@@ -18,7 +18,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
   - *Avisos*: la tarjeta del plan de rondas del coordinador, en colores, con «Sí, lánzalo» y «Pedir cambio», que se escriben en su terminal; y los agentes bloqueados o esperando, con las últimas líneas de su terminal y una caja para responderles. La skill `orca` escribe el plan en `.work/runs/<run>/plan.json` (`references/plan-card.md`) y el plugin lo lee del hook `agent.tool.after`.
   - *Worktrees*: los worktrees de la orquestación por run, con sus agentes, estado y modelo (de `--model`), y «Cambiar modelo» (`/model`) para un Claude Code que espera.
   - *Historial*: despachos, bloqueos, finales de unidad, runs terminados y lo que haces desde el panel; las 200 últimas entradas, guardadas en el plugin.
-  - Iconos de Claude, Codex, Gemini, Antigravity, Copilot y Grok (simple-icons, CC0) junto a cada agente; un robot para los demás.
+  - El logo de cada agente, los mismos que usa Orca y a su tamaño (16 px), delante de cada agente y cada worktree; uno genérico para los que no tienen.
   - Autonomía: en *Equipo*, la del proyecto (`ORCHESTRATION.md` §0); en *Repartir*, otra solo para ese run.
 - **`omk team set --autonomy manual|semi|auto`**: cambia la línea `- Nivel:` de `ORCHESTRATION.md` §0; `omk team` la enseña.
 

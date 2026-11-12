@@ -1,19 +1,30 @@
-// Icono de cada agente en el panel (assets/agents/, ver su README). Los que no tienen logo propio
-// llevan el genérico, como un agente que Orca no conoce.
+// Logo de cada agente en el panel: los mismos que pinta Orca junto a sus worktrees y chats
+// (assets/logos/, ver su README). Un agente sin logo propio lleva el genérico.
 
-const ICON_DIR = 'assets/agents'
+const ICON_DIR = 'assets/logos'
 
-const AGENT_ICONS: ReadonlyMap<string, string> = new Map([
-  ['claude', 'claude'],
-  ['codex', 'openai'],
-  ['gemini', 'gemini'],
-  ['antigravity', 'google'],
-  ['copilot', 'copilot'],
-  ['grok', 'grok']
+const AGENT_LOGOS: ReadonlySet<string> = new Set([
+  'aider',
+  'amp',
+  'antigravity',
+  'claude',
+  'cline',
+  'codex',
+  'copilot',
+  'cursor',
+  'devin',
+  'droid',
+  'gemini',
+  'goose',
+  'grok',
+  'kimi',
+  'kiro',
+  'opencode',
+  'qwen-code'
 ])
 
-/** Ruta del icono de un agente dentro del plugin; el genérico si no se sabe cuál es. */
+/** Ruta del logo de un agente dentro del plugin; el genérico si no se sabe cuál es. */
 export function agentIcon(agent: string | null | undefined): string {
-  const file = (agent && AGENT_ICONS.get(agent)) || 'agent'
+  const file = agent && AGENT_LOGOS.has(agent) ? agent : 'agent'
   return `${ICON_DIR}/${file}.png`
 }

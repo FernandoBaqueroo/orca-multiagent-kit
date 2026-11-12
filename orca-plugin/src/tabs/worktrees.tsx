@@ -1,5 +1,5 @@
 // Pestaña Worktrees: los worktrees de la orquestación por run, sus agentes y su modelo.
-import { atom, Badge, Button, Card, Collapsible, EmptyState, plugin, read, Row, Select, set, Stack, Text, type PanelContext } from 'orca'
+import { atom, Badge, Box, Button, Card, Collapsible, EmptyState, plugin, read, Row, Select, set, Stack, Text, type PanelContext } from 'orca'
 import { CLAUDE_MODELS } from '../models.ts'
 import { ask, busy, describeError } from '../panel-state.ts'
 import type { WorktreeAgent, WorktreeGroup, WorktreeItem } from '../protocol.ts'
@@ -77,23 +77,31 @@ function AgentRow({ agent }: { agent: WorktreeAgent }) {
 
 function Worktree({ item }: { item: WorktreeItem }) {
   const working = read(busy) !== null
+  // Como en la lista de worktrees de Orca: el logo del agente delante del nombre.
   return (
-    <Collapsible
-      title={item.name}
-      description={[item.branch, item.unit].filter((part): part is string => Boolean(part)).join(' · ')}
-      defaultOpen={item.agents.some((agent) => agent.blocked)}
-    >
-      <Stack gap="sm">
-        <Row gap="xs">
-          <Button variant="outline" size="sm" icon="open-external" disabled={working} onPress={() => openWorktree(item.workspaceId)}>
-            Abrir worktree
-          </Button>
-        </Row>
-        {item.agents.map((agent) => (
-          <AgentRow agent={agent} />
-        ))}
-      </Stack>
-    </Collapsible>
+    <Row gap="xs" align="start">
+      <Box paddingY="sm">
+        <AgentIcon agent={item.agents[0]?.agent ?? null} />
+      </Box>
+      <Box grow>
+        <Collapsible
+          title={item.name}
+          description={[item.branch, item.unit].filter((part): part is string => Boolean(part)).join(' · ')}
+          defaultOpen={item.agents.some((agent) => agent.blocked)}
+        >
+          <Stack gap="sm">
+            <Row gap="xs">
+              <Button variant="outline" size="sm" icon="open-external" disabled={working} onPress={() => openWorktree(item.workspaceId)}>
+                Abrir worktree
+              </Button>
+            </Row>
+            {item.agents.map((agent) => (
+              <AgentRow agent={agent} />
+            ))}
+          </Stack>
+        </Collapsible>
+      </Box>
+    </Row>
   )
 }
 
