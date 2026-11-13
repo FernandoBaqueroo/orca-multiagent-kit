@@ -18,18 +18,48 @@ const LOCKFILES = [
   'package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb', 'Cargo.lock',
   'poetry.lock', 'uv.lock', 'Pipfile.lock', 'go.sum', 'composer.lock', 'Gemfile.lock',
 ];
-/** Prohibidos a un worker en cualquier carpeta (por nombre) y por ruta desde la raíz. */
-const FORBIDDEN_NAMES = new Set(['tasks.md', 'ORCHESTRATION.md', 'STACK.md', ...LOCKFILES]);
-const FORBIDDEN_GLOBS = ['planes/*.md', '.plans/*.md', '.work/**'];
-const PRODUCTION = /prod/i;
+/**
+ * Prohibidos a un worker, sin distinguir mayúsculas: por nombre en cualquier carpeta y por glob
+ * (planes y .plans desde la raíz, .work en cualquier nivel). Se comparan en minúsculas.
+ */
+const FORBIDDEN_NAMES = new Set(['tasks.md', 'ORCHESTRATION.md', 'STACK.md', ...LOCKFILES].map((n) => n.toLowerCase()));
+const FORBIDDEN_GLOBS = ['planes/**/*.md', '.plans/**/*.md', '.work/**', '**/.work/**'];
+/** Un segmento de ruta que parece de producción: contiene «prod» o la palabra prd o live. */
+const PRODUCTION = [/prod/i, /(^|[._-])(prd|live)([._-]|$)/i];
+/** Operaciones a medias que dejan el árbol en un estado que start y merge no deben tocar. */
+const IN_PROGRESS = [
+  ['MERGE_HEAD', 'un merge'], ['CHERRY_PICK_HEAD', 'un cherry-pick'], ['REVERT_HEAD', 'un revert'],
+  ['rebase-merge', 'un rebase'], ['rebase-apply', 'un rebase o un am'],
+];
 
 // ---------------------------------------------------------------- git y run.md
 
+/** Sha abreviado solo para mensajes; lo que se anota en run.md sale de abbrev() (sin ambigüedad). */
 const short = (sha) => sha.slice(0, 7);
+
+function abbrev(cwd, sha) {
+  return git(['rev-parse', '--short', sha], { cwd }).stdout.trim();
+}
 
 function refSha(cwd, ref) {
   const res = git(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd, check: false });
   return res.status === 0 ? res.stdout.trim() : null;
+}
+
+/** Ruta (absoluta) de un fichero del directorio git de `cwd`; vale también dentro de un worktree. */
+function gitPath(cwd, name) {
+  return path.resolve(cwd, git(['rev-parse', '--git-path', name], { cwd }).stdout.trim());
+}
+
+const mergeInProgress = (cwd) => fs.existsSync(gitPath(cwd, 'MERGE_HEAD'));
+
+/** Se niega si hay un merge, cherry-pick, revert o rebase a medias en `cwd`. */
+function requireNoOperation(cwd) {
+  for (const [name, what] of IN_PROGRESS) {
+    if (fs.existsSync(gitPath(cwd, name))) {
+      throw new RunError(`hay ${what} a medias en ${cwd} (${name}): termínalo o abórtalo tú antes de seguir`);
+    }
+  }
 }
 
 function currentBranch(cwd) {
@@ -59,13 +89,23 @@ function gitVersion(cwd) {
   return match ? [Number(match[1]), Number(match[2])] : [0, 0];
 }
 
-/** Ruta canónica si existe (en Windows deshace nombres 8.3 y mayúsculas), o solo resuelta. */
+/**
+ * Ruta canónica (en Windows deshace nombres 8.3 y mayúsculas). Si no existe, la de su antecesor
+ * más cercano que exista más el resto; si no se puede leer, solo resuelta.
+ */
 function canonical(p) {
-  try {
-    return fs.realpathSync.native(p);
-  } catch (error) {
-    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return path.resolve(p);
-    throw error;
+  let current = path.resolve(p);
+  const rest = [];
+  for (;;) {
+    try {
+      return path.join(fs.realpathSync.native(current), ...rest);
+    } catch (error) {
+      if (!['ENOENT', 'ENOTDIR', 'EPERM', 'EACCES'].includes(error.code)) throw error;
+      const parent = path.dirname(current);
+      if (parent === current) return path.resolve(p);
+      rest.unshift(path.basename(current));
+      current = parent;
+    }
   }
 }
 
@@ -136,35 +176,50 @@ const defaultWorktree = (root, id, unitId) => path.join(path.dirname(root), `${p
 
 // ---------------------------------------------------------------- start
 
-/** Base de la rama de integración según la tabla de SKILL.md §4: {ref, sha, note}. */
-function freshBase(root, parent, remote, from) {
+/** Commits de `right` que no están en `left` y al revés: [detrás, delante] de `right` respecto a `left`. */
+function aheadBehind(cwd, left, right) {
+  const counts = git(['rev-list', '--left-right', '--count', `${left}...${right}`], { cwd }).stdout.trim().split(/\s+/).map(Number);
+  if (counts.length !== 2 || !counts.every(Number.isInteger)) throw new RunError(`no entiendo la salida de git rev-list: «${counts.join(' ')}»`);
+  return counts;
+}
+
+/**
+ * Base de la rama de integración según la tabla de SKILL.md §4: {ref, sha, note}. Con `noFetch`
+ * compara con las refs remotas que ya hay (el usuario decidió seguir sin actualizar).
+ */
+function freshBase(root, parent, remote, from, noFetch) {
   const remotes = git(['remote'], { cwd: root }).stdout.split(/\r?\n/).map((r) => r.trim()).filter(Boolean);
   const localSha = refSha(root, `refs/heads/${parent}`);
   if (!remotes.includes(remote)) {
     if (!localSha) throw new RunError(`no existe la rama ${parent} y no hay remoto ${remote}`);
     return { ref: parent, sha: localSha, note: `sin remoto ${remote}: parto de la rama local ${parent}` };
   }
-  // Sin terminal: que un remoto con credenciales falle en vez de quedarse esperando una contraseña.
-  if (process.env.GIT_TERMINAL_PROMPT === undefined) process.env.GIT_TERMINAL_PROMPT = '0';
-  const fetched = git(['fetch', '--prune', remote], { cwd: root, check: false });
-  if (fetched.status !== 0) {
-    const reason = (fetched.stderr.trim() || fetched.stdout.trim()).split(/\r?\n/).pop();
-    throw new RunError(`RISK: no pude actualizar ${remote} (${reason}). Pregunta al usuario antes de seguir con la base local`);
+  let fetchNote = '';
+  if (noFetch) {
+    fetchNote = ` (--no-fetch: refs de ${remote} sin actualizar)`;
+  } else {
+    // Sin terminal: que un remoto con credenciales falle en vez de quedarse esperando una contraseña.
+    if (process.env.GIT_TERMINAL_PROMPT === undefined) process.env.GIT_TERMINAL_PROMPT = '0';
+    const fetched = git(['fetch', '--prune', remote], { cwd: root, check: false });
+    if (fetched.status !== 0) {
+      const reason = (fetched.stderr.trim() || fetched.stdout.trim()).split(/\r?\n/).pop();
+      throw new RunError(`RISK: no pude actualizar ${remote} (${reason}). Pregunta al usuario; para seguir con lo que hay: --no-fetch`);
+    }
   }
+  const pick = (ref, sha, note) => ({ ref, sha, note: `${note}${fetchNote}` });
   const remoteRef = `${remote}/${parent}`;
   const remoteSha = refSha(root, `refs/remotes/${remoteRef}`);
   if (!remoteSha) {
     if (!localSha) throw new RunError(`no existe ${parent} ni ${remoteRef}`);
-    return { ref: parent, sha: localSha, note: `${remoteRef} no existe: parto de la rama local ${parent}` };
+    return pick(parent, localSha, `${remoteRef} no existe: parto de la rama local ${parent}`);
   }
-  if (!localSha) return { ref: remoteRef, sha: remoteSha, note: `${parent} no existe en local: parto de ${remoteRef}` };
-  const counts = git(['rev-list', '--left-right', '--count', `refs/remotes/${remoteRef}...refs/heads/${parent}`], { cwd: root }).stdout.trim().split(/\s+/).map(Number);
-  const [behind, ahead] = counts;
-  if (!Number.isInteger(behind) || !Number.isInteger(ahead)) throw new RunError(`no entiendo la salida de git rev-list: «${counts.join(' ')}»`);
-  if (ahead === 0 && behind === 0) return { ref: parent, sha: localSha, note: `${parent} y ${remoteRef} coinciden` };
-  if (ahead === 0) return { ref: remoteRef, sha: remoteSha, note: `${parent} va ${behind} commit(s) por detrás de ${remoteRef}: parto de ${remoteRef} (la local no se toca)` };
-  if (from === 'local') return { ref: parent, sha: localSha, note: `--from local: parto de ${parent} con sus ${ahead} commit(s) sin subir` };
-  if (from === 'remote') return { ref: remoteRef, sha: remoteSha, note: `--from remote: parto de ${remoteRef} sin los ${ahead} commit(s) de la local` };
+  if (!localSha) return pick(remoteRef, remoteSha, `${parent} no existe en local: parto de ${remoteRef}`);
+  const [behind, ahead] = aheadBehind(root, `refs/remotes/${remoteRef}`, `refs/heads/${parent}`);
+  if (ahead === 0 && behind === 0) return pick(parent, localSha, `${parent} y ${remoteRef} coinciden`);
+  // La decisión explícita del usuario manda sobre la tabla.
+  if (from === 'local') return pick(parent, localSha, `--from local: parto de ${parent} (${ahead} commit(s) sin subir, ${behind} por detrás de ${remoteRef})`);
+  if (from === 'remote') return pick(remoteRef, remoteSha, `--from remote: parto de ${remoteRef}${ahead ? ` sin los ${ahead} commit(s) de la local` : ''}`);
+  if (ahead === 0) return pick(remoteRef, remoteSha, `${parent} va ${behind} commit(s) por detrás de ${remoteRef}: parto de ${remoteRef} (la local no se toca)`);
   throw new RunError([
     `la rama local ${parent} tiene ${ahead} commit(s) que no están en ${remoteRef}${behind ? ` y le faltan ${behind}` : ''}. Decide la base:`,
     `  --from remote  parte de ${remoteRef} (sin esos commits locales)`,
@@ -174,7 +229,7 @@ function freshBase(root, parent, remote, from) {
 
 function cmdStart(args, ctx) {
   const { root } = ctx;
-  const { positional, options } = parseArgs(args, { values: ['parent', 'remote', 'from', 'integration'] });
+  const { positional, options } = parseArgs(args, { values: ['parent', 'remote', 'from', 'integration'], flags: ['no-fetch'] });
   if (positional.length > 1) throw new RunError(`sobra: ${positional.slice(1).join(' ')}`, 2);
   const id = ctx.resolveRun(root, positional[0]);
   if (options.parent === undefined) throw new RunError('falta --parent <rama> (la rama destino del merge final)', 2);
@@ -193,33 +248,41 @@ function cmdStart(args, ctx) {
   const integration = checkBranch(wanted, root);
   if (integration === parent) throw new RunError(`la rama de integración no puede ser la padre (${parent})`);
   if (defaultBranches(root, remote).includes(integration)) throw new RunError(`la rama de integración no puede ser la rama por defecto (${integration})`);
+  requireNoOperation(root);
   requireCleanTree(root, 'start va a cambiar de rama');
 
-  const base = freshBase(root, parent, remote, options.from);
-  console.log(`base: ${base.ref} @ ${short(base.sha)} — ${base.note}`);
+  const base = freshBase(root, parent, remote, options.from, Boolean(options['no-fetch']));
+  const baseShort = abbrev(root, base.sha);
+  console.log(`base: ${base.ref} @ ${baseShort} — ${base.note}`);
 
   const existing = refSha(root, `refs/heads/${integration}`);
+  const remoteIntegration = refSha(root, `refs/remotes/${remote}/${integration}`);
   let baseRef = run.meta.base_ref;
   if (existing) {
-    if (currentBranch(root) !== integration) git(['switch', '--quiet', integration], { cwd: root });
+    // --no-overwrite-ignore: un fichero ignorado del checkout (un .env) no se pisa al cambiar de rama.
+    if (currentBranch(root) !== integration) git(['switch', '--quiet', '--no-overwrite-ignore', integration], { cwd: root });
     console.log(`la rama de integración ${integration} ya existe (${short(existing)}): no la recreo; estás en ella`);
     if (git(['merge-base', '--is-ancestor', base.sha, existing], { cwd: root, check: false }).status !== 0) {
-      console.log(`aviso: la rama padre ha avanzado: ${base.ref} @ ${short(base.sha)} no está en ${integration}; dilo en el plan`);
+      console.log(`aviso: la rama padre ha avanzado: ${base.ref} @ ${baseShort} no está en ${integration}; dilo en el plan`);
     }
-    if (!present(baseRef)) baseRef = `${base.ref} @ ${short(base.sha)}`;
+    if (remoteIntegration) {
+      const [behind, ahead] = aheadBehind(root, `refs/remotes/${remote}/${integration}`, `refs/heads/${integration}`);
+      if (behind || ahead) console.log(`aviso: ${integration} va ${behind} commit(s) por detrás y ${ahead} por delante de ${remote}/${integration}; no lo toco`);
+    }
+    if (!present(baseRef)) baseRef = `${base.ref} @ ${baseShort}`;
   } else {
-    if (remote && refSha(root, `refs/remotes/${remote}/${integration}`)) {
+    if (remoteIntegration) {
       throw new RunError(`existe ${remote}/${integration} pero no la rama local: decide si seguir la remota (git switch ${integration}) o usar otro nombre`, 3);
     }
-    git(['switch', '--quiet', '--no-track', '-c', integration, base.sha], { cwd: root });
-    console.log(`rama de integración ${integration} creada desde ${base.ref} @ ${short(base.sha)} (sin upstream)`);
-    baseRef = `${base.ref} @ ${short(base.sha)}`;
+    git(['switch', '--quiet', '--no-overwrite-ignore', '--no-track', '-c', integration, base.sha], { cwd: root });
+    console.log(`rama de integración ${integration} creada desde ${base.ref} @ ${baseShort} (sin upstream)`);
+    baseRef = `${base.ref} @ ${baseShort}`;
   }
 
   if (!saved) ledger.setMeta(run, 'integration', integration);
   ledger.setMeta(run, 'base_ref', baseRef);
   if (run.meta.status === 'planned') ledger.setMeta(run, 'status', 'active');
-  ledger.addLog(run, `start: ${existing ? 'reanuda' : 'crea'} ${integration} · base ${base.ref} @ ${short(base.sha)} · ${base.note}`);
+  ledger.addLog(run, `start: ${existing ? 'reanuda' : 'crea'} ${integration} · base ${base.ref} @ ${baseShort} · ${base.note}`);
   ledger.writeRun(root, run);
   return 0;
 }
@@ -268,13 +331,22 @@ function includeProblem(root, entry) {
   return null;
 }
 
+/** lstat sin seguir enlaces (uno roto también existe), o null si no hay nada en esa ruta. */
+function lstatOrNull(p) {
+  try {
+    return fs.lstatSync(p);
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return null;
+    throw error;
+  }
+}
+
 /** Copia los ficheros permitidos de .worktreeinclude. Nunca lee ni enseña su contenido. */
 function copyIncludes(root, worktree) {
   const report = [];
   for (const entry of readIncludes(root)) {
     const segments = entry.replace(/\\/g, '/').split('/').filter((s) => s && s !== '.');
-    const name = segments[segments.length - 1] || entry;
-    if (PRODUCTION.test(name)) {
+    if (segments.some((segment) => PRODUCTION.some((re) => re.test(segment)))) {
       report.push({ entry, copied: false, reason: 'parece de producción', risk: true });
       continue;
     }
@@ -294,7 +366,7 @@ function copyIncludes(root, worktree) {
         if (error.code !== 'ENOENT') throw error;
       }
     }
-    if (!blocked && fs.existsSync(dest)) blocked = 'ya existe en el worktree (no lo piso)';
+    if (!blocked && lstatOrNull(dest)) blocked = 'ya existe en el worktree (no lo piso)';
     if (blocked) {
       report.push({ entry, copied: false, reason: blocked });
       continue;
@@ -322,7 +394,7 @@ function cmdWorktree(args, ctx) {
   const { positional, options } = parseArgs(args, { values: ['path'], flags: ['no-copy'] });
   const [id, unitId] = runAndUnit(positional, ctx, 'omk run worktree <run> <unidad> [--path <ruta>] [--no-copy]');
   const run = loadRun(root, id);
-  rowOf(run, unitId);
+  const row = rowOf(run, unitId);
   loadUnit(root, id, unitId);
   const integration = integrationOf(run, root);
   const baseSha = refSha(root, `refs/heads/${integration}`);
@@ -330,7 +402,14 @@ function cmdWorktree(args, ctx) {
   const branch = checkBranch(unitBranch(id, unitId), root);
   const target = options.path !== undefined ? path.resolve(cwd, options.path) : defaultWorktree(root, id, unitId);
   if (/[|\r\n]/.test(target)) throw new RunError('la ruta del worktree no puede llevar «|» ni saltos de línea (rompería run.md)', 2);
-  if (isInside(canonical(target), canonical(root))) throw new RunError(`la ruta ${target} contiene el checkout del coordinador`, 2);
+  const [realTarget, realRoot] = [canonical(target), canonical(root)];
+  if (isInside(realTarget, realRoot)) throw new RunError(`la ruta ${target} contiene el checkout del coordinador`, 2);
+  if (isInside(realRoot, realTarget)) throw new RunError(`la ruta ${target} queda dentro del checkout del coordinador: elige una fuera`, 2);
+  const otherBranch = present(row.branch) && row.branch !== branch;
+  const otherWorktree = present(row.worktree) && !samePath(path.resolve(root, row.worktree), target);
+  if (otherBranch || otherWorktree) {
+    throw new RunError(`la fila de ${unitId} en run.md ya tiene branch ${row.branch} y worktree ${row.worktree}, distintos de ${branch} y ${target}: no la piso`);
+  }
 
   if (refSha(root, `refs/heads/${branch}`)) {
     const where = worktreeOfBranch(root, branch);
@@ -351,10 +430,11 @@ function cmdWorktree(args, ctx) {
   }
 
   git(['worktree', 'add', '--quiet', '-b', branch, target, `refs/heads/${integration}`], { cwd: root });
-  console.log(`${unitId}: worktree ${target} · rama ${branch} desde ${integration} @ ${short(baseSha)}`);
+  const base = abbrev(root, baseSha);
+  console.log(`${unitId}: worktree ${target} · rama ${branch} desde ${integration} @ ${base}`);
   // Se anota ya: si la copia falla después, el worktree creado consta en run.md (cleanup lo encuentra).
-  ledger.setUnit(run, unitId, { branch, worktree: target, base: short(baseSha) });
-  ledger.addLog(run, `${unitId} worktree ${target} · rama ${branch} · base ${short(baseSha)}`);
+  ledger.setUnit(run, unitId, { branch, worktree: target, base });
+  ledger.addLog(run, `${unitId} worktree ${target} · rama ${branch} · base ${base}`);
   ledger.writeRun(root, run);
   if (options['no-copy']) return 0;
 
@@ -377,8 +457,21 @@ function cmdWorktree(args, ctx) {
 
 /** Si un worker no puede tocar este fichero aunque lo cubra un glob de write o shared. */
 function isForbidden(file) {
-  const name = file.split('/').pop();
-  return FORBIDDEN_NAMES.has(name) || FORBIDDEN_GLOBS.some((pattern) => glob.matches(file, pattern));
+  const lower = glob.normalizePath(file).toLowerCase();
+  const name = lower.split('/').pop();
+  return FORBIDDEN_NAMES.has(name) || FORBIDDEN_GLOBS.some((pattern) => glob.matches(lower, pattern));
+}
+
+/**
+ * El worktree de la unidad: la celda de run.md (relativa a root) o, si está vacía o entre
+ * paréntesis («(Orca)»), el que git tenga registrado para su rama. {path, problem}.
+ */
+function unitWorktree(root, row, branch) {
+  const cell = present(row.worktree) ? row.worktree.trim() : '';
+  if (!cell || /^\(.*\)$/.test(cell)) return { path: worktreeOfBranch(root, branch), problem: null };
+  const resolved = path.resolve(root, cell);
+  if (!lstatOrNull(resolved)) return { path: null, problem: `el worktree ${cell} de run.md no existe` };
+  return { path: resolved, problem: null };
 }
 
 const splitZ = (text) => text.split('\0').filter(Boolean);
@@ -389,8 +482,9 @@ function gitDir(cwd) {
 }
 
 /**
- * Alcance de una unidad: lo commiteado desde su base y lo que quede sin commitear en su worktree,
- * contra write ∪ shared. Devuelve el informe; `ok` es false si hay algo que impide integrar.
+ * Alcance de una unidad: lo que su rama cambia respecto a la rama de integración (desde su
+ * merge-base: si el worker trajo la integración, lo ajeno no cuenta; si revirtió algo integrado, sí)
+ * y lo que quede sin commitear en su worktree, contra write ∪ shared. `ok` es false si algo impide integrar.
  */
 function checkScope(root, run, unitId) {
   const row = rowOf(run, unitId);
@@ -399,15 +493,22 @@ function checkScope(root, run, unitId) {
   if (!SHA.test(row.base)) throw new RunError(`${unitId}: base no es un sha: «${row.base}»`);
   if (!present(row.branch)) throw new RunError(`${unitId} no tiene rama en run.md (la anota omk run worktree)`);
   const branch = checkBranch(row.branch, root);
+  const integration = integrationOf(run, root);
   const base = refSha(root, row.base);
   if (!base) throw new RunError(`${unitId}: la base ${row.base} no es un commit de este repositorio`);
   if (!refSha(root, `refs/heads/${branch}`)) throw new RunError(`${unitId}: no existe la rama ${branch}`);
+  if (!refSha(root, `refs/heads/${integration}`)) throw new RunError(`no existe la rama de integración ${integration}`);
 
-  const committed = splitZ(git(['diff', '--name-only', '--no-renames', '-z', `${base}...refs/heads/${branch}`], { cwd: root }).stdout);
-  const uncommitted = [];
   const problems = [];
-  const worktree = present(row.worktree) ? row.worktree : null;
-  if (worktree && fs.existsSync(worktree)) {
+  if (git(['merge-base', '--is-ancestor', base, `refs/heads/${branch}`], { cwd: root, check: false }).status !== 0) {
+    problems.push(`la base ${row.base} de run.md no es antecesora de ${branch}`);
+  }
+  const committed = splitZ(git(['diff', '--name-only', '--no-renames', '-z', `refs/heads/${integration}...refs/heads/${branch}`], { cwd: root }).stdout);
+  const uncommitted = [];
+  const located = unitWorktree(root, row, branch);
+  if (located.problem) problems.push(located.problem);
+  const worktree = located.path;
+  if (worktree) {
     if (gitDir(worktree) === null || !samePath(gitDir(worktree), gitDir(root))) {
       problems.push(`el worktree ${worktree} no es de este repositorio`);
     } else {
@@ -469,6 +570,7 @@ function cmdMerge(args, ctx) {
   }
   const current = currentBranch(root);
   if (current !== integration) throw new RunError(`estás en ${current || 'HEAD suelto'}, no en la rama de integración ${integration} (git switch ${integration})`);
+  requireNoOperation(root);
   requireCleanTree(root, 'merge necesita el árbol limpio');
   if (row.status !== 'accepted') throw new RunError(`${unitId} está en ${row.status}: solo se integra una unidad accepted`);
 
@@ -477,12 +579,23 @@ function cmdMerge(args, ctx) {
     printScope(scope, console.error);
     throw new RunError(`${unitId} no pasa check: no la integro`);
   }
+  const branchRef = `refs/heads/${scope.branch}`;
+  const pending = Number(git(['rev-list', '--count', `refs/heads/${integration}..${branchRef}`], { cwd: root }).stdout.trim());
+  if (pending === 0) {
+    throw new RunError(`${unitId}: la rama ${scope.branch} no aporta commits a ${integration}; ¿se quedaron sin commitear? No la marco como merged`);
+  }
+  // git merge acepta --no-overwrite-ignore pero la estrategia ort (la de siempre desde git 2.34)
+  // no lo respeta: se comprueba aquí que nada de la rama caiga sobre un fichero sin versionar o ignorado.
+  const tracked = new Set(splitZ(git(['ls-files', '-z'], { cwd: root }).stdout));
+  const clobbered = scope.committed.filter((file) => !tracked.has(file) && lstatOrNull(path.join(root, ...file.split('/'))));
+  if (clobbered.length) {
+    throw new RunError(`${unitId}: el merge pisaría ficheros sin versionar o ignorados de ${root}:\n${clobbered.map((f) => `  ${f}`).join('\n')}\napártalos tú antes de integrar; no toco nada`);
+  }
 
   const [major, minor] = gitVersion(root);
   if (major < MERGE_TREE_MIN[0] || (major === MERGE_TREE_MIN[0] && minor < MERGE_TREE_MIN[1])) {
     throw new RunError(`git ${major}.${minor} no tiene merge-tree --write-tree: hace falta git ≥ ${MERGE_TREE_MIN.join('.')} para ensayar el merge`);
   }
-  const branchRef = `refs/heads/${scope.branch}`;
   const trial = git(['merge-tree', '--write-tree', '--name-only', '--no-messages', `refs/heads/${integration}`, branchRef], { cwd: root, check: false });
   if (trial.status === 1) {
     const files = [...new Set(trial.stdout.split(/\r?\n/).slice(1).map((l) => l.trim()).filter(Boolean))];
@@ -497,13 +610,19 @@ function cmdMerge(args, ctx) {
   }
 
   const message = `merge(${id}): ${unitId}${unit.title ? ` — ${unit.title}` : ''}`;
-  const merged = git(['merge', '--no-ff', '--no-edit', '-m', message, branchRef], { cwd: root, check: false });
+  const before = refSha(root, 'HEAD');
+  // requireNoOperation garantiza que no había MERGE_HEAD: si aparece, lo ha dejado este merge.
+  // --no-overwrite-ignore: un fichero ignorado del checkout (un .env) no se pisa con uno de la rama.
+  const merged = git(['merge', '--no-ff', '--no-edit', '--no-overwrite-ignore', '-m', message, branchRef], { cwd: root, check: false });
   if (merged.status !== 0) {
-    const aborted = git(['merge', '--abort'], { cwd: root, check: false });
     const detail = merged.stderr.trim() || merged.stdout.trim();
+    if (!mergeInProgress(root)) throw new RunError(`git merge falló sin empezar a integrar: ${detail}\nla rama de integración está como estaba`);
+    const aborted = git(['merge', '--abort'], { cwd: root, check: false });
     throw new RunError(`git merge falló: ${detail}\n${aborted.status === 0 ? 'merge abortado: la rama de integración está como estaba' : `y git merge --abort también falló: ${aborted.stderr.trim()}; revisa ${root} a mano`}`);
   }
-  const head = short(git(['rev-parse', 'HEAD'], { cwd: root }).stdout.trim());
+  const after = refSha(root, 'HEAD');
+  if (!after || after === before) throw new RunError(`git merge salió bien pero HEAD no cambió (${short(before || '')}): no marco ${unitId} como merged; revísalo a mano`);
+  const head = abbrev(root, after);
   ledger.setUnit(run, unitId, { status: 'merged', head });
   ledger.addLog(run, `${unitId} integrada en ${integration} · merge ${head}`);
   ledger.writeRun(root, run);
