@@ -5,6 +5,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-11-13
+
+### Corregido
+- **Actualizar desde la 1.6.0 con un solo clic.** El `omk update` de la 1.6.0 instala el paquete nuevo y termina con `omk install`, que no ponía al día el proyecto: hacía falta pulsar *Actualizar kit* dos veces. Ahora `omk install`, cuando sube de versión (`~/.agents` es más antigua) dentro de un proyecto del kit, hace lo mismo que `omk update`: `~/.agents`, `ORCHESTRATION.md` y `STACK.md` del proyecto, hooks y plugin (`--no-project` para que no toque el proyecto). Con el ejecutable de la 1.6.0, que no se actualiza solo, descarga una vez el de esta versión.
+
 ## [1.7.0] - 2026-11-13
 
 ### Añadido
@@ -209,7 +214,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.1...v1.5.0
