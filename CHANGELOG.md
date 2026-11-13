@@ -5,6 +5,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-11-13
+
+### Corregido
+- **Actualizar desde la 1.6.0 con un solo clic.** El `omk update` de la 1.6.0 instala el paquete nuevo y termina con `omk install`, que no ponía al día el proyecto: hacía falta pulsar *Actualizar kit* dos veces. Ahora `omk install`, cuando sube de versión (`~/.agents` es más antigua) dentro de un proyecto del kit, hace lo mismo que `omk update`: `~/.agents`, `ORCHESTRATION.md` y `STACK.md` del proyecto, hooks y plugin (`--no-project` para que no toque el proyecto). Con el ejecutable de la 1.6.0, que no se actualiza solo, descarga una vez el de esta versión.
+
 ## [1.7.0] - 2026-11-13
 
 ### Añadido
@@ -39,7 +44,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 - El plugin lanza `omk` con `--exit-marker`: necesita un `omk` de esta versión o posterior. Con uno anterior, la tarjeta lo explica y dice cómo actualizarlo.
-- Viniendo de la 1.6.0: el botón *Actualizar kit* del plugin antiguo instala el `omk` nuevo, que ya actualiza también el plugin y, si lo pulsas dentro de un proyecto del kit, su `ORCHESTRATION.md` y `STACK.md`: basta un clic. Es porque `omk install`, cuando sube de versión (`~/.agents` es más antigua) dentro de un proyecto del kit, hace lo mismo que `omk update` (`--no-project` para que no lo toque). Con el ejecutable de la 1.6.0, que no se actualiza solo, descarga una vez el de la 1.7.0. Si Orca pide aprobar la versión nueva, la pregunta sale en el terminal de esa actualización (el plugin antiguo no la enseña): contéstala ahí, o ejecuta `omk update` en un terminal. A partir de ahí, el botón lo hace todo y la aprobación se contesta desde el panel.
+- Viniendo de la 1.6.0: el botón *Actualizar kit* del plugin antiguo instala el `omk` nuevo, que ya actualiza también el plugin. Si Orca pide aprobar la versión nueva, la pregunta sale en el terminal de esa actualización (el plugin antiguo no la enseña): contéstala ahí, o ejecuta `omk update` en un terminal. A partir de ahí, el botón lo hace todo y la aprobación se contesta desde el panel.
 - Los marcadores de los bloques de proyecto (`AGENTS:BEGIN project`, `AGENTS:BEGIN project-claude`) ya no llevan una versión escrita a mano, que se había quedado en v1.0.0.
 - El gate de dependencias se llama `deps-audit` en todas partes (antes, `deps` en el núcleo y en el ejemplo del reporte).
 - `omk init` dice «se conserva» en vez de «no se toca» de los ficheros que ya existían.
@@ -209,7 +214,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.1...v1.5.0
