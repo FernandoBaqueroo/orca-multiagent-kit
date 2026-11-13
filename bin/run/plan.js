@@ -16,7 +16,8 @@ const COST_PER_SHARED = 10;
 const CROSS_ROLES = new Set(['ariadna', 'perséfone', 'persefone']);
 
 const segmentsOf = (pattern) => pattern.replace(/^(\.\/)+/, '').split('/').filter(Boolean);
-const hasWildcard = (pattern) => WILDCARD.test(pattern);
+// «src/» cubre toda la carpeta (glob.js lo lee como «src/**»): cuenta como comodín.
+const hasWildcard = (pattern) => WILDCARD.test(pattern) || pattern.endsWith('/');
 
 /** Segmentos literales antes del primero con comodín (todos, si el patrón no tiene comodín). */
 function literalPrefix(pattern) {

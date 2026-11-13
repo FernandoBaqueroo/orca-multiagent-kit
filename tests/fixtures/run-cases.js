@@ -180,6 +180,16 @@ check('ids de run que escaparían de .work/runs se rechazan', () => {
   }
   assert.equal(checkRunId('20261113-omk-run'), '20261113-omk-run');
 });
+check('ramas que git expandiría a otra (@{-1}, @) se rechazan sin llamar a git', () => {
+  const { checkBranch } = require(path.join(ROOT, 'bin', 'run', 'util.js'));
+  for (const bad of ['@{-1}', '@', 'feat@{u}', '-x']) assert.throws(() => checkBranch(bad, ROOT), RunError, bad);
+});
+check('plan: una carpeta con «/» final es un glob (ancho si es de primer nivel)', () => {
+  const plan = require(path.join(ROOT, 'bin', 'run', 'plan.js'));
+  assert.equal(plan.isBroadGlob('src/'), true);
+  assert.equal(plan.isBroadGlob('bin/run/'), false);
+  assert.equal(plan.overlaps('bin/run/', 'bin/run/x.js'), true);
+});
 check('parseArgs: opción desconocida, valor ausente y bandera con valor', () => {
   assert.throws(() => parseArgs(['--x']), /desconocida/);
   assert.throws(() => parseArgs(['--input'], { values: ['input'] }), /falta el valor/);

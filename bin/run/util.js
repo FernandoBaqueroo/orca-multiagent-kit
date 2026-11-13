@@ -48,7 +48,8 @@ function git(args, { cwd, check = true, input } = {}) {
 
 /** Nombre de rama válido para git (git check-ref-format --branch) y que no empieza por «-». */
 function checkBranch(name, cwd) {
-  if (typeof name !== 'string' || !name || name.startsWith('-') || /[\s\u0000-\u001f]/.test(name)) {
+  // «@{-1}» y «@» los expande check-ref-format a otra rama: aquí solo valen nombres literales.
+  if (typeof name !== 'string' || !name || name === '@' || name.includes('@{') || name.startsWith('-') || /[\s\u0000-\u001f]/.test(name)) {
     throw new RunError(`nombre de rama no válido: «${name ?? ''}»`, 2);
   }
   const res = git(['check-ref-format', '--branch', name], { cwd, check: false });
