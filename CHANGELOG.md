@@ -5,6 +5,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-13
+
 ### Añadido
 - **`omk run`, el motor determinista de los runs.** Lo mecánico de un run orquestado ya no depende de que el coordinador siga las referencias de memoria: `new`, `set`, `meta`, `log`, `status` y `list` llevan `run.md` respetando sus transiciones de estado; `plan` valida `units.md` y calcula rondas, solapes y si compensa; `start` hace la base fresca y crea la rama de integración con `--no-track`; `worktree` crea el de cada unidad desde la integración con sus `.env` de desarrollo; `check` comprueba el alcance contra `write`; `merge` ensaya con `merge-tree` y hace `--no-ff` sin push; `cleanup` hace el inventario y, con `--apply`, borra solo lo integrado y limpio. La skill `orca` dice qué orden toca en cada paso, y los pasos a mano siguen para quien no tenga `omk`. Detalle en `docs/ORQUESTADOR.md` §10; pruebas en `tests/test_run*.sh`.
 - **Puerta de reparto obligatoria en Claude Code** (`hooks/orca-gate.cjs`, `omk gate on|off|status`). Recordar la regla no bastaba: el veredicto secuencial solo llegaba al chat en 4 de 16 ensayos y un reparto podía empezar sin esperar el «sí». Ahora, tras cargar la skill `orca`, Claude Code no edita el proyecto, no escribe desde la shell y no lanza workers hasta que el veredicto esté registrado (`echo "ORCA: …"`, porque el transcript le llega tarde al hook) y, si reparte, hasta que la persona responda al plan. Medido: 6 de 6 encargos con el veredicto antes de editar, sin denegaciones de más, y 2 de 2 repartos que esperan al «sí». Nunca bloquea por un fallo suyo. `omk setup`, `install` y `update` lo instalan en `~/.agents/hooks` y lo registran en `~/.claude/settings.json`; con el ejecutable y sin Node, lo ejecuta el propio `omk`. Pruebas en `tests/test_gate.sh`.
@@ -207,7 +209,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.4.0...v1.4.1
