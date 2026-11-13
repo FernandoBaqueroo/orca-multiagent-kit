@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" shape-rendering="crispEdges"><title>Orca Multiagent Kit v1.6.0</title><style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" shape-rendering="crispEdges"><title>Orca Multiagent Kit v1.7.0</title><style>
       .lt{animation:type 12s steps(1) infinite both}
       @keyframes type{0%{opacity:0}1.5%,100%{opacity:1}}
       .glow{animation:glow 3s ease-in-out infinite}
