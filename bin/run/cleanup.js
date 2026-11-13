@@ -36,17 +36,15 @@ function isInside(child, parent) {
   return c === p || c.startsWith(p.endsWith(path.sep) ? p : p + path.sep);
 }
 
-/** `git worktree list --porcelain` (con -z si el git lo admite) en objetos. */
-function listWorktrees(root) {
-  let res = git(['worktree', 'list', '--porcelain', '-z'], { cwd: root, check: false });
-  let sep = '\0';
-  if (res.status !== 0) {
-    res = git(['worktree', 'list', '--porcelain'], { cwd: root });
-    sep = '\n';
-  }
+/**
+ * Salida de `git worktree list --porcelain` en objetos: campos separados por NUL (con -z) o por líneas
+ * (git < 2.36, donde en Windows cada línea puede acabar en \r).
+ */
+function parsePorcelain(text, sep) {
   const list = [];
   let cur = null;
-  for (const field of res.stdout.split(sep)) {
+  for (const raw of text.split(sep)) {
+    const field = sep === '\0' ? raw : raw.replace(/\r$/, '');
     if (field === '') {
       if (cur) list.push(cur);
       cur = null;
@@ -66,6 +64,13 @@ function listWorktrees(root) {
   }
   if (cur) list.push(cur);
   return list;
+}
+
+/** `git worktree list --porcelain` (con -z si el git lo admite) en objetos. */
+function listWorktrees(root) {
+  const res = git(['worktree', 'list', '--porcelain', '-z'], { cwd: root, check: false });
+  if (res.status === 0) return parsePorcelain(res.stdout, '\0');
+  return parsePorcelain(git(['worktree', 'list', '--porcelain'], { cwd: root }).stdout, '\n');
 }
 
 /** 0 → sí, 1 → no, otra cosa → no se sabe (null). */
@@ -108,56 +113,99 @@ function validBranch(name, root) {
   }
 }
 
-/** Ramas que nunca se tocan, cada una con su motivo. */
-function protectedBranches(root, integration) {
-  const guard = new Map([['main', 'rama por defecto'], ['master', 'rama por defecto']]);
-  const origin = git(['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'], { cwd: root, check: false });
-  if (origin.status === 0) {
-    const name = origin.stdout.trim().replace(/^origin\//, '');
-    if (name) guard.set(name, 'rama por defecto');
+/** Rama padre del run según base_ref («<ref> @ <sha>»), sin el «<remoto>/» si ese remoto existe. */
+function parentBranch(root, run) {
+  const raw = run && run.meta.base_ref;
+  if (!raw || raw === ledger.EMPTY) return null;
+  const match = /^(.*?)\s+@\s+\S+$/.exec(raw.trim());
+  const ref = (match ? match[1] : raw).trim();
+  if (!ref || ref === ledger.EMPTY) return null;
+  const slash = ref.indexOf('/');
+  if (slash > 0) {
+    const remotes = git(['remote'], { cwd: root }).stdout.split(/\r?\n/).filter(Boolean);
+    if (remotes.includes(ref.slice(0, slash))) return ref.slice(slash + 1);
   }
+  return ref;
+}
+
+/**
+ * Ramas que nunca se tocan: devuelve una función que da el motivo (o null). Entran la por defecto
+ * (origin/HEAD, main y master), la actual del coordinador, la de integración, la padre del run y toda
+ * rama local con upstream configurado (está publicada: su limpieza es cosa del usuario).
+ */
+function protectedBranches(root, integration, run, upstreams) {
+  const guard = new Map([['main', 'rama por defecto'], ['master', 'rama por defecto']]);
+  const origin = git(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD'], { cwd: root, check: false });
+  const remoteHead = origin.status === 0 ? origin.stdout.trim() : '';
+  if (remoteHead.startsWith('refs/remotes/origin/') && remoteHead.length > 'refs/remotes/origin/'.length) {
+    guard.set(remoteHead.slice('refs/remotes/origin/'.length), 'rama por defecto');
+  }
+  const parent = parentBranch(root, run);
+  if (parent) guard.set(parent, 'rama padre del run');
   const current = git(['symbolic-ref', '--quiet', '--short', 'HEAD'], { cwd: root, check: false });
   if (current.status === 0 && current.stdout.trim()) guard.set(current.stdout.trim(), 'rama actual del coordinador');
   guard.set(integration, 'rama de integración');
-  return guard;
+  return (name) => guard.get(name) || (upstreams.get(name) ? `tiene upstream (${upstreams.get(name)})` : null);
 }
 
-/** Celdas de run.md que son ruta (ni «—» ni «(principal)», «(Orca)»…). */
-function pathCells(run) {
-  return run.units.map((u) => u.worktree).filter((cell) => cell && cell !== ledger.EMPTY && !/^\(.*\)$/.test(cell));
-}
+/** Una celda de run.md con valor (ni «—» ni «(principal)», «(Orca)»…). */
+const isCell = (cell) => Boolean(cell) && cell !== ledger.EMPTY && !/^\(.*\)$/.test(cell);
 
-function branchCells(run) {
-  return run.units.map((u) => u.branch).filter((cell) => cell && cell !== ledger.EMPTY && !/^\(.*\)$/.test(cell));
-}
+/** Estados de unidad con los que lo suyo ya se puede borrar. */
+const SETTLED = ['merged', 'discarded', 'reverted'];
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * Inventario del run: lista de {type, name, branch?, state, action: delete|keep, reason, protected}.
+ * Inventario del run: lista de {type, name, branch?, state, action: delete|keep|gone, reason, protected}.
  * Solo entra lo que git lista; las rutas de run.md que git no lista salen como `ruta` y no se tocan.
+ * Lo que pertenece a una fila de run.md solo se borra si la unidad está cerrada (SETTLED).
  */
 function inventory({ root, id, integration, run }) {
   const prefix = `${HEADS}wt/${id}/`;
   const worktrees = listWorktrees(root);
   const main = worktrees[0];
-  const cellKeys = new Map();
-  for (const cell of run ? pathCells(run) : []) cellKeys.set(pathKey(path.resolve(root, cell)), cell);
   const listedKeys = new Set(worktrees.map((wt) => pathKey(wt.path)));
-  const guard = protectedBranches(root, integration);
+  const refLines = git(['for-each-ref', '--format=%(refname)%09%(upstream)', HEADS], { cwd: root }).stdout.split(/\r?\n/).filter(Boolean);
+  const local = new Set();
+  const upstreams = new Map();
+  for (const line of refLines) {
+    const [ref, upstream = ''] = line.split('\t');
+    local.add(ref);
+    if (upstream) upstreams.set(ref.slice(HEADS.length), upstream);
+  }
+  const guardOf = protectedBranches(root, integration, run, upstreams);
   const integrationRef = `${HEADS}${integration}`;
+  const rows = (run ? run.units : []).map((u) => {
+    const pathCell = isCell(u.worktree) ? u.worktree : null;
+    const full = pathCell ? path.resolve(root, pathCell) : null;
+    return { unit: u.unit, status: u.status, branch: isCell(u.branch) ? u.branch : null, pathCell, full, key: full ? pathKey(full) : null };
+  });
+  const busyRow = (owners) => owners.find((r) => !SETTLED.includes(r.status));
   const items = [];
 
-  // 1. Worktrees del run: rama wt/<run>/… o ruta que coincide con una celda worktree de run.md.
+  // 1. Worktrees del run: rama wt/<run>/… o ruta de una celda de run.md cuya fila tenga esa misma rama.
   const removing = new Set();
-  const runWorktrees = worktrees.filter((wt) => !wt.bare && ((wt.branch && `${HEADS}${wt.branch}`.startsWith(prefix)) || cellKeys.has(pathKey(wt.path))));
-  for (const wt of runWorktrees) {
+  for (const wt of worktrees) {
+    if (wt.bare) continue;
+    const key = pathKey(wt.path);
+    const byPrefix = Boolean(wt.branch) && `${HEADS}${wt.branch}`.startsWith(prefix);
+    const pathRows = rows.filter((r) => r.key === key);
+    if (!byPrefix && !pathRows.length) continue;
     const item = { type: 'worktree', name: wt.path, branch: wt.branch, state: '', action: 'keep', reason: '', protected: false };
     items.push(item);
     const keep = (state, reason, isProtected = false) => Object.assign(item, { state, reason, protected: isProtected });
+    if (!byPrefix && !pathRows.some((r) => r.branch && r.branch === wt.branch)) {
+      keep(`en ${wt.branch || 'HEAD separado'}`, 'la ruta de run.md no es de esta unidad', true);
+      continue;
+    }
+    const owners = rows.filter((r) => r.key === key || (wt.branch && r.branch === wt.branch));
+    const guard = wt.branch ? guardOf(wt.branch) : null;
     if (wt === main || isInside(main.path, wt.path)) { keep('checkout principal', 'es el checkout principal del repositorio', true); continue; }
     if (isInside(root, wt.path)) { keep('checkout del coordinador', 'aquí vive el run', true); continue; }
-    if (wt.branch && guard.has(wt.branch)) { keep(`en ${wt.branch}`, `tiene la ${guard.get(wt.branch)}`, true); continue; }
+    if (guard) { keep(`en ${wt.branch}`, `su rama: ${guard}`, true); continue; }
+    const busy = busyRow(owners);
+    if (busy) { keep(`${busy.unit} en ${busy.status}`, `unidad en ${busy.status}`); continue; }
     if (wt.prunable) { keep('ruta desaparecida', 'git lo lista pero la carpeta no existe: git worktree prune'); continue; }
     if (wt.locked) { keep('bloqueado', 'está bloqueado (git worktree unlock si ya no hace falta)'); continue; }
     const changes = worktreeChanges(root, wt.path);
@@ -176,23 +224,30 @@ function inventory({ root, id, integration, run }) {
     removing.add(wt);
   }
 
+  // Una fila ya limpiada: ni su rama ni su worktree siguen en git, y su carpeta ya no existe.
+  const rowGone = (r) => !(r.branch && local.has(`${HEADS}${r.branch}`))
+    && !(r.key && (listedKeys.has(r.key) || fs.existsSync(r.full)));
+  const gone = (type, name) => ({ type, name, state: 'ni rama ni worktree en git', action: 'gone', reason: '', protected: true });
+
   // 2. Ramas del run: wt/<run>/… y las celdas branch de run.md, solo si git las lista.
-  const refs = git(['for-each-ref', '--format=%(refname)', HEADS], { cwd: root }).stdout.split(/\r?\n/).filter(Boolean);
-  const local = new Set(refs);
   const names = [];
-  for (const ref of refs) if (ref.startsWith(prefix)) names.push(ref.slice(HEADS.length));
-  for (const cell of run ? branchCells(run) : []) {
-    if (cell === integration || names.includes(cell)) continue;
-    if (local.has(`${HEADS}${cell}`)) names.push(cell);
-    else items.push({ type: 'rama', name: cell, state: 'git no la lista', action: 'keep', reason: 'run.md la nombra pero no existe como rama local', protected: true });
+  for (const ref of local) if (ref.startsWith(prefix)) names.push(ref.slice(HEADS.length));
+  for (const r of rows) {
+    if (!r.branch || r.branch === integration || names.includes(r.branch)) continue;
+    if (local.has(`${HEADS}${r.branch}`)) names.push(r.branch);
+    else if (rowGone(r)) items.push(gone('rama', r.branch));
+    else items.push({ type: 'rama', name: r.branch, state: 'git no la lista', action: 'keep', reason: 'run.md la nombra pero no existe como rama local', protected: true });
   }
   const checkedOut = new Map(worktrees.filter((wt) => wt.branch).map((wt) => [wt.branch, wt]));
   for (const name of names) {
     const item = { type: 'rama', name, state: '', action: 'keep', reason: '', protected: false };
     items.push(item);
     const keep = (state, reason, isProtected = false) => Object.assign(item, { state, reason, protected: isProtected });
-    if (guard.has(name)) { keep(guard.get(name), 'no se toca nunca', true); continue; }
+    const guard = guardOf(name);
+    if (guard) { keep(guard, 'no se toca nunca', true); continue; }
     if (!validBranch(name, root)) { keep('nombre no válido', 'git check-ref-format la rechaza', true); continue; }
+    const busy = busyRow(rows.filter((r) => r.branch === name));
+    if (busy) { keep(`${busy.unit} en ${busy.status}`, `unidad en ${busy.status}`); continue; }
     const holder = checkedOut.get(name);
     if (holder && !removing.has(holder)) { keep('en uso', `la tiene el worktree ${holder.path}, que se queda`); continue; }
     const ref = `${HEADS}${name}`;
@@ -206,10 +261,14 @@ function inventory({ root, id, integration, run }) {
     Object.assign(item, { state: 'integrada', action: 'delete', worktree: holder ? holder.path : null });
   }
 
-  // 3. Rutas de run.md que git no lista como worktree: se informan y no se tocan nunca.
-  for (const [key, cell] of cellKeys) {
-    if (listedKeys.has(key)) continue;
-    items.push({ type: 'ruta', name: cell, state: 'git no la lista como worktree', action: 'keep', reason: 'no es un worktree de git: no se toca', protected: true });
+  // 3. Rutas de run.md que git no lista como worktree: se informan y no se tocan nunca; las de filas
+  //    ya limpiadas salen como «ya borrado».
+  const seen = new Set();
+  for (const r of rows) {
+    if (!r.key || listedKeys.has(r.key) || seen.has(r.key)) continue;
+    seen.add(r.key);
+    if (rowGone(r)) items.push(gone('ruta', r.pathCell));
+    else items.push({ type: 'ruta', name: r.pathCell, state: 'git no la lista como worktree', action: 'keep', reason: 'no es un worktree de git: no se toca', protected: true });
   }
   return { items, worktrees };
 }
@@ -242,11 +301,11 @@ function apply({ root, integration, items, worktrees }) {
   return failed;
 }
 
-const ACTION_TEXT = { delete: 'borrar', keep: 'se queda' };
+const ACTION_TEXT = { delete: 'borrar', keep: 'se queda', gone: 'ya borrado' };
 
 function actionText(item) {
   if (item.result) return item.error ? `${item.result} — ${item.error}` : item.result;
-  return item.action === 'keep' ? `${ACTION_TEXT.keep} — ${item.reason}` : ACTION_TEXT.delete;
+  return item.action === 'keep' ? `${ACTION_TEXT.keep} — ${item.reason}` : ACTION_TEXT[item.action];
 }
 
 function summarize(items) {
@@ -254,6 +313,7 @@ function summarize(items) {
   return {
     delete: { worktrees: count('worktree', 'delete'), branches: count('rama', 'delete') },
     keep: items.filter((i) => i.action === 'keep').length,
+    gone: items.filter((i) => i.action === 'gone').length,
     unlisted: count('ruta', 'keep'),
     prunable: items.some((i) => i.type === 'worktree' && i.state === 'ruta desaparecida'),
     deleted: items.filter((i) => i.result === 'borrado' || i.result === 'borrada').length,
@@ -330,6 +390,7 @@ function run(sub, args, ctx) {
   const parts = options.apply
     ? [`${summary.deleted} borrados`, `${summary.keep} se quedan`, ...(summary.failed ? [`${summary.failed} fallos`] : [])]
     : [`para borrar: ${plural(summary.delete.worktrees, 'worktree', 'worktrees')} y ${plural(summary.delete.branches, 'rama', 'ramas')}`, `${summary.keep} se quedan`];
+  if (summary.gone) parts.push(`${summary.gone} ya borrados`);
   console.log(`resumen: ${parts.join(' · ')}`);
   if (summary.unlisted) console.log(`aviso: ${plural(summary.unlisted, 'ruta', 'rutas')} de run.md que git no lista como worktree: no se tocan`);
   if (summary.prunable) console.log('aviso: hay worktrees cuya carpeta ya no existe: git worktree prune los quita del registro');
@@ -338,4 +399,4 @@ function run(sub, args, ctx) {
   return code;
 }
 
-module.exports = { run, inventory, listWorktrees, pathKey };
+module.exports = { run, inventory, listWorktrees, parsePorcelain, pathKey };
