@@ -24,12 +24,25 @@ const action = (patch: Partial<ActionView>): { action: ActionView } => ({
       '      = ORCHESTRATION.md ya existía: se conserva'
     ],
     canAnswer: false,
+    setup: null,
     ...patch
   }
 })
 
 export default defineCheck({
   'sin-accion': {},
+  'agente-pantalla-arranque': {
+    requests: {
+      'kit.action': action({
+        kind: 'agent',
+        title: 'Inicializar proyecto · claude',
+        state: 'asking',
+        detail: 'El agente espera en su terminal a elegir el tema de colores (vale el que está marcado). Contesta aquí o en su terminal.',
+        setup: { kind: 'theme', ask: 'elegir el tema de colores (vale el que está marcado)', button: 'Seguir con el tema marcado' },
+        lines: [" Let's get started.", ' Choose the text style that looks best with your terminal', '     Dark mode', '     Light mode', ' ❯ ✔ Orca   custom', '  Syntax theme: Monokai Extended (ctrl+t to disable)']
+      })
+    }
+  },
   'accion-en-curso': { requests: { 'kit.action': action({}) } },
   'accion-pregunta': {
     requests: {

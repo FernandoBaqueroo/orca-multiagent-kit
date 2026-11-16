@@ -60,6 +60,7 @@ const open = async (options: { settings?: Record<string, string | boolean>; requ
       'history.list': () => ({ items: [] }),
       'kit.action': () => ({ action: null }),
       'kit.answer': answer('kit.answer'),
+      'kit.continue': answer('kit.continue'),
       'kit.dismiss': answer('kit.dismiss'),
       'kit.run': (input: { action: string }) => {
         calls.push({ name: 'kit.run', input })
@@ -242,7 +243,8 @@ const ACTION: ActionView = {
   startedAt: 1,
   endedAt: null,
   lines: ['  ✓ Fuente única en ~/.agents', '  ⠋ Claude Code…'],
-  canAnswer: false
+  canAnswer: false,
+  setup: null
 }
 
 test('la acción en curso sale encima de las pestañas con su estado y su salida', async () => {
@@ -278,6 +280,25 @@ test('si omk pregunta, se le contesta desde la tarjeta; quitarla la deja de segu
     { name: 'kit.answer', input: { id: 'a1', approve: false } },
     { name: 'kit.dismiss', input: { id: 'a1' } }
   ])
+  assert.deepEqual(view.refusals, [])
+})
+
+test('un agente en la pantalla de arranque de su CLI se sigue con un botón; iniciar sesión, en su terminal', async () => {
+  const theme: ActionView = {
+    ...ACTION,
+    kind: 'agent',
+    title: 'Inicializar proyecto · claude',
+    state: 'asking',
+    detail: 'El agente espera en su terminal a elegir el tema de colores.',
+    setup: { kind: 'theme', ask: 'elegir el tema de colores', button: 'Seguir con el tema marcado' }
+  }
+  const { view, calls } = await open({ requests: { 'kit.action': () => ({ action: theme }) } })
+  assert.equal(view.find({ text: 'Aprobar' }), null)
+  await view.press({ text: 'Seguir con el tema marcado' })
+  assert.deepEqual(calls, [{ name: 'kit.continue', input: { id: 'a1' } }])
+
+  await view.post('action.changed', { action: { ...theme, setup: { kind: 'login', ask: 'que inicies sesión', button: null } } })
+  assert.equal(view.find({ text: 'Seguir con el tema marcado' }), null)
   assert.deepEqual(view.refusals, [])
 })
 

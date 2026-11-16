@@ -1,6 +1,8 @@
 // La acción en curso, encima de las pestañas: el comando `omk` o el agente que se acaba de lanzar
 // desde el panel o la paleta, con su estado, lo último de su terminal y, si `omk` pregunta antes
-// de seguir, los botones para contestarle (`kit.action`, `kit.answer` y `kit.dismiss` en
+// de seguir, los botones para contestarle; si el agente se para en una pantalla de arranque de su CLI
+// (tema, confiar en la carpeta), el botón que pulsa Intro en ella (`kit.action`, `kit.answer`,
+// `kit.continue` y `kit.dismiss` en
 // src/protocol.ts; el worker lo sigue en src/worker/actions.ts).
 import {
   atom,
@@ -54,6 +56,8 @@ export function setupAction(ctx: PanelContext): void {
 const answer = (id: string, approve: boolean) =>
   ask('answer', () => plugin.request('kit.answer', { id, approve }), { tracked: true })
 
+const proceed = (id: string) => ask('continue', () => plugin.request('kit.continue', { id }), { tracked: true })
+
 const dismiss = (id: string) => ask('dismiss', () => plugin.request('kit.dismiss', { id }), { tracked: true })
 
 export function ActionCard() {
@@ -62,7 +66,7 @@ export function ActionCard() {
   const working = read(busy) !== null
   const badge = STATE[view.state]
   const ended = view.endedAt !== null
-  const tail = view.lines.slice(view.canAnswer ? -ASKING_LINES : -TAIL_LINES)
+  const tail = view.lines.slice(view.canAnswer || view.setup !== null ? -ASKING_LINES : -TAIL_LINES)
   return (
     <Card title={view.title} description={WHERE[view.kind]}>
       <Stack gap="sm">
@@ -92,6 +96,11 @@ export function ActionCard() {
           </Collapsible>
         ) : null}
         <Row gap="xs" wrap>
+          {view.setup?.button ? (
+            <Button icon="check" disabled={working} onPress={() => proceed(view.id)}>
+              {view.setup.button}
+            </Button>
+          ) : null}
           {view.canAnswer ? (
             <Button icon="check" disabled={working} onPress={() => answer(view.id, true)}>
               Aprobar

@@ -286,3 +286,55 @@ test('repartir también se sigue, y un agente del que Orca no cuenta nada no se 
   assert.equal(lost.title, 'Repartir · codex')
   assert.match(lost.detail ?? '', /pestaña Agentes/)
 })
+
+const THEME_SCREEN = [" Let's get started.", ' Choose the text style that looks best with your terminal', '     Dark mode', ' ❯ ✔ Orca   custom', '  Syntax theme: Monokai Extended (ctrl+t to disable)']
+
+test('un agente parado en la pantalla de arranque de su CLI espera a la persona y se sigue desde el panel', async () => {
+  // Pasado el plazo de arranque: en esa pantalla no está perdido, espera.
+  Object.assign(actionTiming, { agentStartMs: 0 })
+  let screen = THEME_SCREEN
+  const w = await start(() => screen)
+  await w.request('kit.run', { action: 'init' })
+  const asking = await reach(w, 'asking')
+  assert.equal(asking.setup?.kind, 'theme')
+  assert.equal(asking.setup?.button, 'Seguir con el tema marcado')
+  assert.match(asking.detail ?? '', /tema de colores/)
+  assert.equal(w.host.callsOf('notifications.show').length, 1)
+
+  await w.request('kit.continue', { id: asking.id })
+  assert.deepEqual(w.host.callsOf('terminal.sendText'), [{ terminalId: 't10', text: '\r', enter: false }])
+  // El texto de la pantalla sigue un rato en el terminal: no vuelve a pedir respuesta ni a mandar Intro.
+  await assert.rejects(w.request('kit.continue', { id: asking.id }), invalid)
+
+  // La siguiente pantalla (confiar en la carpeta) es otra pregunta, y es de la persona.
+  screen = [...THEME_SCREEN, ' Do you trust the files in this folder?', ' ❯ 1. Yes, proceed']
+  for (let attempt = 0; attempt < 400 && (await current(w))?.setup?.kind !== 'trust'; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 2))
+  }
+  assert.equal((await current(w))?.setup?.button, 'Confiar en la carpeta')
+
+  // Contestada en el terminal antes de pulsar el botón: no se manda nada.
+  screen = ['● Leyendo AGENTS.md…']
+  await assert.rejects(
+    w.request('kit.continue', { id: asking.id }),
+    (error: unknown) => (error as { code?: string }).code === 'conflict'
+  )
+  assert.equal(w.host.callsOf('terminal.sendText').length, 1)
+
+  await w.emit('agent.status.changed', agentStatus('working', 1))
+  for (let attempt = 0; attempt < 400 && (await current(w))?.detail !== 'Trabajando.'; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 2))
+  }
+  assert.equal((await current(w))?.setup, null)
+})
+
+test('iniciar sesión se hace en su terminal: sin botón', async () => {
+  const w = await start(() => [' Select login method:', ' ❯ 1. Claude account with subscription'])
+  await w.request('kit.run', { action: 'init' })
+  const asking = await reach(w, 'asking')
+  assert.equal(asking.setup?.kind, 'login')
+  assert.equal(asking.setup?.button, null)
+  assert.match(asking.detail ?? '', /Hazlo en su terminal/)
+  await assert.rejects(w.request('kit.continue', { id: asking.id }), invalid)
+  assert.equal(w.host.callsOf('terminal.sendText').length, 0)
+})

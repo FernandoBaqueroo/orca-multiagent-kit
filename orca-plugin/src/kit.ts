@@ -104,6 +104,44 @@ export function lacksExitMarker(lines: readonly string[]): boolean {
   return lines.some((line) => UNKNOWN_EXIT_MARKER.test(line))
 }
 
+/**
+ * Una pantalla de arranque del CLI de un agente: espera a la persona antes de que el agente empiece
+ * (y antes de que Orca lo cuente). `button`: lo que hace Intro en ella, si el panel puede ofrecerlo;
+ * null si hay que contestar en su terminal (iniciar sesión pasa por el navegador).
+ */
+export type SetupScreen = { kind: 'theme' | 'trust' | 'login'; ask: string; button: string | null }
+
+// Las de Claude Code, por su texto en inglés (lo que pinta su terminal).
+const SETUP_SCREENS: ReadonlyArray<SetupScreen & { pattern: RegExp }> = [
+  {
+    kind: 'theme',
+    pattern: /Choose the text style that looks best with your terminal/i,
+    ask: 'elegir el tema de colores (vale el que está marcado)',
+    button: 'Seguir con el tema marcado'
+  },
+  {
+    kind: 'trust',
+    pattern: /Do you trust the files in this folder\?|Is this a project you created or one you trust\?/i,
+    ask: 'que confirmes que confías en esta carpeta',
+    button: 'Confiar en la carpeta'
+  },
+  {
+    kind: 'login',
+    pattern: /Select login method|Paste code here if prompted/i,
+    ask: 'que inicies sesión (se hace desde su terminal y el navegador)',
+    button: null
+  }
+]
+
+/** La pantalla de arranque más reciente que se ve en estas líneas, o null si no hay ninguna. */
+export function setupScreenOf(lines: readonly string[]): SetupScreen | null {
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const found = SETUP_SCREENS.find((screen) => screen.pattern.test(lines[i] ?? ''))
+    if (found) return { kind: found.kind, ask: found.ask, button: found.button }
+  }
+  return null
+}
+
 /** Si lo último que hay en la salida es una pregunta de sí o no de `omk`. */
 export function isYesNoPrompt(lines: readonly string[]): boolean {
   for (let i = lines.length - 1; i >= 0; i -= 1) {
