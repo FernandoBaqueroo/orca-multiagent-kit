@@ -5,6 +5,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+### Añadido
+- **Los ficheros del kit en el proyecto se versionan.** Regla nueva en `rules/60-git-workflow.md`: `AGENTS.md`, `CLAUDE.md`, `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude`, `.claude/settings.json`, `.specify/extensions.yml` y la línea `.work/` de `.gitignore` entran en el commit cuando cambian (nunca `.work/`, `settings.local.json` ni los `.env`): un worktree nuevo solo los trae si están en su rama base. `omk update` lista al terminar los que han quedado sin commitear en el proyecto.
+
 ## [1.7.1] - 2026-11-13
 
 ### Corregido

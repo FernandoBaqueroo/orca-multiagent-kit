@@ -24,6 +24,24 @@ const SYNCED = [
   { name: 'STACK.md', firstRun: 'stamp' },
 ];
 const PROJECT_BLOCK = /<!-- AGENTS:BEGIN project/;
+// Ficheros del kit que viven en el proyecto y se versionan (rules/60-git-workflow.md): un worktree
+// nuevo solo los trae si están commiteados en su rama base.
+const KIT_PROJECT_FILES = [
+  'AGENTS.md', 'CLAUDE.md', 'STACK.md', 'ORCHESTRATION.md', 'orca.yaml', '.worktreeinclude',
+  '.claude/settings.json', '.specify/extensions.yml', '.gitignore',
+];
+
+/**
+ * Los ficheros del kit que el proyecto tiene sin commitear (cambiados o nuevos), según git. Fuera de
+ * un repositorio git, o si git falla, ninguno: el aviso es una ayuda, no una comprobación.
+ */
+function uncommittedKitFiles(project) {
+  const res = spawnSync('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', ...KIT_PROJECT_FILES], {
+    cwd: project, encoding: 'utf8', windowsHide: true,
+  });
+  if (res.error || res.status !== 0) return [];
+  return res.stdout.split('\0').filter((entry) => entry.length > 3).map((entry) => entry.slice(3));
+}
 
 const out = (s = '') => process.stdout.write(s + '\n');
 const ok = (s) => out(`  ${sym.ok} ${s}`);
@@ -157,6 +175,13 @@ async function update({ kit, version, args, installer, standalone, agentsHome, c
   const omkBinary = standalone ? require('./setup').installedOmk() : null;
   good = applyHooks({ kit, agentsHome, project, dryRun: opts.dryRun, skip: opts.noHooks, omkBinary }) && good;
   if (!opts.noPlugin) good = (await refreshPlugin({ kit, yes: opts.yes, dryRun: opts.dryRun })) && good;
+
+  const pending = project && !opts.dryRun ? uncommittedKitFiles(project) : [];
+  if (pending.length) {
+    heading('Ficheros del kit sin commitear');
+    for (const file of pending) out(`      ${sym.add} ${file}`);
+    todo('Commitéalos y llévalos a la rama base (main, develop…): un worktree nuevo solo trae lo commiteado.');
+  }
 
   out();
   if (opts.dryRun) out(`  ${c.amber('Simulación:')} no se ha escrito nada.`);

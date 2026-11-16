@@ -8,6 +8,11 @@
 - Nunca commitear: secretos, `.env`, credenciales, artefactos de build, `node_modules`, dumps, ficheros >5 MB sin LFS.
 - Antes de commitear: `git diff --staged` revisado y `gitleaks` si el repo lo tiene.
 
+## Ficheros del kit en el proyecto
+Son configuración del repo y se versionan como el código: `AGENTS.md`, `CLAUDE.md`, `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude`, `.claude/settings.json`, `.specify/extensions.yml` y la línea `.work/` de `.gitignore`. Un worktree nuevo solo los trae si están commiteados en su rama base.
+- Si `git status` los muestra cambiados (los toca `omk init`, `omk update`, `kit-init` u `omk team`), **entran en el commit**: en el de la tarea si los cambió ella, o en uno propio (`chore: poner al día los ficheros del kit`). Nunca los dejes fuera en silencio; si no los commiteas, dilo en el reporte con `DEFERRED:` y la lista.
+- No entran nunca: `.work/`, `.claude/settings.local.json` ni los `.env*` que lista `.worktreeinclude`.
+
 ## Ramas
 `feat/<ticket>-<slug>` · `fix/…` · `refactor/…` · `chore/…` · `docs/…` · `test/…` · `perf/…` · `sec/…`
 
