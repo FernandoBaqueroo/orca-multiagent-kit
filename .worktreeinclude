@@ -1,0 +1,4 @@
+# Ficheros gitignorados que se COPIAN en cada worktree nuevo para poder probar en local.
+# Orca los copia solo; sin Orca, los copia el setup del despacho (ORCHESTRATION.md §3).
+# Solo rutas literales (sin globs). Solo entorno de DESARROLLO: nunca credenciales de producción.
+# Este proyecto no usa ficheros .env: no hay nada que copiar.

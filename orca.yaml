@@ -1,0 +1,8 @@
+# Orca: cómo queda listo cada worktree nuevo.
+worktree:
+  # Directorios gitignorados que cada worktree comparte (symlink) con el checkout principal.
+  # Solo se aplican si existen en el checkout principal Y están en .gitignore.
+  sharedDirectories:
+    - orca-plugin/.orca   # tipos generados de Orca que usa orca-plugin/tsconfig.json
+
+# No hay dependencias que instalar ni ficheros .env: no hace falta scripts.setup.
