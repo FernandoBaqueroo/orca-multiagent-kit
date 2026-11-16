@@ -5,6 +5,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-11-16
+
+### Corregido
+- **Plugin v0.8.0: «Inicializar proyecto» ya no se queda colgado en la pantalla de arranque de Claude Code.** La primera vez, Claude Code se para en su terminal a elegir el tema de colores (y después puede preguntar si confías en la carpeta o pedir que inicies sesión) antes de que Orca lo cuente como agente; la tarjeta de la acción en curso seguía en «Arrancando…» sin decir nada. Ahora reconoce esas pantallas, pasa a «espera tu respuesta» con una notificación y, para el tema y la confianza en la carpeta, da un botón que pulsa Intro en ese terminal (solo si la pantalla sigue ahí, y una vez). Iniciar sesión se hace en su terminal. Detalle en `docs/PLUGIN-ORCA.md` §Acción en curso.
+
 ## [1.8.0] - 2026-11-16
 
 ### Añadido
@@ -219,7 +224,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.6.0...v1.7.0

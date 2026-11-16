@@ -11,7 +11,8 @@ import {
   isMissingCommand,
   isYesNoPrompt,
   lacksExitMarker,
-  outputLines
+  outputLines,
+  setupScreenOf
 } from '../kit.ts'
 import type { ActionState, ActionView } from '../protocol.ts'
 import type { KitContext } from './context.ts'
@@ -38,7 +39,9 @@ type Kind = ActionView['kind']
 // Lo que se guarda para retomar la acción si el worker se reinicia.
 type Stored = { id: string; kind: Kind; title: string; terminalId: string; startedAt: number }
 
-type Current = Stored & { view: ActionView; notified: boolean }
+// `passed`: las pantallas de arranque ya contestadas desde el panel; su texto puede seguir un rato en
+// las últimas líneas del terminal y no deben volver a pedir respuesta.
+type Current = Stored & { view: ActionView; notified: boolean; passed: Set<string> }
 
 export type ActionTracker = {
   /** Sigue un comando `omk` lanzado con la opción de la línea de cierre en ese terminal. */
@@ -84,7 +87,7 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
   // Si `action` sigue siendo la que se sigue: otra más nueva o un «dejar de seguir» la sustituyen.
   const live = (action: Current) => current === action
 
-  const show = (action: Current, patch: Partial<Pick<ActionView, 'state' | 'detail' | 'lines' | 'canAnswer'>>) => {
+  const show = (action: Current, patch: Partial<Pick<ActionView, 'state' | 'detail' | 'lines' | 'canAnswer' | 'setup'>>) => {
     if (!live(action)) return
     action.view = { ...action.view, ...patch }
     publish()
@@ -92,7 +95,7 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
 
   const finish = (action: Current, state: Exclude<ActionState, 'running' | 'asking'>, detail: string, lines?: string[]) => {
     if (!live(action)) return
-    action.view = { ...action.view, state, detail, canAnswer: false, endedAt: Date.now(), ...(lines ? { lines } : {}) }
+    action.view = { ...action.view, state, detail, canAnswer: false, setup: null, endedAt: Date.now(), ...(lines ? { lines } : {}) }
     publish()
     store(null)
     if (action.kind !== 'omk' || state === 'lost') return
@@ -176,6 +179,19 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
         finish(action, 'done', 'El agente ha terminado.', lines)
         return
       }
+      // Antes de que Orca lo cuente, el CLI puede estar parado en una pantalla de arranque (el tema
+      // la primera vez, confiar en la carpeta, iniciar sesión): espera a la persona, no está perdido.
+      const found = agent ? null : setupScreenOf(lines)
+      const screen = found && !action.passed.has(found.kind) ? found : null
+      if (screen && Date.now() <= deadline) {
+        const where = screen.button ? 'Contesta aquí o en su terminal.' : 'Hazlo en su terminal.'
+        show(action, { state: 'asking', detail: `El agente espera en su terminal a ${screen.ask}. ${where}`, lines, setup: screen })
+        if (!action.notified && live(action)) {
+          action.notified = true
+          ctx.notify(`${action.title} espera tu respuesta`, 'Su CLI está en una pantalla de arranque: míralo en el panel Multiagent Kit.')
+        }
+        continue
+      }
       if (!agent && Date.now() > action.startedAt + actionTiming.agentStartMs) {
         finish(action, 'lost', 'Orca no cuenta nada de este agente: búscalo en la pestaña Agentes o en su terminal.', lines)
         return
@@ -185,11 +201,11 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
         return
       }
       if (agent?.state === 'blocked') {
-        show(action, { state: 'asking', detail: 'Pide permiso para seguir: respóndele en la pestaña Avisos.', lines })
+        show(action, { state: 'asking', detail: 'Pide permiso para seguir: respóndele en la pestaña Avisos.', lines, setup: null })
       } else if (agent?.state === 'waiting') {
-        show(action, { state: 'asking', detail: 'Ha parado y espera instrucciones: su informe o su pregunta están en la pestaña Avisos.', lines })
+        show(action, { state: 'asking', detail: 'Ha parado y espera instrucciones: su informe o su pregunta están en la pestaña Avisos.', lines, setup: null })
       } else {
-        show(action, { state: 'running', detail: agent ? 'Trabajando.' : 'Arrancando…', lines })
+        show(action, { state: 'running', detail: agent ? 'Trabajando.' : 'Arrancando…', lines, setup: null })
       }
     }
   }
@@ -206,6 +222,7 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
     const action: Current = {
       ...stored,
       notified: false,
+      passed: new Set(),
       view: {
         id: stored.id,
         kind: stored.kind,
@@ -215,7 +232,8 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
         startedAt: stored.startedAt,
         endedAt: null,
         lines: [],
-        canAnswer: false
+        canAnswer: false,
+        setup: null
       }
     }
     current = action
@@ -273,6 +291,29 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
     }
     show(action, { state: 'running', detail: approve ? 'Aprobado: sigue.' : 'Rechazado.', canAnswer: false })
     return { message: approve ? 'Aprobado.' : 'Rechazado.' }
+  })
+
+  ctx.panels.handle('kit.continue', async (input) => {
+    const id: unknown = input?.id
+    const action = current
+    const setup = action?.view.setup
+    if (!action || action.view.id !== id || !setup || setup.button === null) {
+      throw invalidParams('esa acción no está en una pantalla de arranque que se pueda seguir desde aquí')
+    }
+    // Pudo contestarse en el terminal desde la última lectura: el Intro solo va si la misma pantalla
+    // sigue ahí, para no mandárselo al agente ya arrancado.
+    const now = setupScreenOf(outputLines(await readTerminal(action.terminalId, READ_LINES), AGENT_LINES))
+    if (now?.kind !== setup.kind || action.passed.has(setup.kind)) {
+      throw Object.assign(new Error('el agente ya no está en esa pantalla: mira su salida'), { code: 'conflict' })
+    }
+    // Solo Intro, y solo al terminal del agente que lanzó esta acción.
+    const { accepted } = await ctx.host.call('terminal.sendText', { terminalId: action.terminalId, text: '\r', enter: false })
+    if (!accepted) {
+      throw Object.assign(new Error('el terminal no aceptó el Intro: puede que ya se haya cerrado'), { code: 'unavailable' })
+    }
+    action.passed.add(setup.kind)
+    show(action, { state: 'running', detail: 'Hecho: el agente sigue arrancando.', setup: null })
+    return { message: `${setup.button}: hecho.` }
   })
 
   ctx.panels.handle('kit.dismiss', (input) => {

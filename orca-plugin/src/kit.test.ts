@@ -38,6 +38,7 @@ import {
   isYesNoPrompt,
   lacksExitMarker,
   outputLines,
+  setupScreenOf,
   resolveFocusedWorkspaceId,
   summarizeAgents,
   teamCommand,
@@ -650,5 +651,22 @@ describe('salida de un comando omk en su terminal', () => {
     assert.deepEqual(outputLines(['a', 'b', 'c'], 2), ['b', 'c'])
     // Un spinner leído como salida acumulada: cuenta el último fotograma, no todos pegados.
     assert.deepEqual(outputLines(['\r  ⠋ Claude Code…\r  ⠙ Claude Code…\r  ✓ Claude Code\r']), ['  ✓ Claude Code'])
+  })
+})
+
+describe('setupScreenOf', () => {
+  test('reconoce las pantallas de arranque de Claude Code y se queda con la más reciente', () => {
+    assert.equal(setupScreenOf([" Let's get started.", ' Choose the text style that looks best with your terminal', ' ❯ ✔ Orca   custom'])?.kind, 'theme')
+    const trust = setupScreenOf([' Choose the text style that looks best with your terminal', '', ' Do you trust the files in this folder?', ' ❯ 1. Yes, proceed'])
+    assert.equal(trust?.kind, 'trust')
+    assert.equal(trust?.button, 'Confiar en la carpeta')
+    assert.equal(setupScreenOf([' Quick safety check: Is this a project you created or one you trust?'])?.kind, 'trust')
+    const login = setupScreenOf([' Select login method:', ' ❯ 1. Claude account with subscription'])
+    assert.equal(login?.kind, 'login')
+    assert.equal(login?.button, null)
+  })
+  test('fuera de esas pantallas, nada', () => {
+    assert.equal(setupScreenOf(['● Leyendo AGENTS.md…', '  esc to interrupt']), null)
+    assert.equal(setupScreenOf([]), null)
   })
 })

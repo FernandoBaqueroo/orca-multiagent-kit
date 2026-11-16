@@ -126,6 +126,11 @@ export type ActionView = {
   lines: string[]
   /** Si espera un sí o un no que el panel puede escribir en su terminal. */
   canAnswer: boolean
+  /**
+   * La pantalla de arranque del agente que espera a la persona (tema, confianza en la carpeta,
+   * inicio de sesión), o null. Con `button`, el panel puede pulsar Intro en ella (`kit.continue`).
+   */
+  setup: { kind: 'theme' | 'trust' | 'login'; ask: string; button: string | null } | null
 }
 
 export type HistoryKind =
@@ -166,6 +171,11 @@ declare module 'orca' {
      * terminal. Solo vale mientras `canAnswer`.
      */
     'kit.answer': { input: { id: string; approve: boolean }; output: Message }
+    /**
+     * Pulsa Intro en la pantalla de arranque del agente de la acción `id` (lo que dice su `button`).
+     * Solo vale mientras esa pantalla siga en su terminal.
+     */
+    'kit.continue': { input: { id: string }; output: Message }
     /** Deja de seguir la acción `id` y la quita del panel; su terminal sigue como esté. */
     'kit.dismiss': { input: { id: string }; output: Message }
     /** Los agentes activos, como los cuenta la barra de estado. */
