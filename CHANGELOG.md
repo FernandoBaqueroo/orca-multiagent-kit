@@ -5,6 +5,8 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-16
+
 ### Añadido
 - **Los ficheros del kit en el proyecto se versionan.** Regla nueva en `rules/60-git-workflow.md`: `AGENTS.md`, `CLAUDE.md`, `STACK.md`, `ORCHESTRATION.md`, `orca.yaml`, `.worktreeinclude`, `.claude/settings.json`, `.specify/extensions.yml` y la línea `.work/` de `.gitignore` entran en el commit cuando cambian (nunca `.work/`, `settings.local.json` ni los `.env`): un worktree nuevo solo los trae si están en su rama base. `omk update` lista al terminar los que han quedado sin commitear en el proyecto.
 
@@ -217,7 +219,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.5.0...v1.6.0
