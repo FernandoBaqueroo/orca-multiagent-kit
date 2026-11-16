@@ -139,6 +139,21 @@ check "--no-project lo deja como un install normal"    'install_in "$P" --no-plu
 mkdir -p "$W/otra"; printf '1.6.0\n' > "$H/.agents/AGENT_KIT_VERSION"
 check "fuera de un proyecto del kit, install normal"   'install_in "$W/otra" --no-plugin && ! said "actualizo también" && [ -z "$(ls -A "$W/otra")" ]'
 
+echo "== omk update: ficheros del kit sin commitear (rules/60-git-workflow.md)"
+check "fuera de git no avisa"                          'update --no-plugin && ! said "Ficheros del kit sin commitear"'
+G="$W/proj-git"; mkdir -p "$G"
+git -c init.defaultBranch=main init -q "$G"
+cp "$F" "$G/ORCHESTRATION.md"; printf 'codigo\n' > "$G/app.txt"
+gitq() { git -C "$G" -c user.name=t -c user.email=t@t "$@" >/dev/null 2>&1; }
+gitq add -A; gitq commit -qm base
+# El ORCHESTRATION.md de antes: update le añade apartados y crea los demás ficheros del kit.
+old_project; cp "$F" "$G/ORCHESTRATION.md"; gitq commit -qam "ficha antigua"
+update_in() { (cd "$1" && HOME="$H" USERPROFILE="$(wpath "$H")" node "$ROOT/bin/omk.js" update --offline --agents claude "${@:2}") </dev/null >"$OUT" 2>&1; }
+check "lista lo que el update dejó sin commitear"      'update_in "$G" --no-plugin && said "Ficheros del kit sin commitear" && said "ORCHESTRATION.md" && said "AGENTS.md" && said "un worktree nuevo solo trae lo commiteado" && ! said "app.txt"'
+gitq add -A; gitq commit -qm "kit al día"
+check "con todo commiteado no avisa"                   'update_in "$G" --no-plugin && ! said "Ficheros del kit sin commitear"'
+check "--dry-run no avisa"                             'printf "x\n" >> "$G/STACK.md" && update_in "$G" --no-plugin --dry-run && ! said "Ficheros del kit sin commitear"'
+
 echo "== omk update: plugin"
 installed 0.0.1 running ',"updateNeedsApproval":true'
 check "sin --yes ni terminal no aprueba y sale con error" '! update --no-project && said "Orca pide tu aprobación" && ! called "--approve" && said "terminado con fallos"'
