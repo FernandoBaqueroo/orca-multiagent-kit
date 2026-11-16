@@ -37,9 +37,9 @@ export default defineCheck({
         kind: 'agent',
         title: 'Inicializar proyecto · claude',
         state: 'asking',
-        detail: 'El agente espera en su terminal a elegir el tema de colores (vale el que está marcado). Contesta aquí o en su terminal.',
-        setup: { kind: 'theme', ask: 'elegir el tema de colores (vale el que está marcado)', button: 'Seguir con el tema marcado' },
-        lines: [" Let's get started.", ' Choose the text style that looks best with your terminal', '     Dark mode', '     Light mode', ' ❯ ✔ Orca   custom', '  Syntax theme: Monokai Extended (ctrl+t to disable)']
+        detail: 'El agente espera en su terminal a que confirmes que confías en esta carpeta. Contesta aquí o en su terminal.',
+        setup: { kind: 'trust', ask: 'que confirmes que confías en esta carpeta', button: 'Confiar en la carpeta' },
+        lines: [' Do you trust the files in this folder?', '', ' C:\Users\dev\app', '', ' ❯ 1. Yes, proceed', '   2. No, exit']
       })
     }
   },

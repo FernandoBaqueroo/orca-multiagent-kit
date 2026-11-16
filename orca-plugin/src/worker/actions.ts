@@ -6,11 +6,13 @@
 import {
   INSTALL_HINT,
   OLD_OMK_HINT,
+  TASK_MAX,
   cleanLabel,
   exitCodeOf,
   isMissingCommand,
   isYesNoPrompt,
   lacksExitMarker,
+  missedTask,
   outputLines,
   setupScreenOf
 } from '../kit.ts'
@@ -27,7 +29,13 @@ export const actionTiming = {
   omkMaxMs: 20 * 60_000,
   agentMaxMs: 45 * 60_000,
   /** Cuánto se espera a que Orca cuente el primer estado de un agente recién lanzado. */
-  agentStartMs: 90_000
+  agentStartMs: 90_000,
+  /**
+   * Si la tarea no le llegó al agente: cuánto tiene que llevar en su caja de entrada vacía, y cuánto
+   * desde el lanzamiento, antes de escribírsela (Orca la escribe al arrancar y no debe llegar dos veces).
+   */
+  taskIdleMs: 8_000,
+  taskAfterMs: 15_000
 }
 
 const READ_LINES = 400
@@ -37,17 +45,18 @@ const TITLE_MAX = 60
 type Kind = ActionView['kind']
 
 // Lo que se guarda para retomar la acción si el worker se reinicia.
-type Stored = { id: string; kind: Kind; title: string; terminalId: string; startedAt: number }
+// `task`: con lo que se lanzó el agente, para escribírsela si no le llegó.
+type Stored = { id: string; kind: Kind; title: string; terminalId: string; startedAt: number; task?: string }
 
-// `passed`: las pantallas de arranque ya contestadas desde el panel; su texto puede seguir un rato en
-// las últimas líneas del terminal y no deben volver a pedir respuesta.
-type Current = Stored & { view: ActionView; notified: boolean; passed: Set<string> }
+// `passed`: las pantallas de arranque ya contestadas; su texto puede seguir un rato en las últimas
+// líneas del terminal y no deben volver a pedir respuesta. `retyped`: la tarea ya se escribió una vez.
+type Current = Stored & { view: ActionView; notified: boolean; passed: Set<string>; retyped: boolean; idleSince: number | null }
 
 export type ActionTracker = {
   /** Sigue un comando `omk` lanzado con la opción de la línea de cierre en ese terminal. */
   omk(terminalId: string, title: string): void
-  /** Sigue al agente lanzado en ese terminal. */
-  agent(terminalId: string, title: string): void
+  /** Sigue al agente lanzado en ese terminal con `task`. */
+  agent(terminalId: string, title: string, task: string): void
 }
 
 const invalidParams = (message: string) => Object.assign(new Error(message), { code: 'invalid_params' })
@@ -55,13 +64,14 @@ const describeError = (error: unknown) => (error instanceof Error ? error.messag
 
 function parseStored(value: unknown): Stored | null {
   if (typeof value !== 'object' || value === null) return null
-  const { id, kind, title, terminalId, startedAt } = value as Record<string, unknown>
+  const { id, kind, title, terminalId, startedAt, task } = value as Record<string, unknown>
   if (typeof id !== 'string' || id === '' || id.length > 40) return null
   if (kind !== 'omk' && kind !== 'agent') return null
   if (typeof terminalId !== 'string' || terminalId === '' || terminalId.length > 200) return null
   if (typeof startedAt !== 'number' || !Number.isFinite(startedAt)) return null
   const clean = typeof title === 'string' ? cleanLabel(title, TITLE_MAX) : null
-  return clean === null ? null : { id, kind, title: clean, terminalId, startedAt }
+  if (task !== undefined && (typeof task !== 'string' || task.length > TASK_MAX)) return null
+  return clean === null ? null : { id, kind, title: clean, terminalId, startedAt, ...(task === undefined ? {} : { task }) }
 }
 
 const minutes = (ms: number) => Math.round(ms / 60_000)
@@ -157,6 +167,18 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
     }
   }
 
+  // Escribe en el terminal del agente de esta acción (y solo en él). Devuelve si Orca lo aceptó.
+  const press = async (action: Current, text: string, enter = false) => {
+    try {
+      const { accepted } = await ctx.host.call('terminal.sendText', { terminalId: action.terminalId, text, enter })
+      if (!accepted) ctx.log(`acción: el terminal de ${action.title} no aceptó lo escrito`)
+      return accepted
+    } catch (error) {
+      ctx.log(`acción: no pude escribir en el terminal de ${action.title}: ${describeError(error)}`)
+      return false
+    }
+  }
+
   const followAgent = async (action: Current) => {
     const key = `t:${action.terminalId}`
     const deadline = action.startedAt + actionTiming.agentMaxMs
@@ -183,6 +205,12 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
       // la primera vez, confiar en la carpeta, iniciar sesión): espera a la persona, no está perdido.
       const found = agent ? null : setupScreenOf(lines)
       const screen = found && !action.passed.has(found.kind) ? found : null
+      // El tema de colores no decide nada: se sigue solo con el que está marcado.
+      if (screen?.kind === 'theme') {
+        action.passed.add('theme')
+        if (await press(action, '\r')) show(action, { state: 'running', detail: 'Primer arranque del agente: elegido el tema marcado. Sigue arrancando…', lines, setup: null })
+        continue
+      }
       if (screen && Date.now() <= deadline) {
         const where = screen.button ? 'Contesta aquí o en su terminal.' : 'Hazlo en su terminal.'
         show(action, { state: 'asking', detail: `El agente espera en su terminal a ${screen.ask}. ${where}`, lines, setup: screen })
@@ -192,6 +220,17 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
         }
         continue
       }
+      // Arrancado sin su tarea: se la escribe una vez, cuando lleva un rato quieto en su caja vacía.
+      if (!agent && action.task && !action.retyped && missedTask(lines, action.task)) {
+        const now = Date.now()
+        action.idleSince ??= now
+        if (now - action.idleSince >= actionTiming.taskIdleMs && now - action.startedAt >= actionTiming.taskAfterMs) {
+          action.retyped = true
+          if (await press(action, action.task, true)) show(action, { state: 'running', detail: 'La tarea no le llegó al arrancar: se la he escrito.', lines, setup: null })
+        }
+        continue
+      }
+      action.idleSince = null
       if (!agent && Date.now() > action.startedAt + actionTiming.agentStartMs) {
         finish(action, 'lost', 'Orca no cuenta nada de este agente: búscalo en la pestaña Agentes o en su terminal.', lines)
         return
@@ -223,6 +262,8 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
       ...stored,
       notified: false,
       passed: new Set(),
+      retyped: false,
+      idleSince: null,
       view: {
         id: stored.id,
         kind: stored.kind,
@@ -241,9 +282,16 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
     follow(action)
   }
 
-  const start = (kind: Kind, terminalId: string, title: string) => {
+  const start = (kind: Kind, terminalId: string, title: string, task?: string) => {
     const startedAt = Date.now()
-    const stored: Stored = { id: `${startedAt}-${(counter += 1)}`, kind, title: cleanLabel(title, TITLE_MAX) ?? kind, terminalId, startedAt }
+    const stored: Stored = {
+      id: `${startedAt}-${(counter += 1)}`,
+      kind,
+      title: cleanLabel(title, TITLE_MAX) ?? kind,
+      terminalId,
+      startedAt,
+      ...(task === undefined ? {} : { task: task.slice(0, TASK_MAX) })
+    }
     store(stored)
     begin(stored, kind === 'omk' ? null : 'Arrancando…')
   }
@@ -328,6 +376,6 @@ export function registerActions(ctx: KitContext, sleep: (ms: number) => Promise<
 
   return {
     omk: (terminalId, title) => start('omk', terminalId, title),
-    agent: (terminalId, title) => start('agent', terminalId, title)
+    agent: (terminalId, title, task) => start('agent', terminalId, title, task)
   }
 }

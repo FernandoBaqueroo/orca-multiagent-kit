@@ -116,8 +116,9 @@ const SETUP_SCREENS: ReadonlyArray<SetupScreen & { pattern: RegExp }> = [
   {
     kind: 'theme',
     pattern: /Choose the text style that looks best with your terminal/i,
-    ask: 'elegir el tema de colores (vale el que está marcado)',
-    button: 'Seguir con el tema marcado'
+    // No decide nada: el worker la sigue solo con el tema marcado.
+    ask: 'elegir el tema de colores',
+    button: null
   },
   {
     kind: 'trust',
@@ -140,6 +141,21 @@ export function setupScreenOf(lines: readonly string[]): SetupScreen | null {
     if (found) return { kind: found.kind, ask: found.ask, button: found.button }
   }
   return null
+}
+
+// La caja de entrada de Claude Code lista para escribir: su línea «❯» y su pie de atajos.
+const COMPOSER_LINE = /^\s*❯(\s|$)/
+const COMPOSER_FOOTER = /\? for shortcuts|shift\+tab to cycle/
+
+/**
+ * Si el agente está en su caja de entrada esperando qué hacer y `task` no aparece en su salida: la
+ * tarea con la que se lanzó no le llegó (Orca la escribe al arrancar y una pantalla de arranque o un
+ * aviso de actualización pueden comérsela). De momento, solo Claude Code.
+ */
+export function missedTask(lines: readonly string[], task: string): boolean {
+  const head = task.trim().split('\n')[0]?.slice(0, 40) ?? ''
+  if (head === '' || lines.some((line) => line.includes(head))) return false
+  return lines.some((line) => COMPOSER_LINE.test(line)) && lines.some((line) => COMPOSER_FOOTER.test(line))
 }
 
 /** Si lo último que hay en la salida es una pregunta de sí o no de `omk`. */

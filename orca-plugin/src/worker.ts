@@ -298,7 +298,7 @@ export default async function activate(orca: OrcaWorkerApi): Promise<void> {
   const launchAgent = async (title: string, agent: string, prompt: string, done: string) => {
     const workspaceId = await activeWorkspaceId()
     const { terminalId } = await host.call('agent.launch', { workspaceId, agent, prompt })
-    tracker.agent(terminalId, title)
+    tracker.agent(terminalId, title, prompt)
     return done
   }
 
