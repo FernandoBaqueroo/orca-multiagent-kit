@@ -289,43 +289,82 @@ test('repartir también se sigue, y un agente del que Orca no cuenta nada no se 
 
 const THEME_SCREEN = [" Let's get started.", ' Choose the text style that looks best with your terminal', '     Dark mode', ' ❯ ✔ Orca   custom', '  Syntax theme: Monokai Extended (ctrl+t to disable)']
 
-test('un agente parado en la pantalla de arranque de su CLI espera a la persona y se sigue desde el panel', async () => {
-  // Pasado el plazo de arranque: en esa pantalla no está perdido, espera.
+test('un solo clic: el tema del primer arranque se elige solo y confiar en la carpeta se pregunta', async () => {
+  // Pasado el plazo de arranque: en una pantalla de arranque no está perdido, espera.
   Object.assign(actionTiming, { agentStartMs: 0 })
   let screen = THEME_SCREEN
   const w = await start(() => screen)
   await w.request('kit.run', { action: 'init' })
-  const asking = await reach(w, 'asking')
-  assert.equal(asking.setup?.kind, 'theme')
-  assert.equal(asking.setup?.button, 'Seguir con el tema marcado')
-  assert.match(asking.detail ?? '', /tema de colores/)
-  assert.equal(w.host.callsOf('notifications.show').length, 1)
-
-  await w.request('kit.continue', { id: asking.id })
-  assert.deepEqual(w.host.callsOf('terminal.sendText'), [{ terminalId: 't10', text: '\r', enter: false }])
-  // El texto de la pantalla sigue un rato en el terminal: no vuelve a pedir respuesta ni a mandar Intro.
-  await assert.rejects(w.request('kit.continue', { id: asking.id }), invalid)
-
-  // La siguiente pantalla (confiar en la carpeta) es otra pregunta, y es de la persona.
-  screen = [...THEME_SCREEN, ' Do you trust the files in this folder?', ' ❯ 1. Yes, proceed']
-  for (let attempt = 0; attempt < 400 && (await current(w))?.setup?.kind !== 'trust'; attempt += 1) {
+  for (let attempt = 0; attempt < 400 && w.host.callsOf('terminal.sendText').length === 0; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 2))
   }
-  assert.equal((await current(w))?.setup?.button, 'Confiar en la carpeta')
+  // Un Intro, una sola vez, aunque el texto de la pantalla siga un rato en el terminal.
+  assert.deepEqual(w.host.callsOf('terminal.sendText'), [{ terminalId: 't10', text: '\r', enter: false }])
+  assert.match((await current(w))?.detail ?? '', /tema marcado/)
+  assert.equal(w.host.callsOf('notifications.show').length, 0)
 
-  // Contestada en el terminal antes de pulsar el botón: no se manda nada.
-  screen = ['● Leyendo AGENTS.md…']
-  await assert.rejects(
-    w.request('kit.continue', { id: asking.id }),
-    (error: unknown) => (error as { code?: string }).code === 'conflict'
-  )
+  // Confiar en la carpeta es de la persona: pregunta, notifica y espera su clic.
+  screen = [...THEME_SCREEN, ' Do you trust the files in this folder?', ' ❯ 1. Yes, proceed']
+  const asking = await reach(w, 'asking')
+  assert.equal(asking.setup?.kind, 'trust')
+  assert.equal(asking.setup?.button, 'Confiar en la carpeta')
+  assert.equal(w.host.callsOf('notifications.show').length, 1)
   assert.equal(w.host.callsOf('terminal.sendText').length, 1)
+
+  await w.request('kit.continue', { id: asking.id })
+  assert.equal(w.host.callsOf('terminal.sendText').length, 2)
+  await assert.rejects(w.request('kit.continue', { id: asking.id }), invalid)
 
   await w.emit('agent.status.changed', agentStatus('working', 1))
   for (let attempt = 0; attempt < 400 && (await current(w))?.detail !== 'Trabajando.'; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 2))
   }
   assert.equal((await current(w))?.setup, null)
+})
+
+test('contestada en el terminal antes del clic, no se manda nada', async () => {
+  let screen = [' Do you trust the files in this folder?', ' ❯ 1. Yes, proceed']
+  const w = await start(() => screen)
+  await w.request('kit.run', { action: 'init' })
+  const asking = await reach(w, 'asking')
+  screen = ['● Leyendo AGENTS.md…']
+  await assert.rejects(w.request('kit.continue', { id: asking.id }), (error: unknown) => (error as { code?: string }).code === 'conflict')
+  assert.equal(w.host.callsOf('terminal.sendText').length, 0)
+})
+
+// Claude Code arrancado en su caja de entrada, sin la tarea.
+const IDLE_COMPOSER = ['  Claude Code v2.1.325', '────────', '❯ Try "write a test for <filepath>"', '────────', '  ⏵⏵ bypass permissions on (shift+tab to cycle)']
+
+test('si la tarea no le llegó al arrancar, se la escribe una vez', async () => {
+  Object.assign(actionTiming, { taskIdleMs: 0, taskAfterMs: 0 })
+  let screen = IDLE_COMPOSER
+  const w = await start(() => screen)
+  await w.request('kit.run', { action: 'init' })
+  for (let attempt = 0; attempt < 400 && w.host.callsOf('terminal.sendText').length === 0; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 2))
+  }
+  assert.deepEqual(w.host.callsOf('terminal.sendText'), [{ terminalId: 't10', text: 'inicializa el proyecto', enter: true }])
+  assert.match((await current(w))?.detail ?? '', /no le llegó/)
+  // Sigue en la caja vacía (aún no la ha leído): no se le vuelve a escribir.
+  for (let attempt = 0; attempt < 20; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 2))
+  assert.equal(w.host.callsOf('terminal.sendText').length, 1)
+  screen = [...IDLE_COMPOSER, '> inicializa el proyecto']
+})
+
+test('con la tarea a la vista, o antes de tiempo, no se escribe nada', async () => {
+  Object.assign(actionTiming, { taskIdleMs: 0, taskAfterMs: 0 })
+  const w = await start(() => ['> inicializa el proyecto', ...IDLE_COMPOSER])
+  await w.request('kit.run', { action: 'init' })
+  for (let attempt = 0; attempt < 30; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 2))
+  assert.equal(w.host.callsOf('terminal.sendText').length, 0)
+  await w.deactivate()
+
+  // Orca aún puede estar escribiéndola: se espera a que lleve un rato quieto.
+  Object.assign(actionTiming, { taskIdleMs: 60_000, taskAfterMs: 0 })
+  const late = await start(() => IDLE_COMPOSER)
+  await late.request('kit.run', { action: 'init' })
+  for (let attempt = 0; attempt < 30; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 2))
+  assert.equal(late.host.callsOf('terminal.sendText').length, 0)
 })
 
 test('iniciar sesión se hace en su terminal: sin botón', async () => {

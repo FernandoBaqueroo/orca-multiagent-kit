@@ -5,6 +5,11 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-11-16
+
+### Corregido
+- **Plugin v0.8.1: «Inicializar proyecto» es un solo clic.** Orca escribe la tarea al agente nada más arrancarlo, y el primer arranque de Claude Code (elegir el tema) o su aviso de actualización se la comían: el agente se quedaba en su caja vacía y la tarjeta, en «Arrancando…». Ahora el worker sigue solo la pantalla del tema (con el marcado) y, si el agente se queda quieto en su caja de entrada sin la tarea, se la escribe una vez. Solo pregunta lo que es decisión tuya: confiar en la carpeta (botón en la tarjeta) e iniciar sesión (en su terminal). Vale también para los agentes de *Repartir*.
+
 ## [1.8.1] - 2026-11-16
 
 ### Corregido
@@ -224,7 +229,8 @@ Primera versión de **Orca Multiagent Kit**. Une CSR (Claude Session Rules, de [
 ### Eliminado
 - Copias duplicadas de reglas y skills `csr-*` dentro de cada agente, y el plugin `claude-session-rules` de Antigravity.
 
-[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.8.2...HEAD
+[1.8.2]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/FernandoBaqueroo/orca-multiagent-kit/compare/v1.7.0...v1.7.1

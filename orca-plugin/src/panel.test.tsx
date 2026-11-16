@@ -289,16 +289,16 @@ test('un agente en la pantalla de arranque de su CLI se sigue con un botón; ini
     kind: 'agent',
     title: 'Inicializar proyecto · claude',
     state: 'asking',
-    detail: 'El agente espera en su terminal a elegir el tema de colores.',
-    setup: { kind: 'theme', ask: 'elegir el tema de colores', button: 'Seguir con el tema marcado' }
+    detail: 'El agente espera en su terminal a que confirmes que confías en esta carpeta.',
+    setup: { kind: 'trust', ask: 'que confirmes que confías en esta carpeta', button: 'Confiar en la carpeta' }
   }
   const { view, calls } = await open({ requests: { 'kit.action': () => ({ action: theme }) } })
   assert.equal(view.find({ text: 'Aprobar' }), null)
-  await view.press({ text: 'Seguir con el tema marcado' })
+  await view.press({ text: 'Confiar en la carpeta' })
   assert.deepEqual(calls, [{ name: 'kit.continue', input: { id: 'a1' } }])
 
   await view.post('action.changed', { action: { ...theme, setup: { kind: 'login', ask: 'que inicies sesión', button: null } } })
-  assert.equal(view.find({ text: 'Seguir con el tema marcado' }), null)
+  assert.equal(view.find({ text: 'Confiar en la carpeta' }), null)
   assert.deepEqual(view.refusals, [])
 })
 
